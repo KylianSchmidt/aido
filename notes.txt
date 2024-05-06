@@ -1,0 +1,16 @@
+detector agnostic ml 
+random distribution of parameter in simulation (slide 12)
+train with previous iteration to make it easier for surrogate model
+diffusion model is easy to train but slow
+
+always start a container with geant4 outside of the process manager
+maybe start with dummy models that propagate numbers
+check if container has gpu for training
+in first abstraction layer do not specify any training
+
+loop might be difficult with abort criteria
+make it re-launchable (save configuration of every step)
+start 100s of jobs with each a container
+
+easy interface for the end user (Start parameter, distribution, geant4, training, output)
+change explicite definitions easily with base classes
