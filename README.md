@@ -22,12 +22,11 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
   ## Milestones
 
   - Detector simulation:
-    - Start an empty container from python (using singularity, to avoid problems with root rights)
-      - Have root rights on the machine you want the container to be
-    - Spawn a container with b2luigi
-    - Provide a set of parameters to the container (json or python parameters? depends on the geant4 simulation later on)
-    - Set the output directory of the simulation
-    - Spawn multiple containers from b2luigi, each with different parameters
+    - [x] Start an empty container from python (using singularity, to avoid problems with root rights)
+    - [x] Spawn a container with b2luigi
+    - [ ] Provide a set of parameters to the container (json or python parameters? depends on the geant4 simulation later on). Note: if all parameters of two tasks are the same, b2luigi uses the same instance (useful to avoid repetitions).
+    - [ ] Set the output directory of the simulation
+    - [ ] Spawn multiple containers from b2luigi, each with different parameters
 
  - Reconstruction
  - Optimization
