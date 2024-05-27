@@ -49,22 +49,6 @@ class SimulationParameterDictionary():
         """ Create an instance from dictionary
         """
 
-
-class SimulationIO():
-
-    def __init__(self, parameter_dictionary: Type[SimulationParameterDictionary]):
-        """ Store the dictionary with the simulation parameters
-        """
-
-    def write_json():
-        """ Write the dictionary of parameters to a json file for safekeeping
-        """
-
-    def read_json():
-        """ Read the dictionary of parameters
-        """
-
-
 if __name__ == "__main__":
     param_foo = SimulationParameter(1.0)
     sim_param_dict = SimulationParameterDictionary()
