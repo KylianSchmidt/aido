@@ -13,5 +13,4 @@ class GenerateNewParameters():
             if isinstance(parameter.current_value, float):
                 parameter.current_value += np.random.randint(0, 1000)
 
-        self.param_dict.to_json(self.file_path)
         return self.param_dict
