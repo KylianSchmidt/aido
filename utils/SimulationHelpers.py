@@ -9,23 +9,26 @@ class SimulationParameter():
     ref: https://stackoverflow.com/questions/46092104/subclass-in-type-hinting
     """
 
-    def __init__(self, starting_value):
+    def __init__(self, name: str, starting_value):
         """ Initialize a new general parameter
         """
+        assert isinstance(name, str), "Name must be a string"
+        self.name = name
         self.starting_value = starting_value
 
     def to_dict(self) -> Dict:
         """ Convert to dictionary
         """
         return {
+            "name": self.name,
             "starting_value": self.starting_value
         }
 
     @classmethod
-    def from_dict(cls, parameter_dict: Dict) -> Dict:
+    def from_dict(cls, attribute_dict: Dict):
         """ Create from dictionary
         """
-        return cls(**parameter_dict)
+        return cls(**attribute_dict)
 
 
 class SimulationParameterDictionary():
@@ -44,12 +47,39 @@ class SimulationParameterDictionary():
         """ Converts to dictionary
         """
         return {"Parameters": [parameter.to_dict() for parameter in self.parameter_list]}
+    
+    def to_json(self, file_path: str):
+        """ Write the parameter list to a .json file
 
-    def from_dict(self):
+        TODO Check for the existence of the file path or otherwise set as default to ../
+        """
+        with open(file_path, "w") as file:
+            json.dump(self.to_dict(), file)
+
+    @classmethod
+    def from_dict(cls, parameter_dict: Dict):
         """ Create an instance from dictionary
         """
+        instance = cls()
+        instance.parameter_list = [SimulationParameter.from_dict(parameter) for parameter in parameter_dict["Parameters"]]
+        return instance
+    
+    @classmethod
+    def from_json(cls, file_path):
+        """ Create an instance from a .json file
+        """
+        with open(file_path, "r") as file:
+            return cls.from_dict(json.load(file))
+
 
 if __name__ == "__main__":
-    param_foo = SimulationParameter(1.0)
+    param_foo = SimulationParameter("foo", 1.0)
     sim_param_dict = SimulationParameterDictionary()
-    
+
+    sim_param_dict.add_parameter(param_foo)
+    sim_param_dict.to_json("./sim_param_dict")
+
+    sim_param_dict_2 = SimulationParameterDictionary.from_json("./sim_param_dict")
+
+    print(sim_param_dict_2.parameter_list[0].to_dict())
+
