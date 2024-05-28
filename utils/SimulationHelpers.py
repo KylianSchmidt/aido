@@ -46,7 +46,7 @@ class SimulationParameterDictionary():
         self.parameter_list: List[Type[SimulationParameter]] = []
 
     def add_parameter(self, simulation_parameter: Type[SimulationParameter]):
-        """ Add a parameter to the dictionary 
+        """ Add a parameter to the dictionary
         """
         self.parameter_list.append(simulation_parameter)
 
@@ -54,7 +54,7 @@ class SimulationParameterDictionary():
         """ Converts to dictionary
         """
         return {"Parameters": [parameter.to_dict() for parameter in self.parameter_list]}
-    
+
     def to_json(self, file_path: str):
         """ Write the parameter list to a .json file
 
@@ -68,9 +68,10 @@ class SimulationParameterDictionary():
         """ Create an instance from dictionary
         """
         instance = cls()
-        instance.parameter_list = [SimulationParameter.from_dict(parameter) for parameter in parameter_dict["Parameters"]]
+        instance.parameter_list = [
+            SimulationParameter.from_dict(parameter) for parameter in parameter_dict["Parameters"]]
         return instance
-    
+
     @classmethod
     def from_json(cls, file_path):
         """ Create an instance from a .json file
@@ -93,4 +94,3 @@ if __name__ == "__main__":
     sim_param_dict_2.parameter_list[0].current_value = 2.0
 
     print(sim_param_dict_2.parameter_list[0].to_dict())
-
