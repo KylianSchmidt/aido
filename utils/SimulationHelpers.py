@@ -9,19 +9,26 @@ class SimulationParameter():
     ref: https://stackoverflow.com/questions/46092104/subclass-in-type-hinting
     """
 
-    def __init__(self, name: str, starting_value):
+    def __init__(self, name: str, starting_value, current_value=None):
         """ Initialize a new general parameter
         """
         assert isinstance(name, str), "Name must be a string"
+
         self.name = name
-        self.starting_value = starting_value
+        self._starting_value = starting_value
+
+        if current_value is not None:
+            self.current_value = current_value
+        else:
+            self.current_value = starting_value
 
     def to_dict(self) -> Dict:
         """ Convert to dictionary
         """
         return {
             "name": self.name,
-            "starting_value": self.starting_value
+            "starting_value": self._starting_value,
+            "current_value": self.current_value
         }
 
     @classmethod
@@ -80,6 +87,10 @@ if __name__ == "__main__":
     sim_param_dict.to_json("./sim_param_dict")
 
     sim_param_dict_2 = SimulationParameterDictionary.from_json("./sim_param_dict")
+
+    print(sim_param_dict_2.parameter_list[0].to_dict())
+
+    sim_param_dict_2.parameter_list[0].current_value = 2.0
 
     print(sim_param_dict_2.parameter_list[0].to_dict())
 

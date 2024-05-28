@@ -21,7 +21,7 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
 
  - Detector simulation: 
     - Start several containers of the geant4 simulation executable provided by the user.
-    - The start parameters should be written to a json file or provided to b2luigi in some dictionary format.
+    - The start parameters should are written to a json file and provided to b2luigi in dictionary format with the SimulationParameterDictionary class.
     - Subsequently, b2luigi passes the relevant parameters of the geometry to the simulation (as geant4 macro file, function parameters or similar).
     - The simulation finally outputs a root file saved to a directory specified by b2luigi (using LocalTarget).
 
@@ -39,10 +39,11 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
   - Detector simulation:
     - [x] Start an empty container from python (using singularity, to avoid problems with root rights)
     - [x] Spawn a container with b2luigi
-    - [ ] Provide a set of parameters to the container (json or python parameters? depends on the geant4 simulation later on).
-        - Note: if all parameters of two tasks are the same, b2luigi uses the same instance (useful to avoid repetitions). 
-        - Use b2luigi parameters for each simulation parameter? Advantage is that it enables unique Tasks and is easy to track throughtout the pipeline. Drawback is that it has to written to json file for the simulation and be specified by the user (not so tragic).
-    - [ ] Set the output directory of the simulation
+    - [x] Provide a set of parameters to the container as json. 
+        - The list of all parameters is handled by the SimulationParameterDictionary class, which holds SimulationParameter instances (floats, string for materials, integers should all be inherited class of the base class)
+        - The writting of these parameters to a file that the geant4 simulation can read is left to the end user (write to macro file, parse in CLI, etc.)
+    - [ ] Implement floats with range, strings for materials and integers for discrete variables. 
+    - [ ] Set the output directory of the simulation handled by b2luigi
     - [ ] Spawn multiple containers from b2luigi, each with different parameters
     - [ ] Open the API to the user for spawning the containers (e.g. CLI commands)
 
