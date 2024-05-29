@@ -52,6 +52,8 @@ class SimulationParameterDictionary():
 
     def to_dict(self) -> Dict:
         """ Converts to dictionary
+
+        TODO Is a dict of list the optimal way to print the contents of the class?
         """
         return {"Parameters": [parameter.to_dict() for parameter in self.parameter_list]}
 
@@ -82,15 +84,17 @@ class SimulationParameterDictionary():
 
 if __name__ == "__main__":
     param_foo = SimulationParameter("foo", 1.0)
+    param_bar = SimulationParameter("bar", "LEAD")
     sim_param_dict = SimulationParameterDictionary()
 
     sim_param_dict.add_parameter(param_foo)
+    sim_param_dict.add_parameter(param_bar)
     sim_param_dict.to_json("./sim_param_dict")
 
     sim_param_dict_2 = SimulationParameterDictionary.from_json("./sim_param_dict")
 
-    print(sim_param_dict_2.parameter_list[0].to_dict())
+    print(sim_param_dict_2.to_dict())
 
-    sim_param_dict_2.parameter_list[0].current_value = 2.0
+    sim_param_dict_2.parameter_list[1].current_value = "TUNGSTEN"
 
-    print(sim_param_dict_2.parameter_list[0].to_dict())
+    print(sim_param_dict_2.to_dict())

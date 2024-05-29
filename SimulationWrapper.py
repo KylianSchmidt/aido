@@ -12,7 +12,7 @@ class StartSimulationTask(b2luigi.Task):
 
     def run(self):
         generator_new_parameters = GenerateNewParameters("./sim_param_dict.json")
-        param_dict = generator_new_parameters.increase_by_random_number()
+        param_dict = generator_new_parameters.increase_by_random_number(self.parameter)
         parameter_of_interest = param_dict.parameter_list[0].current_value
 
         os.system(f"singularity exec docker://python python3 ./test.py {parameter_of_interest}")
