@@ -24,12 +24,12 @@ class SimulationParameter():
 
     def to_dict(self) -> Dict:
         """ Convert to dictionary
+
+        Protected attributes are written to file as public attributes.
         """
         return {
-            "name": self.name,
-            "starting_value": self._starting_value,
-            "current_value": self.current_value
-        }
+            key.removeprefix("_"): value for key, value in self.__dict__.items()
+            }
 
     @classmethod
     def from_dict(cls, attribute_dict: Dict):
