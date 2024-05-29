@@ -12,14 +12,14 @@ class StartSimulationTask(b2luigi.Task):
         return b2luigi.LocalTarget("output.root")
 
     def run(self):
-        """ 
+        """ Workflow:
          1. Generate a new set of parameters based on the previous iteration
 
          2. Execute the container with the geant4 simulation software
             TODO the container should be executed by a script provided by the end user
 
-         3. TODO Check that the container is running and that the output file was 
-            correctly produced by the simulation software. For now the output file is 
+         3. TODO Check that the container is running and that the output file was
+            correctly produced by the simulation software. For now the output file is
             written by the Task itself.
         """
         generator_new_parameters = GenerateNewParameters(self.parameter_dict_file_path)
@@ -27,9 +27,6 @@ class StartSimulationTask(b2luigi.Task):
         parameter_of_interest = param_dict.parameter_list[0].current_value
 
         os.system(f"singularity exec docker://python python3 ./test.py {parameter_of_interest}")
-
-        with self.output().open("w") as file:
-            file.write("")
 
 
 class SimulationWrapperTask(b2luigi.WrapperTask):
@@ -39,6 +36,9 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
         """ Create Tasks for each set of simulation parameters
 
         TODO Have the parameters from the previous iteration and pass them to each sub-task
+
+        TODO Pipeline will be:
+        WrapperTask (this) requires -> Reconstruction Task requires -> Simulation Task
         """
         for i in range(self.num_simulation_tasks):
             yield self.clone(
