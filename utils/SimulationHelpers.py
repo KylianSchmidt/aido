@@ -37,13 +37,24 @@ class SimulationParameter():
         """
         return cls(**attribute_dict)
 
+    @property
+    def current_value(self):
+        return self._current_value
+
+    @current_value.setter
+    def current_value(self, value):
+        assert isinstance(value, type(self._starting_value)), \
+            f"The updated value is of another type ({type(value)}) " + \
+            f"than the starting value ({type(self._starting_value)})"
+        self._current_value = value
+
 
 class SimulationParameterDictionary():
 
-    def __init__(self):
+    def __init__(self, parameter_list: List[Type[SimulationParameter]] = []):
         """ Initialize an empty list with no parameters
         """
-        self.parameter_list: List[Type[SimulationParameter]] = []
+        self.parameter_list = parameter_list
 
     def add_parameter(self, simulation_parameter: Type[SimulationParameter]):
         """ Add a parameter to the dictionary
@@ -85,16 +96,17 @@ class SimulationParameterDictionary():
 if __name__ == "__main__":
     param_foo = SimulationParameter("foo", 1.0)
     param_bar = SimulationParameter("bar", "LEAD")
-    sim_param_dict = SimulationParameterDictionary()
+    sim_param_dict = SimulationParameterDictionary(
+        [param_foo, param_bar]
+    )
 
-    sim_param_dict.add_parameter(param_foo)
-    sim_param_dict.add_parameter(param_bar)
     sim_param_dict.to_json("./sim_param_dict")
 
     sim_param_dict_2 = SimulationParameterDictionary.from_json("./sim_param_dict")
 
     print(sim_param_dict_2.to_dict())
 
+    sim_param_dict_2.parameter_list[0].current_value = 3.0
     sim_param_dict_2.parameter_list[1].current_value = "TUNGSTEN"
 
     print(sim_param_dict_2.to_dict())
