@@ -5,14 +5,25 @@ from utils.generator import GenerateNewParameters
 
 
 class StartSimulationTask(b2luigi.Task):
-    parameter = b2luigi.IntParameter()
+    simulation_task_rng_seed = b2luigi.IntParameter()
+    parameter_dict_file_path = b2luigi.PathParameter()
 
     def output(self):
-        return b2luigi.LocalTarget("output.txt")
+        return b2luigi.LocalTarget("output.root")
 
     def run(self):
-        generator_new_parameters = GenerateNewParameters("./sim_param_dict.json")
-        param_dict = generator_new_parameters.increase_by_random_number(self.parameter)
+        """ 
+         1. Generate a new set of parameters based on the previous iteration
+
+         2. Execute the container with the geant4 simulation software
+            TODO the container should be executed by a script provided by the end user
+
+         3. TODO Check that the container is running and that the output file was 
+            correctly produced by the simulation software. For now the output file is 
+            written by the Task itself.
+        """
+        generator_new_parameters = GenerateNewParameters(self.parameter_dict_file_path)
+        param_dict = generator_new_parameters.increase_by_random_number(self.simulation_task_rng_seed)
         parameter_of_interest = param_dict.parameter_list[0].current_value
 
         os.system(f"singularity exec docker://python python3 ./test.py {parameter_of_interest}")
@@ -25,11 +36,19 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
     num_simulation_tasks = b2luigi.IntParameter()
 
     def requires(self):
+        """ Create Tasks for each set of simulation parameters
+
+        TODO Have the parameters from the previous iteration and pass them to each sub-task
+        """
         for i in range(self.num_simulation_tasks):
-            yield self.clone(StartSimulationTask, parameter=i)
+            yield self.clone(
+                StartSimulationTask,
+                parameter_dict_file_path="./sim_param_dict.json",
+                simulation_task_rng_seed=i
+                )
 
     def run(self):
-        print("Ran SimulationWrapperTask")
+        ...
 
 
 if __name__ == "__main__":
@@ -46,4 +65,4 @@ if __name__ == "__main__":
         workers=num_simulation_threads
         )
 
-    os.system("rm ./output.txt")
+    os.system("rm ./output.root")
