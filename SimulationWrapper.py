@@ -1,7 +1,7 @@
 import b2luigi
 import os
-from utils.SimulationHelpers import SimulationParameterDictionary, SimulationParameter
-from utils.generator import GenerateNewParameters
+from simulation.SimulationHelpers import SimulationParameterDictionary, SimulationParameter
+from simulation.generator import GenerateNewParameters
 
 
 class StartSimulationTask(b2luigi.Task):

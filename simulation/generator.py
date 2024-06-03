@@ -1,5 +1,5 @@
 import numpy as np
-from utils.SimulationHelpers import SimulationParameterDictionary
+from simulation.SimulationHelpers import SimulationParameterDictionary
 
 
 class GenerateNewParameters():
