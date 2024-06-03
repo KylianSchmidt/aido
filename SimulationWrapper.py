@@ -10,7 +10,7 @@ class StartSimulationTask(b2luigi.Task):
     parameter_dict_file_path = b2luigi.PathParameter()
 
     def output(self):
-        return b2luigi.LocalTarget(f"results/simulation/output_{self.simulation_task_rng_seed}")
+        yield self.add_to_output(f"simulation_output")
 
     def run(self):
         """ Workflow:
@@ -22,7 +22,7 @@ class StartSimulationTask(b2luigi.Task):
         generator_new_parameters = GenerateNewParameters(self.parameter_dict_file_path)
         param_dict = generator_new_parameters.increase_by_random_number(self.simulation_task_rng_seed)
         parameter_of_interest = param_dict.parameter_list[0].current_value
-        output_file_path = self.output().path
+        output_file_path = self.get_output_file_name("simulation_output")
 
         os.system(f"singularity exec --home /work/kschmidt docker://python python3 {self.simulation_container_file_path} {output_file_path} {parameter_of_interest}")
 
@@ -34,19 +34,19 @@ class Reconstruction(b2luigi.Task):
     reconstruction_container_file_path = b2luigi.PathParameter()
 
     def output(self):
-        return b2luigi.LocalTarget(f"results/reconstruction/output_{self.simulation_task_rng_seed}")
+        yield self.add_to_output(f"reconstruction_output")
 
     def requires(self):
-        StartSimulationTask(
+        yield StartSimulationTask(
             parameter_dict_file_path=self.parameter_dict_file_path,
             simulation_task_rng_seed=self.simulation_task_rng_seed,
             simulation_container_file_path=self.simulation_container_file_path
             )
 
     def run(self):
-        output_file_path = self.output().path
-        parameter_of_interest = "test"
-        os.system(f"singularity exec --home /work/kschmidt/ docker://python python3 {self.reconstruction_container_file_path} {output_file_path} {parameter_of_interest}")
+        input_file = self.get_input_file_names("simulation_output")
+        output_file_path = self.get_output_file_name("reconstruction_output")
+        os.system(f"singularity exec --home /work/kschmidt/ docker://python python3 {self.reconstruction_container_file_path} {input_file} {output_file_path}")
 
 
 class SimulationWrapperTask(b2luigi.WrapperTask):
