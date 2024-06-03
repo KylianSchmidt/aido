@@ -3,6 +3,9 @@ from simulation.SimulationHelpers import SimulationParameterDictionary
 
 
 class GenerateNewParameters():
+    """ Generate a new set of parameters. By default, this is done by providing the file path
+    of the input parameter dictionary based on "SimulationParameterDictionary"
+    """
 
     def __init__(self, file_path: str):
         """ Generate a new set of parameters given an input parameter dictionary
