@@ -6,10 +6,11 @@ from simulation.generator import GenerateNewParameters
 
 class StartSimulationTask(b2luigi.Task):
     simulation_task_rng_seed = b2luigi.IntParameter()
+    simulation_container_file_path = b2luigi.PathParameter()
     parameter_dict_file_path = b2luigi.PathParameter()
 
     def output(self):
-        return b2luigi.LocalTarget(f"results/output_{self.simulation_task_rng_seed}")
+        return b2luigi.LocalTarget(f"results/simulation/output_{self.simulation_task_rng_seed}")
 
     def run(self):
         """ Workflow:
@@ -23,7 +24,29 @@ class StartSimulationTask(b2luigi.Task):
         parameter_of_interest = param_dict.parameter_list[0].current_value
         output_file_path = self.output().path
 
-        os.system(f"singularity exec docker://python python3 simulation_container/test.py {output_file_path} {parameter_of_interest}")
+        os.system(f"singularity exec --home /work/kschmidt docker://python python3 {self.simulation_container_file_path} {output_file_path} {parameter_of_interest}")
+
+
+class Reconstruction(b2luigi.Task):
+    simulation_task_rng_seed = b2luigi.IntParameter()
+    parameter_dict_file_path = b2luigi.PathParameter()
+    simulation_container_file_path = b2luigi.PathParameter()
+    reconstruction_container_file_path = b2luigi.PathParameter()
+
+    def output(self):
+        return b2luigi.LocalTarget(f"results/reconstruction/output_{self.simulation_task_rng_seed}")
+
+    def requires(self):
+        StartSimulationTask(
+            parameter_dict_file_path=self.parameter_dict_file_path,
+            simulation_task_rng_seed=self.simulation_task_rng_seed,
+            simulation_container_file_path=self.simulation_container_file_path
+            )
+
+    def run(self):
+        output_file_path = self.output().path
+        parameter_of_interest = "test"
+        os.system(f"singularity exec --home /work/kschmidt/ docker://python python3 {self.reconstruction_container_file_path} {output_file_path} {parameter_of_interest}")
 
 
 class SimulationWrapperTask(b2luigi.WrapperTask):
@@ -39,9 +62,11 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
         """
         for i in range(self.num_simulation_tasks):
             yield self.clone(
-                StartSimulationTask,
+                Reconstruction,
                 parameter_dict_file_path="./sim_param_dict.json",
-                simulation_task_rng_seed=i
+                simulation_task_rng_seed=i,
+                simulation_container_file_path="container_examples/simulation_test.py",
+                reconstruction_container_file_path="container_examples/reconstruction_test.py"
                 )
 
     def run(self):
@@ -49,7 +74,7 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
 
 
 if __name__ == "__main__":
-    num_simulation_threads = 10
+    num_simulation_threads = 5
     os.system("rm ./results -rf")
     b2luigi.set_setting("result_dir", "results")
 

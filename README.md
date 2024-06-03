@@ -52,7 +52,7 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
     - [ ] Start a Task with GPU support
     - [ ] Start a Reconstruction Task for each simulated geometry (link using requires()?)
     - [ ] Read the corresponding output parameters of the simulation
-    - [ ] Write to file the output of the reconstruction (same location as simiulation)
+    - [ ] Write to file the output of the reconstruction (same location as simulation)
 
  - Optimization
     - [ ] Read the outputs of the reconstruction and build an array for the training
