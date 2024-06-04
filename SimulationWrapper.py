@@ -20,7 +20,7 @@ class StartSimulationTask(b2luigi.Task):
             TODO the container should be executed by a script provided by the end user
         """
         generator_new_parameters = GenerateNewParameters(self.parameter_dict_file_path)
-        param_dict = generator_new_parameters.increase_by_random_number(self.simulation_task_rng_seed)
+        param_dict = generator_new_parameters.decrease_by_half()
         parameter_of_interest = param_dict.parameter_list[0].current_value
         output_file_path = self.get_output_file_name("simulation_output")
 
@@ -56,9 +56,6 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
         """ Create Tasks for each set of simulation parameters
 
         TODO Have the parameters from the previous iteration and pass them to each sub-task
-
-        TODO Pipeline will be:
-        WrapperTask (this) requires -> Reconstruction Task requires -> Simulation Task
         """
         for i in range(self.num_simulation_tasks):
             yield self.clone(
@@ -78,7 +75,7 @@ if __name__ == "__main__":
     os.system("rm ./results -rf")
     b2luigi.set_setting("result_dir", "results")
 
-    param_foo = SimulationParameter("foo", 1.0)
+    param_foo = SimulationParameter("foo", 16.0)
     sim_param_dict = SimulationParameterDictionary()
 
     sim_param_dict.add_parameter(param_foo)

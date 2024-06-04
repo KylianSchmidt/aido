@@ -23,3 +23,13 @@ class GenerateNewParameters():
                 parameter.current_value += rng.integers(0, 1000)
 
         return self.param_dict
+
+    def decrease_by_half(self) -> SimulationParameterDictionary:
+        """ Method that divides the current value of the parameter by two, in order to converge
+        to a final value.
+        """
+        for parameter in self.param_dict.parameter_list:
+            if isinstance(parameter.current_value, float):
+                parameter.current_value /= 2
+        
+        return self.param_dict
