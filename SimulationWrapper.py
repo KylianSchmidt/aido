@@ -44,9 +44,9 @@ class Reconstruction(b2luigi.Task):
             )
 
     def run(self):
-        input_file = self.get_input_file_names("simulation_output")
         output_file_path = self.get_output_file_name("reconstruction_output")
-        os.system(f"singularity exec --home /work/kschmidt/ docker://python python3 {self.reconstruction_container_file_path} {input_file} {output_file_path}")
+        for input_file_path in self.get_input_file_names("simulation_output"):
+            os.system(f"singularity exec --home /work/kschmidt/ docker://python python3 {self.reconstruction_container_file_path} {input_file_path} {output_file_path}")
 
 
 class SimulationWrapperTask(b2luigi.WrapperTask):
