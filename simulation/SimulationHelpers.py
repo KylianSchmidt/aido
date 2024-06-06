@@ -9,13 +9,14 @@ class SimulationParameter():
     ref: https://stackoverflow.com/questions/46092104/subclass-in-type-hinting
     """
 
-    def __init__(self, name: str, starting_value, current_value=None):
+    def __init__(self, name: str, starting_value, current_value=None, optimizable=True):
         """ Initialize a new general parameter
         """
         assert isinstance(name, str), "Name must be a string"
 
         self.name = name
         self._starting_value = starting_value
+        self._optimizable = optimizable
 
         if current_value is not None:
             self.current_value = current_value
@@ -46,6 +47,8 @@ class SimulationParameter():
         assert isinstance(value, type(self._starting_value)), \
             f"The updated value is of another type ({type(value)}) " + \
             f"than the starting value ({type(self._starting_value)})"
+        if self._optimizable is False:
+            pass
         self._current_value = value
 
 
@@ -80,13 +83,13 @@ class SimulationParameterDictionary():
     def from_dict(cls, parameter_dict: Dict):
         """ Create an instance from dictionary
         """
-        instance = cls()
-        instance.parameter_list = [
-            SimulationParameter.from_dict(parameter) for parameter in parameter_dict["Parameters"]]
+        instance = cls([
+                SimulationParameter.from_dict(parameter) for parameter in parameter_dict["Parameters"]
+            ])
         return instance
 
     @classmethod
-    def from_json(cls, file_path):
+    def from_json(cls, file_path: str):
         """ Create an instance from a .json file
         """
         with open(file_path, "r") as file:
