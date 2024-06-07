@@ -53,6 +53,10 @@ class SimulationParameter():
             pass
         self._current_value = value
 
+    @property
+    def optimizable(self):
+        return self._optimizable
+
 
 class SimulationParameterDictionary():
     """ Dictionary containing the list of parameters used by the simulation.
@@ -88,6 +92,13 @@ class SimulationParameterDictionary():
         with open(file_path, "w") as file:
             json.dump(self.to_dict(), file)
 
+    def get_all_current_values(self, include_non_optimizables=False):
+        current_values = []
+        for parameter in self.parameter_list:
+            if parameter.optimizable is True or include_non_optimizables is True:
+                current_values.append(parameter.current_value)
+        return current_values
+
     @classmethod
     def from_dict(cls, parameter_dict: Dict):
         """ Create an instance from dictionary
@@ -111,7 +122,8 @@ class GatherResults():
         """Combine the output files from the reconstruction Task into one 2D numpy array.
 
         Args:
-            file_paths (List[str]): A list of file paths to the output files.
+            file_paths (List[str]): A list of file paths to the output files. The file paths must end
+            with .npy (not .npz).
             **kwargs: Additional keyword arguments to be passed to `np.fromfile` function.
 
         Returns:
@@ -120,24 +132,28 @@ class GatherResults():
         reconstruction_array_all_tasks = []
 
         for file_path in file_paths:
-            arr = np.fromfile(file_path, **kwargs)
+            if file_path.endswith(".npy"):
+                arr = np.load(file_path)
+            else:
+                arr = np.loadtxt(file_path, **kwargs)
             if arr.ndim > 1:
                 warn(
-                    f"Reconstruction output array has {arr.ndim} dimensions, but should only have 1. Array \
-                    will be flattened in order to have the correct shape."
+                    f"Reconstruction output array has {arr.ndim} dimensions, but should only have 1. Array " +
+                    "will be flattened in order to have the correct shape."
                 )
                 arr = arr.flatten()
+            print("Array", arr)
             reconstruction_array_all_tasks.append(arr)
 
         return np.array(reconstruction_array_all_tasks)
 
 
 if __name__ == "__main__":
-    param_foo = SimulationParameter("foo", 1.0)
-    param_bar = SimulationParameter("bar", "LEAD")
-    sim_param_dict = SimulationParameterDictionary(
-        [param_foo, param_bar]
-    )
+    sim_param_dict = SimulationParameterDictionary([
+        SimulationParameter("foo", 1.0),
+        SimulationParameter("bar", "LEAD"),
+        SimulationParameter("energy", 1000, optimizable=True)
+    ])
 
     sim_param_dict.to_json("./sim_param_dict")
 
@@ -149,3 +165,5 @@ if __name__ == "__main__":
     sim_param_dict_2.parameter_list[1].current_value = "TUNGSTEN"
 
     print(sim_param_dict_2.to_dict())
+
+    print("Current values:", sim_param_dict_2.get_all_current_values())

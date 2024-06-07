@@ -1,5 +1,6 @@
 import b2luigi
 import os
+from typing import List
 from simulation.SimulationHelpers import SimulationParameterDictionary, SimulationParameter
 from simulation.generator import GenerateNewParameters
 from simulation.SimulationHelpers import GatherResults
@@ -95,7 +96,11 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
         to the preprocessing Task for the optimization model.
         map: json file -> reco output
         """
-        reconstruction_array = GatherResults.from_numpy(self.get_all_input_file_names("reconstruction_output"))
+        print("Gather results")
+        reconstruction_array = GatherResults.from_numpy(
+            self.get_input_file_names("reconstruction_output"), delimiter=",", dtype=float
+            )
+        print("Results gathered:", reconstruction_array)
         # gather features (parameter dict current values)
         # check that sizes are same
         # combine them into one file
@@ -103,7 +108,7 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
 
 
 if __name__ == "__main__":
-    num_simulation_threads = 5
+    num_simulation_threads = 2
     os.system("rm ./results -rf")
     b2luigi.set_setting("result_dir", "results")
 
@@ -120,7 +125,7 @@ if __name__ == "__main__":
 
     b2luigi.process(
         SimulationWrapperTask(
-            num_simulation_tasks=5,
+            num_simulation_tasks=2,
             initial_parameter_dict_file_path=initial_parameter_dict_file_path),
         workers=num_simulation_threads
         )
