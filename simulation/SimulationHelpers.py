@@ -1,5 +1,7 @@
 from typing import Type, Dict, List
 import json
+import numpy as np
+from warnings import warn
 
 
 class SimulationParameter():
@@ -53,6 +55,13 @@ class SimulationParameter():
 
 
 class SimulationParameterDictionary():
+    """ Dictionary containing the list of parameters used by the simulation.
+
+    Attributes:
+    parameter_list: List[Type[SimulationParameter]]
+
+    Provides IO methods to easily write and read with json format.
+    """
 
     def __init__(self, parameter_list: List[Type[SimulationParameter]] = []):
         """ Initialize an empty list with no parameters
@@ -94,6 +103,33 @@ class SimulationParameterDictionary():
         """
         with open(file_path, "r") as file:
             return cls.from_dict(json.load(file))
+
+
+class GatherResults():
+
+    def from_numpy(file_paths: List[str], **kwargs):
+        """Combine the output files from the reconstruction Task into one 2D numpy array.
+
+        Args:
+            file_paths (List[str]): A list of file paths to the output files.
+            **kwargs: Additional keyword arguments to be passed to `np.fromfile` function.
+
+        Returns:
+            numpy.ndarray: A 2D numpy array containing the combined data from all the output files.
+        """
+        reconstruction_array_all_tasks = []
+
+        for file_path in file_paths:
+            arr = np.fromfile(file_path, **kwargs)
+            if arr.ndim > 1:
+                warn(
+                    f"Reconstruction output array has {arr.ndim} dimensions, but should only have 1. Array \
+                    will be flattened in order to have the correct shape."
+                )
+                arr = arr.flatten()
+            reconstruction_array_all_tasks.append(arr)
+
+        return np.array(reconstruction_array_all_tasks)
 
 
 if __name__ == "__main__":

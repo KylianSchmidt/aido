@@ -2,6 +2,7 @@ import b2luigi
 import os
 from simulation.SimulationHelpers import SimulationParameterDictionary, SimulationParameter
 from simulation.generator import GenerateNewParameters
+from simulation.SimulationHelpers import GatherResults
 
 
 class StartSimulationTask(b2luigi.Task):
@@ -29,8 +30,9 @@ class StartSimulationTask(b2luigi.Task):
         output_file_path = self.get_output_file_name("simulation_output")
 
         os.system(
-            f"singularity exec --home /work/kschmidt docker://python python3 \
-            {self.simulation_container_file_path} {output_file_path} {parameter_of_interest}")
+                f"singularity exec --home /work/kschmidt docker://python python3 \
+                {self.simulation_container_file_path} {output_file_path} {parameter_of_interest}"
+            )
 
 
 class Reconstruction(b2luigi.Task):
@@ -93,7 +95,11 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
         to the preprocessing Task for the optimization model.
         map: json file -> reco output
         """
-        ...
+        reconstruction_array = GatherResults.from_numpy(self.get_all_input_file_names("reconstruction_output"))
+        # gather features (parameter dict current values)
+        # check that sizes are same
+        # combine them into one file
+        # write to file
 
 
 if __name__ == "__main__":
