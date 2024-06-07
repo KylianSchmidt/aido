@@ -29,7 +29,7 @@ class GenerateNewParameters():
         to a final value.
         """
         for parameter in self.param_dict.parameter_list:
-            if isinstance(parameter.current_value, float):
+            if isinstance(parameter.current_value, float) and parameter.optimizable:
                 parameter.current_value /= 2
         
         return self.param_dict

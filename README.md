@@ -43,7 +43,7 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
     - [x] Provide a set of parameters to the container as json. 
         - The list of all parameters is handled by the SimulationParameterDictionary class, which holds SimulationParameter instances (floats, string for materials, integers should all be inherited class of the base class)
         - The writting of these parameters to a file that the geant4 simulation can read is left to the end user (write to macro file, parse in CLI, etc.)
-    - [ ] Implement floats with range, strings for materials and integers for discrete variables. 
+    - [ ] Implement a method that converts a discrete parameter (such as material type: str) to a float that the surrogate model can then learn
     - [x] Set the output directory of the simulation handled by b2luigi
     - [x] Spawn multiple containers from b2luigi, each with different parameters
     - [ ] Open the API to the user for spawning the containers (e.g. CLI commands)
