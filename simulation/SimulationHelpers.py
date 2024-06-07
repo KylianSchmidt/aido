@@ -9,6 +9,10 @@ class SimulationParameter():
 
     TODO Write warnings in case the base class is used directly in the dictionary
     ref: https://stackoverflow.com/questions/46092104/subclass-in-type-hinting
+    Update: dont know if this is necessary, this class has already most capabilities.
+
+    TODO method to convert the parameter that is not a float to a float (discrete 
+    parameters for the surrogate model)
     """
 
     def __init__(self, name: str, starting_value, current_value=None, optimizable=True):
@@ -92,7 +96,7 @@ class SimulationParameterDictionary():
         with open(file_path, "w") as file:
             json.dump(self.to_dict(), file)
 
-    def get_all_current_values(self, include_non_optimizables=False):
+    def get_current_values(self, include_non_optimizables=False):
         current_values = []
         for parameter in self.parameter_list:
             if parameter.optimizable is True or include_non_optimizables is True:
@@ -118,7 +122,7 @@ class SimulationParameterDictionary():
 
 class GatherResults():
 
-    def from_numpy(file_paths: List[str], **kwargs):
+    def from_numpy_files(file_paths: List[str], **kwargs):
         """Combine the output files from the reconstruction Task into one 2D numpy array.
 
         Args:
@@ -142,10 +146,30 @@ class GatherResults():
                     "will be flattened in order to have the correct shape."
                 )
                 arr = arr.flatten()
-            print("Array", arr)
             reconstruction_array_all_tasks.append(arr)
 
         return np.array(reconstruction_array_all_tasks)
+    
+    def from_parameter_dicts(file_paths: List[str]):
+        """For all parameter dicts found at 'file_paths', construct a nested list (2D) with 
+        all their optimizable parameters.
+
+        Args:
+            file_paths (List[str]): A list of file paths containing parameter dictionaries as .json.
+
+        Returns:
+            List[List]]: A nested list containing the optimizable parameters from all 
+            the parameter dictionaries.
+
+        TODO implement control to only include floats to this array for best surrogate model handling.
+        """
+        parameter_list = []
+
+        for file_path in file_paths:
+            param_dict = SimulationParameterDictionary.from_json(file_path)
+            parameter_list.append(param_dict.get_current_values())
+
+        return parameter_list
 
 
 if __name__ == "__main__":
@@ -166,4 +190,4 @@ if __name__ == "__main__":
 
     print(sim_param_dict_2.to_dict())
 
-    print("Current values:", sim_param_dict_2.get_all_current_values())
+    print("Current values:", sim_param_dict_2.get_current_values())

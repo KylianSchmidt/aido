@@ -91,20 +91,19 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
                 )
 
     def run(self):
-        """ TODO Start the reconstruction Tasks, which in turn each start a simulation Task. Once the
-        requirements are met (all Tasks completed), gather the results into a file that is passed
-        to the preprocessing Task for the optimization model.
+        """ Gather the results into a file that is passed to the preprocessing Task for the optimization model.
         map: json file -> reco output
         """
-        print("Gather results")
-        reconstruction_array = GatherResults.from_numpy(
+        reconstruction_array = GatherResults.from_numpy_files(
             self.get_input_file_names("reconstruction_output"), delimiter=",", dtype=float
             )
-        print("Results gathered:", reconstruction_array)
-        # gather features (parameter dict current values)
-        # check that sizes are same
-        # combine them into one file
-        # write to file
+        parameter_list = GatherResults.from_parameter_dicts(
+            self.get_input_file_names("param_dict.json")
+        )
+        assert reconstruction_array.shape[0] == len(parameter_list), "Mismatched lengths."
+        # TODO combine them into one file
+        # TODO write to file
+        # TODO Run the surrogate model here?
 
 
 if __name__ == "__main__":

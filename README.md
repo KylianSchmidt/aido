@@ -50,12 +50,12 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
 
  - Reconstruction
     - [ ] Start a Task with GPU support
-    - [ ] Start a Reconstruction Task for each simulated geometry (link using requires()?)
-    - [ ] Read the corresponding output parameters of the simulation
-    - [ ] Write to file the output of the reconstruction (same location as simulation)
+    - [x] Start a Reconstruction Task for each simulated geometry (link using requires()?)
+    - [x] Read the corresponding output parameters of the simulation
+    - [x] Write to file the output of the reconstruction (same location as simulation)
 
  - Optimization
-    - [ ] Read the outputs of the reconstruction and build an array for the training
+    - [-] Read the outputs of the reconstruction and build an array for the training
     - [ ] Start a GPU training Task that produces the surrogate model
     - [ ] Use Gradient descent to find local minimum
     - [ ] Write optimal parameters to file for this iteration
