@@ -133,3 +133,5 @@ if __name__ == "__main__":
             ),
         workers=num_simulation_threads
         )
+    
+    os.system("rm *.pkl")
