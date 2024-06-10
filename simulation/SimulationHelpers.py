@@ -30,9 +30,9 @@ class SimulationParameter():
         self._optimizable = optimizable
 
         if current_value is not None:
-            self.current_value = current_value
+            self._current_value = current_value
         else:
-            self.current_value = starting_value
+            self._current_value = starting_value
 
         if discrete_values is not None:
             assert optimizable is True, \
@@ -75,7 +75,7 @@ class SimulationParameter():
             f"The updated value is of another type ({type(value)}) " + \
             f"than the starting value ({type(self._starting_value)})"
         if self._optimizable is False:
-            pass
+            warn("Do not change the current value of non-optimizable parameter")
         self._current_value = value
 
     @property
@@ -98,22 +98,38 @@ class SimulationParameterDictionary():
         """ Initialize an empty list with no parameters
         """
         self.parameter_list = parameter_list
+        self.parameter_dict = self.to_dict(serialized=False)
 
     def __str__(self):
         return json.dumps(self.to_dict(), indent=4)
-
-    def add_parameter(self, simulation_parameter: Type[SimulationParameter]):
-        """ Add a parameter to the dictionary
-        """
+    
+    def __setitem__(self, name, simulation_parameter: Type[SimulationParameter]):
+        assert name == simulation_parameter.name, "Key does not match name assigned in 'SimulationParameter'"
         self.parameter_list.append(simulation_parameter)
+        self.parameter_dict[name] = simulation_parameter
 
-    def to_dict(self) -> Dict:
-        """ Converts to dictionary
+    def __getitem__(self, key: str) -> SimulationParameter:
+        return self.parameter_dict[key]
+    
+    def __len__(self) -> int:
+        return len(self.parameter_list)
 
-        TODO Is a dict of list the optimal way to print the contents of the class?
+    def to_dict(self, serialized=True) -> Dict[str, SimulationParameter]:
+        """Converts the parameter list to a dictionary.
+
+        :param serialized: A boolean indicating whether to serialize the SimulationParameter objects. \n
+            If True, the SimulationParameter objects will be converted to dictionaries using their `to_dict` method. Used \
+                for example to generate json-readable strings.\n
+            If False, the SimulationParameter objects will be included as is. This is used by this class to allow \
+                dictionary-style access to the individual parameters\n
+        :return: A dictionary where the keys are the names of the SimulationParameter objects and the values are either \
+            the serialized dictionaries or the SimulationParameter objects themselves.
         """
         names = [parameter.name for parameter in self.parameter_list]
-        parameter_dicts = [parameter.to_dict() for parameter in self.parameter_list]
+        if serialized is False:
+            parameter_dicts = [parameter for parameter in self.parameter_list]
+        else:
+            parameter_dicts = [parameter.to_dict() for parameter in self.parameter_list]
         return dict(zip(names, parameter_dicts))
 
     def to_json(self, file_path: str):
@@ -205,7 +221,7 @@ if __name__ == "__main__":
     sim_param_dict = SimulationParameterDictionary([
         SimulationParameter("foo", 1.0),
         SimulationParameter("bar", "LEAD"),
-        SimulationParameter("energy", 1000, optimizable=True),
+        SimulationParameter("energy", 1000, optimizable=False),
         SimulationParameter("num_absorber_plates", 5, discrete_values=list(range(0, 10)))
     ])
 
@@ -213,6 +229,6 @@ if __name__ == "__main__":
 
     sim_param_dict_2 = SimulationParameterDictionary.from_json("./sim_param_dict")
 
+    sim_param_dict_2["bad_name"] = SimulationParameter("new_param", 1577)
     print(sim_param_dict_2)
-
-    print("Current values:", sim_param_dict_2.get_current_values())
+    print("Current values:", sim_param_dict_2.get_current_values(include_non_optimizables=True))
