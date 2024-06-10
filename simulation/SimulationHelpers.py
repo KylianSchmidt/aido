@@ -1,4 +1,4 @@
-from typing import Type, Dict, List
+from typing import Type, Dict, List, Iterable
 import json
 import numpy as np
 from warnings import warn
@@ -15,9 +15,14 @@ class SimulationParameter():
     parameters for the surrogate model)
     """
 
-    def __init__(self, name: str, starting_value, current_value=None, optimizable=True):
-        """ Initialize a new general parameter
-        """
+    def __init__(
+            self,
+            name: str,
+            starting_value,
+            current_value=None,
+            optimizable=True,
+            discrete_values: Iterable | None = None
+            ):
         assert isinstance(name, str), "Name must be a string"
 
         self.name = name
@@ -28,6 +33,22 @@ class SimulationParameter():
             self.current_value = current_value
         else:
             self.current_value = starting_value
+
+        if discrete_values is not None:
+            assert optimizable is True, \
+                "Non-optimizable parameters are excluded from requiring allowed discrete values"
+            assert starting_value in discrete_values, \
+                "Starting value must be included in the list of allowed discrete values"
+            assert self.current_value in discrete_values, \
+                "Current value must be included in the list of allowed discrete values"
+
+            self.discrete_values = discrete_values
+
+    def __str__(self):
+        """ Return the dict representation of the class, with human-readable indentation
+        TODO Do not indent lists e.g. in discrete_values=[]
+        """
+        return json.dumps(self.to_dict(), indent=4)
 
     def to_dict(self) -> Dict:
         """ Convert to dictionary
@@ -69,12 +90,17 @@ class SimulationParameterDictionary():
     parameter_list: List[Type[SimulationParameter]]
 
     Provides IO methods to easily write and read with json format.
+
+    TODO Additional information such as current iteration number, date of creation, etc...
     """
 
     def __init__(self, parameter_list: List[Type[SimulationParameter]] = []):
         """ Initialize an empty list with no parameters
         """
         self.parameter_list = parameter_list
+
+    def __str__(self):
+        return json.dumps(self.to_dict(), indent=4)
 
     def add_parameter(self, simulation_parameter: Type[SimulationParameter]):
         """ Add a parameter to the dictionary
@@ -86,7 +112,9 @@ class SimulationParameterDictionary():
 
         TODO Is a dict of list the optimal way to print the contents of the class?
         """
-        return {"Parameters": [parameter.to_dict() for parameter in self.parameter_list]}
+        names = [parameter.name for parameter in self.parameter_list]
+        parameter_dicts = [parameter.to_dict() for parameter in self.parameter_list]
+        return dict(zip(names, parameter_dicts))
 
     def to_json(self, file_path: str):
         """ Write the parameter list to a .json file
@@ -108,7 +136,7 @@ class SimulationParameterDictionary():
         """ Create an instance from dictionary
         """
         instance = cls([
-                SimulationParameter.from_dict(parameter) for parameter in parameter_dict["Parameters"]
+                SimulationParameter.from_dict(parameter) for parameter in parameter_dict
             ])
         return instance
 
@@ -117,7 +145,8 @@ class SimulationParameterDictionary():
         """ Create an instance from a .json file
         """
         with open(file_path, "r") as file:
-            return cls.from_dict(json.load(file))
+            parameter_dicts: Dict = json.load(file)
+            return cls.from_dict(parameter_dicts.values())
 
 
 class GatherResults():
@@ -176,18 +205,14 @@ if __name__ == "__main__":
     sim_param_dict = SimulationParameterDictionary([
         SimulationParameter("foo", 1.0),
         SimulationParameter("bar", "LEAD"),
-        SimulationParameter("energy", 1000, optimizable=True)
+        SimulationParameter("energy", 1000, optimizable=True),
+        SimulationParameter("num_absorber_plates", 5, discrete_values=list(range(0, 10)))
     ])
 
     sim_param_dict.to_json("./sim_param_dict")
 
     sim_param_dict_2 = SimulationParameterDictionary.from_json("./sim_param_dict")
 
-    print(sim_param_dict_2.to_dict())
-
-    sim_param_dict_2.parameter_list[0].current_value = 3.0
-    sim_param_dict_2.parameter_list[1].current_value = "TUNGSTEN"
-
-    print(sim_param_dict_2.to_dict())
+    print(sim_param_dict_2)
 
     print("Current values:", sim_param_dict_2.get_current_values())

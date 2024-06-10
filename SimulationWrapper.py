@@ -125,6 +125,7 @@ if __name__ == "__main__":
     b2luigi.process(
         SimulationWrapperTask(
             num_simulation_tasks=2,
-            initial_parameter_dict_file_path=initial_parameter_dict_file_path),
+            initial_parameter_dict_file_path=initial_parameter_dict_file_path
+            ),
         workers=num_simulation_threads
         )
