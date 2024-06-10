@@ -1,17 +1,17 @@
-from typing import Type, Dict, List, Iterable
+from typing import Type, Dict, List, Iterable, Literal
 import json
 import numpy as np
 from warnings import warn
 
 
-class SimulationParameter():
-    """ Base class for all parameters used in the simulation
+class SimulationParameter:
+    """Base class for all parameters used in the simulation
 
     TODO Write warnings in case the base class is used directly in the dictionary
     ref: https://stackoverflow.com/questions/46092104/subclass-in-type-hinting
     Update: dont know if this is necessary, this class has already most capabilities.
 
-    TODO method to convert the parameter that is not a float to a float (discrete 
+    TODO method to convert the parameter that is not a float to a float (discrete
     parameters for the surrogate model)
     """
 
@@ -35,34 +35,34 @@ class SimulationParameter():
             self._current_value = starting_value
 
         if discrete_values is not None:
-            assert optimizable is True, \
-                "Non-optimizable parameters are excluded from requiring allowed discrete values"
-            assert starting_value in discrete_values, \
-                "Starting value must be included in the list of allowed discrete values"
-            assert self.current_value in discrete_values, \
-                "Current value must be included in the list of allowed discrete values"
+            assert (
+                optimizable is True
+            ), "Non-optimizable parameters are excluded from requiring allowed discrete values"
+            assert (
+                starting_value in discrete_values
+            ), "Starting value must be included in the list of allowed discrete values"
+            assert (
+                self.current_value in discrete_values
+            ), "Current value must be included in the list of allowed discrete values"
 
             self.discrete_values = discrete_values
 
     def __str__(self):
-        """ Return the dict representation of the class, with human-readable indentation
+        """Return the dict representation of the class, with human-readable indentation
         TODO Do not indent lists e.g. in discrete_values=[]
         """
         return json.dumps(self.to_dict(), indent=4)
 
     def to_dict(self) -> Dict:
-        """ Convert to dictionary
+        """Convert to dictionary
 
         Protected attributes are written to file as public attributes.
         """
-        return {
-            key.removeprefix("_"): value for key, value in self.__dict__.items()
-            }
+        return {key.removeprefix("_"): value for key, value in self.__dict__.items()}
 
     @classmethod
     def from_dict(cls, attribute_dict: Dict):
-        """ Create from dictionary
-        """
+        """Create from dictionary"""
         return cls(**attribute_dict)
 
     @property
@@ -71,9 +71,10 @@ class SimulationParameter():
 
     @current_value.setter
     def current_value(self, value):
-        assert isinstance(value, type(self._starting_value)), \
-            f"The updated value is of another type ({type(value)}) " + \
-            f"than the starting value ({type(self._starting_value)})"
+        assert isinstance(value, type(self._starting_value)), (
+            f"The updated value is of another type ({type(value)}) "
+            + f"than the starting value ({type(self._starting_value)})"
+        )
         if self._optimizable is False:
             warn("Do not change the current value of non-optimizable parameter")
         self._current_value = value
@@ -83,8 +84,8 @@ class SimulationParameter():
         return self._optimizable
 
 
-class SimulationParameterDictionary():
-    """ Dictionary containing the list of parameters used by the simulation.
+class SimulationParameterDictionary:
+    """Dictionary containing the list of parameters used by the simulation.
 
     Attributes:
     parameter_list: List[Type[SimulationParameter]]
@@ -94,15 +95,17 @@ class SimulationParameterDictionary():
     TODO Additional information such as current iteration number, date of creation, etc...
     """
 
-    def __init__(self, parameter_list: List[Type[SimulationParameter]] = []):
-        """ Initialize an empty list with no parameters
-        """
+    def __init__(
+            self,
+            parameter_list: List[Type[SimulationParameter]] = [],
+            ):
+        """Initialize a list of parameters"""
         self.parameter_list = parameter_list
         self.parameter_dict = self.to_dict(serialized=False)
 
     def __str__(self):
         return json.dumps(self.to_dict(), indent=4)
-    
+
     def __setitem__(self, name, simulation_parameter: Type[SimulationParameter]):
         assert name == simulation_parameter.name, "Key does not match name assigned in 'SimulationParameter'"
         self.parameter_list.append(simulation_parameter)
@@ -110,7 +113,7 @@ class SimulationParameterDictionary():
 
     def __getitem__(self, key: str) -> SimulationParameter:
         return self.parameter_dict[key]
-    
+
     def __len__(self) -> int:
         return len(self.parameter_list)
 
@@ -133,39 +136,45 @@ class SimulationParameterDictionary():
         return dict(zip(names, parameter_dicts))
 
     def to_json(self, file_path: str):
-        """ Write the parameter list to a .json file
+        """Write the parameter list to a .json file
 
         TODO Check for the existence of the file path or otherwise set as default to ../
         """
         with open(file_path, "w") as file:
             json.dump(self.to_dict(), file)
 
-    def get_current_values(self, include_non_optimizables=False):
-        current_values = []
-        for parameter in self.parameter_list:
-            if parameter.optimizable is True or include_non_optimizables is True:
-                current_values.append(parameter.current_value)
+    def get_current_values(
+        self, format: Literal["list", "dict"], include_non_optimizables=False
+    ):
+        if format == "list":
+            current_values = []
+            for parameter in self.parameter_list:
+                if parameter.optimizable is True or include_non_optimizables is True:
+                    current_values.append(parameter.current_value)
+        elif format == "dict":
+            current_values = {}
+            for parameter in self.parameter_list:
+                if parameter.optimizable is True or include_non_optimizables is True:
+                    current_values[parameter.name] = parameter.current_value
         return current_values
 
     @classmethod
     def from_dict(cls, parameter_dict: Dict):
-        """ Create an instance from dictionary
-        """
-        instance = cls([
-                SimulationParameter.from_dict(parameter) for parameter in parameter_dict
-            ])
+        """Create an instance from dictionary"""
+        instance = cls(
+            [SimulationParameter.from_dict(parameter) for parameter in parameter_dict]
+        )
         return instance
 
     @classmethod
     def from_json(cls, file_path: str):
-        """ Create an instance from a .json file
-        """
+        """Create an instance from a .json file"""
         with open(file_path, "r") as file:
             parameter_dicts: Dict = json.load(file)
             return cls.from_dict(parameter_dicts.values())
 
 
-class GatherResults():
+class GatherResults:
 
     def from_numpy_files(file_paths: List[str], **kwargs):
         """Combine the output files from the reconstruction Task into one 2D numpy array.
@@ -187,23 +196,23 @@ class GatherResults():
                 arr = np.loadtxt(file_path, **kwargs)
             if arr.ndim > 1:
                 warn(
-                    f"Reconstruction output array has {arr.ndim} dimensions, but should only have 1. Array " +
-                    "will be flattened in order to have the correct shape."
+                    f"Reconstruction output array has {arr.ndim} dimensions, but should only have 1. Array "
+                    + "will be flattened in order to have the correct shape."
                 )
                 arr = arr.flatten()
             reconstruction_array_all_tasks.append(arr)
 
         return np.array(reconstruction_array_all_tasks)
-    
+
     def from_parameter_dicts(file_paths: List[str]):
-        """For all parameter dicts found at 'file_paths', construct a nested list (2D) with 
+        """For all parameter dicts found at 'file_paths', construct a nested list (2D) with
         all their optimizable parameters.
 
         Args:
             file_paths (List[str]): A list of file paths containing parameter dictionaries as .json.
 
         Returns:
-            List[List]]: A nested list containing the optimizable parameters from all 
+            List[List]]: A nested list containing the optimizable parameters from all
             the parameter dictionaries.
 
         TODO implement control to only include floats to this array for best surrogate model handling.
@@ -218,12 +227,16 @@ class GatherResults():
 
 
 if __name__ == "__main__":
-    sim_param_dict = SimulationParameterDictionary([
-        SimulationParameter("foo", 1.0),
-        SimulationParameter("bar", "LEAD"),
-        SimulationParameter("energy", 1000, optimizable=False),
-        SimulationParameter("num_absorber_plates", 5, discrete_values=list(range(0, 10)))
-    ])
+    sim_param_dict = SimulationParameterDictionary(
+        [
+            SimulationParameter("foo", 1.0),
+            SimulationParameter("bar", "LEAD"),
+            SimulationParameter("energy", 1000, optimizable=False),
+            SimulationParameter(
+                "num_absorber_plates", 5, discrete_values=list(range(0, 10))
+            ),
+        ]
+    )
 
     sim_param_dict.to_json("./sim_param_dict")
 
@@ -231,4 +244,7 @@ if __name__ == "__main__":
 
     sim_param_dict_2["bad_name"] = SimulationParameter("new_param", 1577)
     print(sim_param_dict_2)
-    print("Current values:", sim_param_dict_2.get_current_values(include_non_optimizables=True))
+    print(
+        "Current values:",
+        sim_param_dict_2.get_current_values(include_non_optimizables=True),
+    )

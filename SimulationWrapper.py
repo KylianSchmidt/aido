@@ -1,6 +1,6 @@
 import b2luigi
 import os
-from typing import List
+import json
 from simulation.SimulationHelpers import SimulationParameterDictionary, SimulationParameter
 from simulation.generator import GenerateNewParameters
 from simulation.SimulationHelpers import GatherResults
@@ -8,11 +8,11 @@ from simulation.SimulationHelpers import GatherResults
 
 class StartSimulationTask(b2luigi.Task):
     simulation_task_rng_seed = b2luigi.IntParameter()
-    simulation_container_file_path = b2luigi.PathParameter(hashed=True)
     initial_parameter_dict_file_path = b2luigi.PathParameter(hashed=True)
 
     def output(self):
         yield self.add_to_output("simulation_output")
+        yield self.add_to_output("simulation_parameter_dict.json")
         yield self.add_to_output("param_dict.json")
 
     def run(self):
@@ -23,24 +23,25 @@ class StartSimulationTask(b2luigi.Task):
             TODO the container should be executed by a script provided by the end user
         """
         new_parameter_generator = GenerateNewParameters(self.initial_parameter_dict_file_path)
-        new_parameter_dict_file_path = self.get_output_file_name("param_dict.json")
-        new_parameter_generator.decrease_by_half().to_json(new_parameter_dict_file_path)
+        ind_parameters = new_parameter_generator.decrease_by_half()
+        ind_parameters.to_json(self.get_output_file_name("param_dict.json"))
+        output_path = self.get_output_file_name("simulation_output")
 
-        param_dict = SimulationParameterDictionary.from_json(new_parameter_dict_file_path)
-        parameter_of_interest = param_dict.parameter_list[0].current_value
-        output_file_path = self.get_output_file_name("simulation_output")
+        # TODO This is a temporary version before moving this to own script 
+        param_dict = ind_parameters.get_current_values("dict")
+        parameter_dict_path = self.get_output_file_name("simulation_parameter_dict.json")
+        with open(parameter_dict_path, "w") as file:
+            json.dump(param_dict, file)
 
         os.system(
-                f"singularity exec --home /work/kschmidt docker://python python3 \
-                {self.simulation_container_file_path} {output_file_path} {parameter_of_interest}"
-            )
+            f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
+            container_examples/calo_opt/calo_opt_sim.py {parameter_dict_path} {output_path}"
+        )
 
 
 class Reconstruction(b2luigi.Task):
     simulation_task_rng_seed = b2luigi.IntParameter()
     initial_parameter_dict_file_path = b2luigi.PathParameter(hashed=True)
-    simulation_container_file_path = b2luigi.PathParameter(hashed=True)
-    reconstruction_container_file_path = b2luigi.PathParameter(hashed=True)
 
     def output(self):
         yield self.add_to_output("reconstruction_output")
@@ -50,7 +51,6 @@ class Reconstruction(b2luigi.Task):
         yield StartSimulationTask(
             initial_parameter_dict_file_path=initial_parameter_dict_file_path,
             simulation_task_rng_seed=self.simulation_task_rng_seed,
-            simulation_container_file_path=self.simulation_container_file_path
             )
 
     def run(self):
@@ -60,13 +60,15 @@ class Reconstruction(b2luigi.Task):
 
         TODO For now, only the latest file is the output of this Task. Try to merge the output if it is split
         into several files
+
+        Alternative container: /cvmfs/unpacked.cern.ch/registry.hub.docker.com/cernml4reco/deepjetcore3:latest
         """
         output_file_path = self.get_output_file_name("reconstruction_output")
         for input_file_path in self.get_input_file_names("simulation_output"):
             os.system(
-                    f"singularity exec --home /work/kschmidt/ docker://python python3 \
-                    {self.reconstruction_container_file_path} {input_file_path} {output_file_path}"
-                )
+                f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
+                container_examples/reconstruction_test.py {input_file_path} {output_file_path}"
+            )
 
         param_dict = SimulationParameterDictionary.from_json(self.get_input_file_names("param_dict.json")[0])
         param_dict.to_json(self.get_output_file_name("param_dict.json"))
@@ -86,8 +88,6 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
                 Reconstruction,
                 parameter_dict_file_path=self.initial_parameter_dict_file_path,
                 simulation_task_rng_seed=i,
-                simulation_container_file_path="container_examples/simulation_test.py",
-                reconstruction_container_file_path="container_examples/reconstruction_test.py"
                 )
 
     def run(self):
@@ -101,6 +101,8 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
             self.get_input_file_names("param_dict.json")
         )
         assert reconstruction_array.shape[0] == len(parameter_list), "Mismatched lengths."
+        print("RECO ARRY", reconstruction_array)
+        print("parameter list", parameter_list)
         # TODO combine them into one file
         # TODO write to file
         # TODO Run the surrogate model here?
@@ -113,8 +115,10 @@ if __name__ == "__main__":
 
     sim_param_dict = SimulationParameterDictionary(
         [
-            SimulationParameter("foo", 16.0),
-            SimulationParameter("energy", 1000, optimizable=False)
+            SimulationParameter('thickness_absorber_0', 0.7642903),
+            SimulationParameter('thickness_absorber_1', 10.469371),
+            SimulationParameter('thickness_scintillator_0', 30.585306),
+            SimulationParameter('thickness_scintillator_1', 22.256506)
         ]
     )
 
