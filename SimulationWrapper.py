@@ -12,26 +12,21 @@ class StartSimulationTask(b2luigi.Task):
 
     def output(self):
         yield self.add_to_output("simulation_output")
-        yield self.add_to_output("simulation_parameter_dict.json")
         yield self.add_to_output("param_dict.json")
 
     def run(self):
         """ Workflow:
          1. Generate a new set of parameters based on the previous iteration
+         TODO Do not generate new parameters itself but instead get them from WrapperTask
 
          2. Execute the container with the geant4 simulation software
             TODO the container should be executed by a script provided by the end user
         """
-        new_parameter_generator = GenerateNewParameters(self.initial_parameter_dict_file_path)
-        ind_parameters = new_parameter_generator.decrease_by_half()
-        ind_parameters.to_json(self.get_output_file_name("param_dict.json"))
         output_path = self.get_output_file_name("simulation_output")
+        parameter_dict_path = self.get_output_file_name("param_dict.json")
 
-        # TODO This is a temporary version before moving this to own script 
-        param_dict = ind_parameters.get_current_values("dict")
-        parameter_dict_path = self.get_output_file_name("simulation_parameter_dict.json")
-        with open(parameter_dict_path, "w") as file:
-            json.dump(param_dict, file)
+        parameters = SimulationParameterDictionary.from_json(initial_parameter_dict_file_path)
+        parameters.to_json(parameter_dict_path)
 
         os.system(
             f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
@@ -64,14 +59,16 @@ class Reconstruction(b2luigi.Task):
         Alternative container: /cvmfs/unpacked.cern.ch/registry.hub.docker.com/cernml4reco/deepjetcore3:latest
         """
         output_file_path = self.get_output_file_name("reconstruction_output")
+        parameter_dict_file_path = self.get_output_file_name("param_dict.json")
+
+        param_dict = SimulationParameterDictionary.from_json(self.get_input_file_names("param_dict.json")[0])
+        param_dict.to_json(parameter_dict_file_path)
+
         for input_file_path in self.get_input_file_names("simulation_output"):
             os.system(
                 f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
-                container_examples/reconstruction_test.py {input_file_path} {output_file_path}"
+                container_examples/calo_opt/reconstruction.py {input_file_path} {parameter_dict_file_path} {output_file_path}"
             )
-
-        param_dict = SimulationParameterDictionary.from_json(self.get_input_file_names("param_dict.json")[0])
-        param_dict.to_json(self.get_output_file_name("param_dict.json"))
 
 
 class SimulationWrapperTask(b2luigi.WrapperTask):
@@ -115,10 +112,10 @@ if __name__ == "__main__":
 
     sim_param_dict = SimulationParameterDictionary(
         [
-            SimulationParameter('thickness_absorber_0', 0.7642903),
-            SimulationParameter('thickness_absorber_1', 10.469371),
-            SimulationParameter('thickness_scintillator_0', 30.585306),
-            SimulationParameter('thickness_scintillator_1', 22.256506)
+            SimulationParameter('thickness_absorber_0', 0.7642903, min_value=1E-3),
+            SimulationParameter('thickness_absorber_1', 10.469371, min_value=1E-3),
+            SimulationParameter('thickness_scintillator_0', 30.585306, min_value=1E-3),
+            SimulationParameter('thickness_scintillator_1', 22.256506, min_value=1E-3)
         ]
     )
 

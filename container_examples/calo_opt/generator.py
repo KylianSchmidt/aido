@@ -10,30 +10,6 @@ import os
 from typing import Type
 from  G4Calo import G4System, GeometryDescriptor
 
-
-def produce_descriptor(parameter_dict: dict):
-    '''
-    Class to store the parameters of the geometry.
-    Can return and take parameters as numpy array but is configured with using explicit parameter names.
-    Only certain parameters are allowed to ensure that the connection between array and parameter name is consistent.
-    For now, the allowed parameters are:
-    - layer_thickness, alternating between absorber and scintillator
-
-    If materials etc are added, the mapping from float to material name has to be added here.
-
-    Returns a GeometryDescriptor from the given parameters.
-    Strictly takes a dict as input to ensure that the parameter names are consistent.
-    '''
-
-    cw = GeometryDescriptor()
-
-    for name, value in parameter_dict.items():
-        if name.startswith("thickness_absorber"):
-            cw.addLayer(max([1e-3, value]), "G4_Pb", False, 1)
-        elif name.startswith("thickness_scintillator_0"):
-            cw.addLayer(max([1e-3, value]), "G4_PbWO4", True, 1)
-    return cw
-
         
 class CaloDataset(Dataset):
     ...

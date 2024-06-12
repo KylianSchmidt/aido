@@ -1,4 +1,4 @@
-from typing import Type, Dict, List, Iterable, Literal
+from typing import Type, Dict, List, Iterable, Literal, Any
 import json
 import numpy as np
 from warnings import warn
@@ -18,9 +18,11 @@ class SimulationParameter:
     def __init__(
             self,
             name: str,
-            starting_value,
-            current_value=None,
+            starting_value: Any,
+            current_value: Any | None = None,
             optimizable=True,
+            min_value: float | None = None,
+            max_value: float | None = None,
             discrete_values: Iterable | None = None
             ):
         assert isinstance(name, str), "Name must be a string"
@@ -28,6 +30,18 @@ class SimulationParameter:
         self.name = name
         self._starting_value = starting_value
         self._optimizable = optimizable
+        
+        if min_value is not None:
+            assert (
+                isinstance(min_value, type(starting_value))
+            ), "Only float parameters are allowed to have lower bounds"
+            self._min_value = min_value
+
+        if max_value is not None:
+            assert (
+                isinstance(max_value, type(starting_value))
+            ), "Only float parameters are allowed to have upper bounds"
+            self._max_value = max_value
 
         if current_value is not None:
             self._current_value = current_value
@@ -42,8 +56,11 @@ class SimulationParameter:
                 starting_value in discrete_values
             ), "Starting value must be included in the list of allowed discrete values"
             assert (
-                self.current_value in discrete_values
+                self._current_value in discrete_values
             ), "Current value must be included in the list of allowed discrete values"
+            assert (
+                self._min_value is None and self._max_value is None
+            ), "Not allowed to specify min and max value for parameter with discrete values"
 
             self.discrete_values = discrete_values
 
@@ -221,7 +238,7 @@ class GatherResults:
 
         for file_path in file_paths:
             param_dict = SimulationParameterDictionary.from_json(file_path)
-            parameter_list.append(param_dict.get_current_values())
+            parameter_list.append(param_dict.get_current_values(format="list"))
 
         return parameter_list
 

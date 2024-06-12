@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import sys
 import json
-from generator import produce_descriptor
+from typing import Dict
 from  G4Calo import G4System, GeometryDescriptor
 
 
@@ -34,15 +34,31 @@ class Simulation():
         return pd.concat(dfs)
 
 
+def produce_descriptor(parameter_dict: dict):
+    ''' Returns a GeometryDescriptor from the given parameters.
+    Strictly takes a dict as input to ensure that the parameter names are consistent.
+    Current parameters:
+     - layer_thickness, alternating between absorber and scintillator
+
+    If materials etc are added, the mapping from parameter_dict to material name has to be added here.
+    '''
+
+    cw = GeometryDescriptor()
+
+    for name, value in parameter_dict.items():
+        if name.startswith("thickness_absorber"):
+            cw.addLayer(max([value["min_value"], value["current_value"]]), "G4_Pb", False, 1)
+        elif name.startswith("thickness_scintillator"):
+            cw.addLayer(max([value["min_value"], value["current_value"]]), "G4_PbWO4", True, 1)
+    return cw
+
+
 parameter_dict_file_path = sys.argv[1]
 output_path = sys.argv[2]
 
 with open(parameter_dict_file_path, "r") as file:
     parameter_dict = json.load(file)
-print(" PARAMETER DICT", parameter_dict)
 
 generator = Simulation(parameter_dict)
 df = generator.run_simulation()
-print(df)
-result_array = np.linspace(0, 1, 10)
-np.save(output_path, result_array)
+df.to_pickle(output_path)
