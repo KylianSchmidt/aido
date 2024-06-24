@@ -8,13 +8,15 @@ import sys
 import json
 from typing import Dict
 import torch
+import numpy as np
 import pandas as pd
 import torch.utils.data
 from torch.utils.data import DataLoader
+from generator import CaloDataset
 
 
 class Reconstruction(torch.nn.Module):
-    def __init__(self, num_parameters, num_input_features, num_target_features):
+    def __init__(self, num_parameters, num_input_features, num_target_features, num_context_features):
         """Initialize the shape of the model.
 
         Args:
@@ -26,6 +28,10 @@ class Reconstruction(torch.nn.Module):
         super().__init__()
 
         self.n_parameters = num_parameters
+        self.n_input_features = num_input_features
+        self.n_target_features = num_target_features
+        self.n_context_features = num_context_features
+
         self.layers = torch.nn.Sequential(
             torch.nn.Linear(num_parameters + num_input_features, 100),
             torch.nn.ELU(),
@@ -34,11 +40,33 @@ class Reconstruction(torch.nn.Module):
             torch.nn.Linear(100, 100),
             torch.nn.ELU(),
             torch.nn.Linear(100, num_target_features),
-            )
+        )
 
         # Placeholders for a simpler training loop
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
         self.device = torch.device('cuda')
+
+    def create_torch_dataset(self, simulation_parameter_list, input_features, target_features, context_information):
+        self.means = [
+            np.mean(simulation_parameter_list, axis=0),
+            np.mean(input_features, axis=0),
+            np.mean(target_features, axis=0),
+            np.mean(context_information, axis=0)
+        ]
+        self.stds = [
+            np.std(simulation_parameter_list, axis=0) + 1e-3,
+            np.std(input_features, axis=0) + 1e-3,
+            np.std(target_features, axis=0) + 1e-3,
+            np.std(context_information, axis=0) + 1e-3
+        ]
+        return CaloDataset(
+            simulation_parameter_list,
+            input_features,
+            target_features,
+            context_information,
+            self.means,
+            self.stds
+        )
 
     def forward(self, detector_parameters, x):
         """ Concatenate the detector parameters and the input 
@@ -57,7 +85,7 @@ class Reconstruction(torch.nn.Module):
         y_pred = torch.where(torch.isnan(y_pred), torch.zeros_like(y_pred), y_pred)
         y_pred = torch.where(torch.isinf(y_pred), torch.zeros_like(y_pred), y_pred)
 
-        return ((y_pred - y)**2 / (torch.abs(y) + 1.)).mean()  
+        return ((y_pred - y)**2 / (torch.abs(y) + 1.)).mean()
     
     def train_model(self, dataset, batch_size, n_epochs, lr):
         train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -66,7 +94,7 @@ class Reconstruction(torch.nn.Module):
         self.train()
 
         for epoch in range(n_epochs):
-            for _, (detector_parameters, x, y) in enumerate(train_loader):
+            for (detector_parameters, x, y) in train_loader:
                 detector_parameters = detector_parameters.to(self.device)
                 x = x.to(self.device)
                 y = y.to(self.device)
@@ -77,6 +105,7 @@ class Reconstruction(torch.nn.Module):
                 self.optimizer.step()
     
             print(f'Reco Epoch: {epoch} \tLoss: {loss.item():.8f}')
+
         self.eval()
 
     def apply_model_in_batches(self, dataset, batch_size):
@@ -110,77 +139,104 @@ class Reconstruction(torch.nn.Module):
         return results, mean_loss
 
 
-def create_torch_dataset(parameter_dict: dict):
-    ...
+def create_features(parameter_dict_file_path: str, simulation_output_file_path: str):
+    """Convert the files from the simulation to simple lists.
+
+    Args:
+        parameter_dict_file_path (str): The file path to the parameter dictionary file.
+        simulation_output_file_path (str): The file path to the simulation output file.
+
+    Returns:
+        Tuple[List, pd.DataFrame, pd.DataFrame]: A tuple containing the simulation parameter list,
+        input features, and target features.
+    TODO Return everything as lists or as dicts (relevant for 'create_torch_dataset' function)
+    """
+    # 1. Simulation Parameter list
+    with open(parameter_dict_file_path, "r") as file:
+        parameter_dict: Dict = json.load(file)
+
+    simulation_parameter_list = []
+
+    for parameter in parameter_dict.values():
+        if parameter["optimizable"] is True:
+            simulation_parameter_list.append(parameter["current_value"])
+
+    simulation_parameters = np.array(simulation_parameter_list)
+
+    # 2. Simulation output (pd.DataFrame -> linear array)
+    simulation_output_df: pd.DataFrame = pd.read_pickle(simulation_output_file_path)
+    input_features_keys = [
+        'sensor_energy', 'sensor_x', 'sensor_y', 'sensor_z',
+        'sensor_dx', 'sensor_dy', 'sensor_dz', 'sensor_layer'
+        ]
+    input_features = np.array([simulation_output_df[par].to_numpy() for par in input_features_keys], dtype='float32')
+    input_features = np.swapaxes(input_features, 0, 1)
+    input_features = np.reshape(input_features, (len(input_features), -1))
+
+    # 3. Reconstruction targets
+    target_features_keys = ["true_energy"]
+    target_features = simulation_output_df[target_features_keys].to_numpy()
+
+    # 4. Context information from simulation
+    context_information_keys = ["true_pid"]
+    context_information = simulation_output_df[context_information_keys].to_numpy()
+
+    # Reshape parameters to (N, num_parameters)
+    simulation_parameters = np.repeat(simulation_parameters, len(target_features), axis=0)
+    print("DEBUG", simulation_parameters.shape)
+
+    shape = (simulation_parameters.shape[-1], len(input_features_keys), len(target_features_keys), len(context_information_keys))
+    return simulation_parameters, input_features, target_features, context_information, shape
+    
+
+def pre_train(model: Reconstruction, data_set: CaloDataset, n_epochs: int):
+    """ Pre-train the reconstruction algorithm
+
+    TODO Reconstruction results are normalized. In the future only expose the un-normalised ones, 
+    but also requires adjustments to the surrogate dataset
+    """
+    
+    model.to('cuda')
+
+    print('pre-training 0')
+    model.train_model(data_set, batch_size=256, n_epochs=10, lr=0.03)
+
+    print('pre-training 1')
+    model.train_model(data_set, batch_size=256, n_epochs=n_epochs, lr=0.01)
+
+    print('pre-training 2')
+    model.train_model(data_set, batch_size=512, n_epochs=n_epochs, lr=0.001)
+
+    print('pre-training 3')
+    model.train_model(data_set, batch_size=1024, n_epochs=n_epochs, lr=0.001)
+
+    reco_result, reco_loss = model.apply_model_in_batches(data_set, batch_size=128)
+    reco_model.to('cpu')
+
+    # Mising bit of the surrogate model 
 
 
 simulation_output_file_path = sys.argv[1]
 parameter_dict_file_path = sys.argv[2]
 output_path = sys.argv[3]
 
-# Simulation Parameter dicts -> linear array
-with open(parameter_dict_file_path, "r") as file:
-    parameter_dict: Dict = json.load(file)
+simulation_parameter_list, input_features, target_features, context_information, shape = create_features(parameter_dict_file_path, simulation_output_file_path)
+print("DATA_SET SHAPE:", shape)
 
-print("RECO", parameter_dict)
+reco_model = Reconstruction(*shape)
 
-simulation_parameter_list = []
+n_epochs_pre = 3
+n_epochs_main = 10
+data_set = reco_model.create_torch_dataset(simulation_parameter_list, input_features, target_features, context_information)
 
-for parameter in parameter_dict.values():
-    if parameter["optimizable"] is True:
-        simulation_parameter_list.append(parameter["current_value"])
+pre_train(reco_model, data_set, n_epochs_pre)
 
-print("RECO", simulation_parameter_list)
+for i in range(3):
+    reco_model.to('cuda')
+    reco_model.train_model(data_set, batch_size=256, n_epochs=n_epochs_main // 4, lr=0.003)
+    reco_model.train_model(data_set, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
+    reco_model.train_model(data_set, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
+    reco_result, reco_loss = reco_model.apply_model_in_batches(data_set, batch_size=128)
+    print(f"Reconstruction: epoch={i}, loss={reco_loss:.5f}")
 
-# Simulation output pd.DataFrame -> linear array
-simulation_output_df: pd.DataFrame = pd.read_pickle(simulation_output_file_path)
-
-input_features_keys = [
-    'sensor_energy', 'sensor_x', 'sensor_y', 'sensor_z',
-    'sensor_dx', 'sensor_dy', 'sensor_dz', 'sensor_layer'
-    ]
-input_features = simulation_output_df[input_features_keys]
-
-target_features_keys = ["true energy"]
-target_features = simulation_output_df[target_features_keys]
-
-print("RECO", input_features)
-
-reco_model = Reconstruction(
-    len(simulation_parameter_list),
-    len(input_features_keys),
-    len(target_features_keys)
-    )
-
-n_epochs_pre = 30//divide
-n_epochs_main = 100//divide
-parameters = gen.parameters
-
-evolution = []
-
-def save_evolution(parameters, losses, reco_losses, reco_model, means, std):
-        '''
-        add to evolution list and save it with pickle.
-        save it in human readable format as well
-        '''
-        ps_dict = gen.translate_parameters(parameters)
-        ps = {k: ps_dict[k] for k in ps_dict.keys()}
-        ps.update(
-            {'reco_model': reco_model.state_dict(),
-             'means': means,
-             'stds': std}
-        )
-        evolution.append([ps, losses, reco_losses])
-        with open(outpath+'evolution.pkl', 'wb') as f:
-            pickle.dump(evolution, f)
-        # human readable
-        with open(outpath+'evolution.txt', 'w') as f:
-            for e in evolution:
-                f.write(str(e[0]) + ' ' + str(e[1]) + ' ' + str(e[2]) + '\n')
-
-        # now plot all entries of the dictionary ps in a plot and save it, make a new point for each of the items in the evolution list and use the dictionary keys as legend
-        # 'transpose' dictionary
-        pltdict = {k: [] for k in ps_dict.keys()}
-        for i in range(len(evolution)):
-            for k in pltdict.keys():
-                pltdict[k] += [evolution[i][0][k]]
+reco_result.detach().cpu().numpy().tofile(output_path)

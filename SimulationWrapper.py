@@ -66,7 +66,7 @@ class Reconstruction(b2luigi.Task):
 
         for input_file_path in self.get_input_file_names("simulation_output"):
             os.system(
-                f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
+                f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
                 container_examples/calo_opt/reconstruction.py {input_file_path} {parameter_dict_file_path} {output_file_path}"
             )
 

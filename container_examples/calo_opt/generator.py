@@ -12,7 +12,82 @@ from  G4Calo import G4System, GeometryDescriptor
 
         
 class CaloDataset(Dataset):
-    ...
+    def __init__(
+            self,
+            simulation_parameters_array: np.ndarray,
+            simulation_output_array: np.ndarray,
+            target_array: np.ndarray,
+            context_array: np.ndarray,
+            means=None,
+            stds=None
+            ):
+        
+        assert (
+            isinstance(simulation_output_array, np.ndarray) and isinstance(simulation_parameters_array, np.ndarray) and isinstance(target_array, np.ndarray)
+        ), "Arrays are not numpy arrays!"
+
+        self.simulation_output_array = simulation_output_array
+        self.simulation_parameters_array = simulation_parameters_array
+        self.target_array = target_array
+        self.context_array = context_array
+
+        if means is not None:
+            self.simulation_parameters_array = (self.simulation_parameters_array - means[0]) / stds[0]
+            self.simulation_output_array = (self.simulation_output_array - means[1]) / stds[1]
+
+            # A normalised target is important for the surrogate to work given the scheduling we have here
+            self.target_array = (self.target_array - means[2]) / stds[2]
+            self.context_array = (self.context_array - means[3]) / stds[3]
+
+            self.c_means = [torch.tensor(a).to('cuda') for a in means]
+            self.c_stds = [torch.tensor(a).to('cuda') for a in stds]
+
+        self.filter_infs_and_nans()
+
+    def filter_infs_and_nans(self):
+        '''
+        Removes all events that contain infs or nans.
+        '''
+        mask = np.ones(len(self.simulation_output_array), dtype=bool)
+
+        for i in range(len(self.simulation_output_array)):
+            if np.any(np.isinf(self.simulation_output_array[i])) or np.any(np.isnan(self.simulation_output_array[i])):
+                mask[i] = False
+    
+        self.simulation_output_array = self.simulation_output_array[mask]
+        self.simulation_parameters_array = self.simulation_parameters_array[mask]
+        self.target_array = self.target_array[mask]
+        self.context_array = self.context_array[mask]
+
+    def unnormalise_target(self, target):
+        '''
+        receives back the physically meaningful target from the normalised target
+        '''
+        return target * self.c_stds[2] + self.c_means[2]
+    
+    def normalise_target(self, target):
+        '''
+        normalises the target
+        '''
+        return (target - self.c_means[2]) / self.c_stds[2]
+    
+    def unnormalise_detector(self, detector):
+        '''
+        receives back the physically meaningful detector from the normalised detector
+        '''
+        return detector * self.c_stds[1] + self.c_means[1]
+    
+    def normalise_detector(self, detector):
+        '''
+        normalises the detector
+        '''
+        return (detector - self.c_means[1]) / self.c_stds[1]
+        
+    def __len__(self):
+        return len(self.simulation_output_array)
+    
+    def __getitem__(self, idx):
+        return self.simulation_parameters_array[idx], self.simulation_output_array[idx], self.target_array[idx]
     
 
 class Generator(object):
@@ -250,31 +325,31 @@ class Generator(object):
         # this is the input to the data loader
     
     
-        sensor_array = np.array([df[par].to_numpy() for par in self.sensor_parameters], dtype='float32') #.transpose()
+        simulation_output_array = np.array([df[par].to_numpy() for par in self.sensor_parameters], dtype='float32') #.transpose()
         #transpose axis 0 and 1 
-        sensor_array = np.swapaxes(sensor_array, 0, 1)
+        simulation_output_array = np.swapaxes(simulation_output_array, 0, 1)
         #flatt to nevents x -1
-        sensor_array = np.reshape(sensor_array, (len(sensor_array), -1))
+        simulation_output_array = np.reshape(simulation_output_array, (len(simulation_output_array), -1))
 
         target_array = np.array([df[par].to_numpy() for par in self.target_parameters], dtype='float32').transpose()
 
         #this is kinda ugly. would be better to find a smarter way to add it to the dataframe in the first place
-        detector_array = np.array([df[par].to_numpy() for par in self.detector_parameters])[0]
-        detector_array = np.concatenate(detector_array,axis=0)
-        detector_array = np.array(detector_array, dtype='float32')
-        detector_array = np.reshape(detector_array, (len(target_array), -1))
+        simulation_parameters_array = np.array([df[par].to_numpy() for par in self.detector_parameters])[0]
+        simulation_parameters_array = np.concatenate(simulation_parameters_array,axis=0)
+        simulation_parameters_array = np.array(simulation_parameters_array, dtype='float32')
+        simulation_parameters_array = np.reshape(simulation_parameters_array, (len(target_array), -1))
 
         context_array = np.array([df[par].to_numpy() for par in self.context_parameters], dtype='float32').transpose()
         
         if means is None:
-            self.means = [np.mean(sensor_array, axis=0), np.mean(detector_array, axis=0), np.mean(target_array, axis=0), np.mean(context_array, axis=0)]
+            self.means = [np.mean(simulation_output_array, axis=0), np.mean(simulation_parameters_array, axis=0), np.mean(target_array, axis=0), np.mean(context_array, axis=0)]
         else:
             self.means = means
         if stds is None:
-            self.stds = [np.std(sensor_array, axis=0)+1e-3, np.std(detector_array, axis=0)+1e-3, np.std(target_array, axis=0)+1e-3, np.std(context_array, axis=0)+1e-3]
+            self.stds = [np.std(simulation_output_array, axis=0)+1e-3, np.std(simulation_parameters_array, axis=0)+1e-3, np.std(target_array, axis=0)+1e-3, np.std(context_array, axis=0)+1e-3]
         else:
             self.stds = stds
         # data ready, now create the torch Dataset
         
-        ds = CaloDataset(sensor_array, detector_array, target_array, context_array, self.means, self.stds)
+        ds = CaloDataset(simulation_output_array, simulation_parameters_array, target_array, context_array, self.means, self.stds)
         return ds

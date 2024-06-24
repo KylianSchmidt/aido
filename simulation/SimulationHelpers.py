@@ -35,29 +35,35 @@ class SimulationParameter:
             assert (
                 isinstance(min_value, type(starting_value))
             ), "Only float parameters are allowed to have lower bounds"
-            self._min_value = min_value
 
         if max_value is not None:
             assert (
                 isinstance(max_value, type(starting_value))
             ), "Only float parameters are allowed to have upper bounds"
-            self._max_value = max_value
+    
+        self._min_value = min_value
+        self._max_value = max_value
 
         if current_value is not None:
             self._current_value = current_value
         else:
             self._current_value = starting_value
 
+        assert (
+            isinstance(self._current_value, float) is True or (discrete_values is not None or optimizable is False)
+        ), "Specify discrete values when parameter is not float"
+
         if discrete_values is not None:
-            assert (
-                optimizable is True
-            ), "Non-optimizable parameters are excluded from requiring allowed discrete values"
+            if optimizable is False:
+                raise AssertionError("Non-optimizable parameters are excluded from requiring allowed discrete values")
+            else:
+                assert (
+                    self._current_value in discrete_values
+                ), "Current value must be included in the list of allowed discrete values"
             assert (
                 starting_value in discrete_values
             ), "Starting value must be included in the list of allowed discrete values"
-            assert (
-                self._current_value in discrete_values
-            ), "Current value must be included in the list of allowed discrete values"
+            
             assert (
                 self._min_value is None and self._max_value is None
             ), "Not allowed to specify min and max value for parameter with discrete values"
@@ -161,7 +167,7 @@ class SimulationParameterDictionary:
             json.dump(self.to_dict(), file)
 
     def get_current_values(
-        self, format: Literal["list", "dict"], include_non_optimizables=False
+        self, format: Literal["list", "dict"] = "dict", include_non_optimizables=False
     ):
         if format == "list":
             current_values = []
@@ -246,22 +252,14 @@ class GatherResults:
 if __name__ == "__main__":
     sim_param_dict = SimulationParameterDictionary(
         [
-            SimulationParameter("foo", 1.0),
-            SimulationParameter("bar", "LEAD"),
+            SimulationParameter("absorber_thickness", 10.0, min_value=0.5, max_value=40.0),
+            SimulationParameter("absorber_material", "LEAD", discrete_values=["LEAD", "TUNGSTEN"]),
             SimulationParameter("energy", 1000, optimizable=False),
-            SimulationParameter(
-                "num_absorber_plates", 5, discrete_values=list(range(0, 10))
-            ),
+            SimulationParameter("num_absorber_plates", 2, discrete_values=list(range(0, 5))),
         ]
     )
 
     sim_param_dict.to_json("./sim_param_dict")
 
     sim_param_dict_2 = SimulationParameterDictionary.from_json("./sim_param_dict")
-
-    sim_param_dict_2["bad_name"] = SimulationParameter("new_param", 1577)
     print(sim_param_dict_2)
-    print(
-        "Current values:",
-        sim_param_dict_2.get_current_values(include_non_optimizables=True),
-    )
