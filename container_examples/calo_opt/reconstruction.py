@@ -161,7 +161,7 @@ def create_features(parameter_dict_file_path: str, simulation_output_file_path: 
         if parameter["optimizable"] is True:
             simulation_parameter_list.append(parameter["current_value"])
 
-    simulation_parameters = np.array(simulation_parameter_list)
+    simulation_parameters = np.array(simulation_parameter_list, dtype='float32')
 
     # 2. Simulation output (pd.DataFrame -> linear array)
     simulation_output_df: pd.DataFrame = pd.read_pickle(simulation_output_file_path)
@@ -175,15 +175,14 @@ def create_features(parameter_dict_file_path: str, simulation_output_file_path: 
 
     # 3. Reconstruction targets
     target_features_keys = ["true_energy"]
-    target_features = simulation_output_df[target_features_keys].to_numpy()
+    target_features = simulation_output_df[target_features_keys].to_numpy(dtype='float32')
 
     # 4. Context information from simulation
     context_information_keys = ["true_pid"]
-    context_information = simulation_output_df[context_information_keys].to_numpy()
+    context_information = simulation_output_df[context_information_keys].to_numpy(dtype='float32')
 
     # Reshape parameters to (N, num_parameters)
-    simulation_parameters = np.repeat(simulation_parameters, len(target_features), axis=0)
-    print("DEBUG", simulation_parameters.shape)
+    simulation_parameters = np.repeat([simulation_parameters], len(target_features), axis=0)
 
     shape = (simulation_parameters.shape[-1], len(input_features_keys), len(target_features_keys), len(context_information_keys))
     return simulation_parameters, input_features, target_features, context_information, shape
@@ -222,6 +221,10 @@ output_path = sys.argv[3]
 
 simulation_parameter_list, input_features, target_features, context_information, shape = create_features(parameter_dict_file_path, simulation_output_file_path)
 print("DATA_SET SHAPE:", shape)
+print("SHAPE sim param:", simulation_parameter_list.shape)
+print("SHAPE input features", input_features.shape)
+print("SHAPE target features", target_features.shape)
+print("SHAPE context features", context_information.shape)
 
 reco_model = Reconstruction(*shape)
 
