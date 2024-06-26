@@ -184,7 +184,7 @@ def create_features(parameter_dict_file_path: str, simulation_output_file_path: 
     # Reshape parameters to (N, num_parameters)
     simulation_parameters = np.repeat([simulation_parameters], len(target_features), axis=0)
 
-    shape = (simulation_parameters.shape[-1], len(input_features_keys), len(target_features_keys), len(context_information_keys))
+    shape = (simulation_parameters.shape[1], input_features.shape[1], target_features.shape[1], context_information.shape[1])
     return simulation_parameters, input_features, target_features, context_information, shape
     
 
@@ -221,10 +221,6 @@ output_path = sys.argv[3]
 
 simulation_parameter_list, input_features, target_features, context_information, shape = create_features(parameter_dict_file_path, simulation_output_file_path)
 print("DATA_SET SHAPE:", shape)
-print("SHAPE sim param:", simulation_parameter_list.shape)
-print("SHAPE input features", input_features.shape)
-print("SHAPE target features", target_features.shape)
-print("SHAPE context features", context_information.shape)
 
 reco_model = Reconstruction(*shape)
 
@@ -240,6 +236,6 @@ for i in range(3):
     reco_model.train_model(data_set, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
     reco_model.train_model(data_set, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
     reco_result, reco_loss = reco_model.apply_model_in_batches(data_set, batch_size=128)
-    print(f"Reconstruction: epoch={i}, loss={reco_loss:.5f}")
+    print(f"Reconstruction Block {i} DONE, loss={reco_loss:.8f}")
 
 reco_result.detach().cpu().numpy().tofile(output_path)

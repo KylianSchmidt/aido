@@ -213,16 +213,15 @@ class GatherResults:
         reconstruction_array_all_tasks = []
 
         for file_path in file_paths:
-            if file_path.endswith(".npy"):
-                arr = np.load(file_path)
-            else:
-                arr = np.loadtxt(file_path, **kwargs)
+            arr: np.ndarray = np.fromfile(file_path)
+
             if arr.ndim > 1:
                 warn(
-                    f"Reconstruction output array has {arr.ndim} dimensions, but should only have 1. Array "
-                    + "will be flattened in order to have the correct shape."
+                    f"Reconstruction output array has {arr.ndim} dimensions, but should only have 1. Array " +
+                     "will be flattened in order to have the correct shape."
                 )
                 arr = arr.flatten()
+
             reconstruction_array_all_tasks.append(arr)
 
         return np.array(reconstruction_array_all_tasks)

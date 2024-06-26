@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import sys
 import json
-from typing import Dict
 from  G4Calo import G4System, GeometryDescriptor
 
 

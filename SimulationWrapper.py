@@ -98,9 +98,8 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
             self.get_input_file_names("param_dict.json")
         )
         assert reconstruction_array.shape[0] == len(parameter_list), "Mismatched lengths."
-        print("RECO ARRY", reconstruction_array)
+        print("RECO ARRYA", reconstruction_array)
         print("parameter list", parameter_list)
-        # TODO combine them into one file
         # TODO write to file
         # TODO Run the surrogate model here?
 
