@@ -129,7 +129,7 @@ class SimulationParameterDictionary:
     def __str__(self):
         return json.dumps(self.to_dict(), indent=4)
 
-    def __setitem__(self, name, simulation_parameter: Type[SimulationParameter]):
+    def __setitem__(self, name: str, simulation_parameter: Type[SimulationParameter]):
         assert name == simulation_parameter.name, "Key does not match name assigned in 'SimulationParameter'"
         self.parameter_list.append(simulation_parameter)
         self.parameter_dict[name] = simulation_parameter
@@ -199,7 +199,7 @@ class SimulationParameterDictionary:
 
 class GatherResults:
 
-    def from_numpy_files(file_paths: List[str], **kwargs):
+    def from_numpy_files(file_paths: List[str], **kwargs) -> np.ndarray:
         """Combine the output files from the reconstruction Task into one 2D numpy array.
 
         Args:
@@ -213,7 +213,7 @@ class GatherResults:
         reconstruction_array_all_tasks = []
 
         for file_path in file_paths:
-            arr: np.ndarray = np.fromfile(file_path)
+            arr: np.ndarray = np.fromfile(file_path, sep=",")
 
             if arr.ndim > 1:
                 warn(

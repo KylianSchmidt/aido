@@ -6,13 +6,13 @@ Data loader etc are in here, too
 """
 import sys
 import json
-from typing import Dict
+from typing import Dict, List
 import torch
 import numpy as np
 import pandas as pd
 import torch.utils.data
 from torch.utils.data import DataLoader
-from generator import CaloDataset
+from generator import ReconstructionDataset
 
 
 class Reconstruction(torch.nn.Module):
@@ -47,26 +47,7 @@ class Reconstruction(torch.nn.Module):
         self.device = torch.device('cuda')
 
     def create_torch_dataset(self, simulation_parameter_list, input_features, target_features, context_information):
-        self.means = [
-            np.mean(simulation_parameter_list, axis=0),
-            np.mean(input_features, axis=0),
-            np.mean(target_features, axis=0),
-            np.mean(context_information, axis=0)
-        ]
-        self.stds = [
-            np.std(simulation_parameter_list, axis=0) + 1e-3,
-            np.std(input_features, axis=0) + 1e-3,
-            np.std(target_features, axis=0) + 1e-3,
-            np.std(context_information, axis=0) + 1e-3
-        ]
-        return CaloDataset(
-            simulation_parameter_list,
-            input_features,
-            target_features,
-            context_information,
-            self.means,
-            self.stds
-        )
+        ...
 
     def forward(self, detector_parameters, x):
         """ Concatenate the detector parameters and the input 
@@ -87,7 +68,7 @@ class Reconstruction(torch.nn.Module):
 
         return ((y_pred - y)**2 / (torch.abs(y) + 1.)).mean()
     
-    def train_model(self, dataset, batch_size, n_epochs, lr):
+    def train_model(self, dataset: ReconstructionDataset, batch_size, n_epochs, lr):
         train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         self.optimizer.lr = lr
         self.to(self.device)
@@ -108,7 +89,7 @@ class Reconstruction(torch.nn.Module):
 
         self.eval()
 
-    def apply_model_in_batches(self, dataset, batch_size):
+    def apply_model_in_batches(self, dataset: ReconstructionDataset, batch_size):
         """ Apply the model in batches
         this is necessary because the model is too large to apply it to the whole dataset at once.
         The model is applied to the dataset in batches and the results are concatenated.
@@ -120,115 +101,75 @@ class Reconstruction(torch.nn.Module):
         results = None
         mean_loss = 0.
 
-        # loop over the batches
         for batch_idx, (detector_parameters, x, y) in enumerate(data_loader):
             detector_parameters = detector_parameters.to(self.device)
             x = x.to(self.device)
             y = y.to(self.device)
-            # apply the model
             y_pred = self(detector_parameters, x)
-            # calculate the loss
+
             loss = self.loss(dataset.unnormalise_target(y_pred), dataset.unnormalise_target(y))
             mean_loss += loss.item()
+
             if results is None:
                 results = torch.zeros(len(dataset), y_pred.shape[1])
-            # store the results
+            
             results[batch_idx * batch_size: (batch_idx + 1) * batch_size] = y_pred
+
         mean_loss /= len(data_loader)
 
         return results, mean_loss
 
+    def pre_train(self, data_set: ReconstructionDataset, n_epochs: int):
+        """ Pre-train the reconstruction algorithm
 
-def create_features(parameter_dict_file_path: str, simulation_output_file_path: str):
-    """Convert the files from the simulation to simple lists.
+        TODO Reconstruction results are normalized. In the future only expose the un-normalised ones, 
+        but also requires adjustments to the surrogate dataset
+        """
+        self.to('cuda')
 
-    Args:
-        parameter_dict_file_path (str): The file path to the parameter dictionary file.
-        simulation_output_file_path (str): The file path to the simulation output file.
+        print('pre-training 0')
+        self.train_model(data_set, batch_size=256, n_epochs=10, lr=0.03)
 
-    Returns:
-        Tuple[List, pd.DataFrame, pd.DataFrame]: A tuple containing the simulation parameter list,
-        input features, and target features.
-    TODO Return everything as lists or as dicts (relevant for 'create_torch_dataset' function)
-    """
-    # 1. Simulation Parameter list
-    with open(parameter_dict_file_path, "r") as file:
-        parameter_dict: Dict = json.load(file)
+        print('pre-training 1')
+        self.train_model(data_set, batch_size=256, n_epochs=n_epochs, lr=0.01)
 
-    simulation_parameter_list = []
+        print('pre-training 2')
+        self.train_model(data_set, batch_size=512, n_epochs=n_epochs, lr=0.001)
 
-    for parameter in parameter_dict.values():
-        if parameter["optimizable"] is True:
-            simulation_parameter_list.append(parameter["current_value"])
+        print('pre-training 3')
+        self.train_model(data_set, batch_size=1024, n_epochs=n_epochs, lr=0.001)
 
-    simulation_parameters = np.array(simulation_parameter_list, dtype='float32')
-
-    # 2. Simulation output (pd.DataFrame -> linear array)
-    simulation_output_df: pd.DataFrame = pd.read_pickle(simulation_output_file_path)
-    input_features_keys = [
-        'sensor_energy', 'sensor_x', 'sensor_y', 'sensor_z',
-        'sensor_dx', 'sensor_dy', 'sensor_dz', 'sensor_layer'
-        ]
-    input_features = np.array([simulation_output_df[par].to_numpy() for par in input_features_keys], dtype='float32')
-    input_features = np.swapaxes(input_features, 0, 1)
-    input_features = np.reshape(input_features, (len(input_features), -1))
-
-    # 3. Reconstruction targets
-    target_features_keys = ["true_energy"]
-    target_features = simulation_output_df[target_features_keys].to_numpy(dtype='float32')
-
-    # 4. Context information from simulation
-    context_information_keys = ["true_pid"]
-    context_information = simulation_output_df[context_information_keys].to_numpy(dtype='float32')
-
-    # Reshape parameters to (N, num_parameters)
-    simulation_parameters = np.repeat([simulation_parameters], len(target_features), axis=0)
-
-    shape = (simulation_parameters.shape[1], input_features.shape[1], target_features.shape[1], context_information.shape[1])
-    return simulation_parameters, input_features, target_features, context_information, shape
-    
-
-def pre_train(model: Reconstruction, data_set: CaloDataset, n_epochs: int):
-    """ Pre-train the reconstruction algorithm
-
-    TODO Reconstruction results are normalized. In the future only expose the un-normalised ones, 
-    but also requires adjustments to the surrogate dataset
-    """
-    
-    model.to('cuda')
-
-    print('pre-training 0')
-    model.train_model(data_set, batch_size=256, n_epochs=10, lr=0.03)
-
-    print('pre-training 1')
-    model.train_model(data_set, batch_size=256, n_epochs=n_epochs, lr=0.01)
-
-    print('pre-training 2')
-    model.train_model(data_set, batch_size=512, n_epochs=n_epochs, lr=0.001)
-
-    print('pre-training 3')
-    model.train_model(data_set, batch_size=1024, n_epochs=n_epochs, lr=0.001)
-
-    reco_result, reco_loss = model.apply_model_in_batches(data_set, batch_size=128)
-    reco_model.to('cpu')
-
-    # Mising bit of the surrogate model 
+        reco_result, reco_loss = self.apply_model_in_batches(data_set, batch_size=128)
+        self.to('cpu')
 
 
-simulation_output_file_path = sys.argv[1]
-parameter_dict_file_path = sys.argv[2]
+simulation_output_path = sys.argv[1]
+parameter_dict_path = sys.argv[2]
 output_path = sys.argv[3]
 
-simulation_parameter_list, input_features, target_features, context_information, shape = create_features(parameter_dict_file_path, simulation_output_file_path)
-print("DATA_SET SHAPE:", shape)
+with open(parameter_dict_path, "r") as file:
+    parameter_dict: Dict = json.load(file)
 
-reco_model = Reconstruction(*shape)
+simulation_df: pd.DataFrame = pd.read_pickle(simulation_output_path)
+
+data_set = ReconstructionDataset(
+    parameter_dict,
+    simulation_df,
+    input_keys=[
+        'sensor_energy', 'sensor_x', 'sensor_y', 'sensor_z',
+        'sensor_dx', 'sensor_dy', 'sensor_dz', 'sensor_layer'
+    ],
+    target_keys=["true_energy"],
+    context_keys=["true_pid"]
+    )
+print("RECO Shape of model inputs:", data_set.shape)
+
+reco_model = Reconstruction(*data_set.shape)
 
 n_epochs_pre = 3
 n_epochs_main = 10
-data_set = reco_model.create_torch_dataset(simulation_parameter_list, input_features, target_features, context_information)
 
-pre_train(reco_model, data_set, n_epochs_pre)
+reco_model.pre_train(data_set, n_epochs_pre)
 
 for i in range(3):
     reco_model.to('cuda')
@@ -236,6 +177,8 @@ for i in range(3):
     reco_model.train_model(data_set, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
     reco_model.train_model(data_set, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
     reco_result, reco_loss = reco_model.apply_model_in_batches(data_set, batch_size=128)
-    print(f"Reconstruction Block {i} DONE, loss={reco_loss:.8f}")
+    print(f"RECO Block {i} DONE, loss={reco_loss:.8f}")
 
-reco_result.detach().cpu().numpy().tofile(output_path)
+reco_array: np.ndarray = reco_result.detach().cpu().numpy()
+reco_df = pd.DataFrame(reco_array, columns=data_set.target_keys)
+reco_df.to_pickle(output_path)

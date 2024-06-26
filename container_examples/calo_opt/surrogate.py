@@ -13,10 +13,10 @@ class SurrogateDataset(CaloDataset):
     - true inputs
     - reco output
     '''
-    def __init__(self, calo_dataset, reco_output):
+    def __init__(self, calo_dataset: CaloDataset, reco_output):
         super().__init__(
-            calo_dataset.sensor_array,
-            calo_dataset.detector_array,
+            calo_dataset.simulation_output_array,
+            calo_dataset.simulation_parameters_array,
             calo_dataset.target_array,
             calo_dataset.context_array
         )
@@ -24,10 +24,17 @@ class SurrogateDataset(CaloDataset):
         self.reco_output = reco_output
         self.c_means = calo_dataset.c_means
         self.c_stds = calo_dataset.c_stds
-        assert len(self.reco_output) == len(self.sensor_array), "Reco output and sensor array have different lengths!"
+        assert (
+            len(self.reco_output) == len(self.simulation_output_array)
+        ), "Reco output and sensor array have different lengths!"
 
     def __getitem__(self, idx):
-        return self.detector_array[idx], self.target_array[idx], self.context_array[idx], self.reco_output[idx]
+        return (
+            self.simulation_parameters_array[idx],
+            self.target_array[idx],
+            self.context_array[idx],
+            self.reco_output[idx]
+        )
     
 
 def ddpm_schedules(beta1, beta2, T):

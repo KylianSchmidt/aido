@@ -1,9 +1,6 @@
 import b2luigi
 import os
-import json
-from simulation.SimulationHelpers import SimulationParameterDictionary, SimulationParameter
-from simulation.generator import GenerateNewParameters
-from simulation.SimulationHelpers import GatherResults
+from simulation.SimulationHelpers import SimulationParameterDictionary, SimulationParameter, GatherResults
 
 
 class StartSimulationTask(b2luigi.Task):
@@ -30,22 +27,31 @@ class StartSimulationTask(b2luigi.Task):
 
         os.system(
             f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
-            container_examples/calo_opt/calo_opt_sim.py {parameter_dict_path} {output_path}"
+            container_examples/calo_opt/simulation.py {parameter_dict_path} {output_path}"
         )
 
 
 class Reconstruction(b2luigi.Task):
-    simulation_task_rng_seed = b2luigi.IntParameter()
+    num_simulation_tasks = b2luigi.IntParameter()
     initial_parameter_dict_file_path = b2luigi.PathParameter(hashed=True)
 
     def output(self):
+        """
+        'reconstruction_output': store the output of the reconstruction model
+        'reconstruction_input_file_path': the simulation output files are kept
+            in this file to be passed to the reconstruction model
+        'param_dict.json': parameter dictionary file path
+        """
         yield self.add_to_output("reconstruction_output")
-        yield self.add_to_output("param_dict.json")
+        yield self.add_to_output("reconstruction_input_file_path")
 
     def requires(self):
-        yield StartSimulationTask(
-            initial_parameter_dict_file_path=initial_parameter_dict_file_path,
-            simulation_task_rng_seed=self.simulation_task_rng_seed,
+
+        for i in range(self.num_simulation_tasks):
+            yield self.clone(
+                StartSimulationTask,
+                initial_parameter_dict_file_path=initial_parameter_dict_file_path,
+                simulation_task_rng_seed=i,
             )
 
     def run(self):
@@ -58,17 +64,20 @@ class Reconstruction(b2luigi.Task):
 
         Alternative container: /cvmfs/unpacked.cern.ch/registry.hub.docker.com/cernml4reco/deepjetcore3:latest
         """
+
         output_file_path = self.get_output_file_name("reconstruction_output")
-        parameter_dict_file_path = self.get_output_file_name("param_dict.json")
+        parameter_dict_file_path = self.get_input_file_names("param_dict.json")
+        simulation_file_paths = self.get_input_file_names("simulation_output")
+        reconstruction_input_file_path = self.get_output_file_name("reconstruction_input_file_path")
 
-        param_dict = SimulationParameterDictionary.from_json(self.get_input_file_names("param_dict.json")[0])
-        param_dict.to_json(parameter_dict_file_path)
+        with open(reconstruction_input_file_path) as file:
+            for line in list(zip(parameter_dict_file_path, simulation_file_paths)):
+                file.writelines(line[0] + ", " + line[1])
 
-        for input_file_path in self.get_input_file_names("simulation_output"):
-            os.system(
-                f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
-                container_examples/calo_opt/reconstruction.py {input_file_path} {parameter_dict_file_path} {output_file_path}"
-            )
+        os.system(
+            f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
+            container_examples/calo_opt/reconstruction.py {reconstruction_input_file_path} {output_file_path}"
+        )
 
 
 class SimulationWrapperTask(b2luigi.WrapperTask):
@@ -80,25 +89,23 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
 
         TODO Have the parameters from the previous iteration and pass them to each sub-task
         """
-        for i in range(self.num_simulation_tasks):
-            yield self.clone(
-                Reconstruction,
-                parameter_dict_file_path=self.initial_parameter_dict_file_path,
-                simulation_task_rng_seed=i,
-                )
-
+        yield Reconstruction(
+            initial_parameter_dict_file_path=self.initial_parameter_dict_file_path,
+            num_simulation_tasks=self.num_simulation_tasks
+        )
+        
     def run(self):
         """ Gather the results into a file that is passed to the preprocessing Task for the optimization model.
         map: json file -> reco output
         """
         reconstruction_array = GatherResults.from_numpy_files(
             self.get_input_file_names("reconstruction_output"), delimiter=",", dtype=float
-            )
+        )
         parameter_list = GatherResults.from_parameter_dicts(
             self.get_input_file_names("param_dict.json")
         )
         assert reconstruction_array.shape[0] == len(parameter_list), "Mismatched lengths."
-        print("RECO ARRYA", reconstruction_array)
+        print("RECO ARRAY", reconstruction_array.shape)
         print("parameter list", parameter_list)
         # TODO write to file
         # TODO Run the surrogate model here?
