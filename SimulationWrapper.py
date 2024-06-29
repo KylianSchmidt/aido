@@ -1,6 +1,8 @@
 import b2luigi
 import os
+import pandas as pd
 from simulation.SimulationHelpers import SimulationParameterDictionary, SimulationParameter, GatherResults
+from simulation.conversion import convert_sim_to_reco
 
 
 class StartSimulationTask(b2luigi.Task):
@@ -70,9 +72,23 @@ class Reconstruction(b2luigi.Task):
         simulation_file_paths = self.get_input_file_names("simulation_output")
         reconstruction_input_file_path = self.get_output_file_name("reconstruction_input_file_path")
 
-        with open(reconstruction_input_file_path) as file:
-            for line in list(zip(parameter_dict_file_path, simulation_file_paths)):
-                file.writelines(line[0] + ", " + line[1])
+        df_list = []
+        
+        for simulation_output_path in list(zip(parameter_dict_file_path, simulation_file_paths)):
+            df_list.append(
+                convert_sim_to_reco(
+                    *simulation_output_path,
+                    input_keys=[
+                        'sensor_energy', 'sensor_x', 'sensor_y', 'sensor_z',
+                        'sensor_dx', 'sensor_dy', 'sensor_dz', 'sensor_layer'
+                    ],
+                    target_keys=["true_energy"],
+                    context_keys=["true_pid"]
+                )
+            )
+
+        df = pd.concat(df_list, join="inner", axis=0)
+        df.to_parquet(reconstruction_input_file_path)
 
         os.system(
             f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \

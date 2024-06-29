@@ -143,25 +143,12 @@ class Reconstruction(torch.nn.Module):
         self.to('cpu')
 
 
-simulation_output_path = sys.argv[1]
-parameter_dict_path = sys.argv[2]
+input_df_path = sys.argv[1]
 output_path = sys.argv[3]
 
-with open(parameter_dict_path, "r") as file:
-    parameter_dict: Dict = json.load(file)
+simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
 
-simulation_df: pd.DataFrame = pd.read_pickle(simulation_output_path)
-
-data_set = ReconstructionDataset(
-    parameter_dict,
-    simulation_df,
-    input_keys=[
-        'sensor_energy', 'sensor_x', 'sensor_y', 'sensor_z',
-        'sensor_dx', 'sensor_dy', 'sensor_dz', 'sensor_layer'
-    ],
-    target_keys=["true_energy"],
-    context_keys=["true_pid"]
-    )
+data_set = ReconstructionDataset()
 print("RECO Shape of model inputs:", data_set.shape)
 
 reco_model = Reconstruction(*data_set.shape)
