@@ -46,7 +46,7 @@ class Reconstruction(b2luigi.Task):
         'param_dict.json': parameter dictionary file path
         """
         yield self.add_to_output("reconstruction_output")
-        yield self.add_to_output("reconstruction_input_file_path")
+        yield self.add_to_output("reconstruction_input_file_path")  # Not an output file
 
     def requires(self):
 
@@ -88,13 +88,8 @@ class Reconstruction(b2luigi.Task):
                 )
             )
 
-        df: pd.DataFrame = pd.concat(df_list, axis=0)
-        df.columns = pd.MultiIndex.from_frame(
-            pd.DataFrame(index=df.columns)
-            .reset_index().astype(str)
-        )
-        print("DEBUG df", df)
-        df.to_parquet(reconstruction_input_file_path)
+        df: pd.DataFrame = pd.concat(df_list, axis=0, ignore_index=True)
+        df.to_parquet(reconstruction_input_file_path, index=range(len(df)))
 
         os.system(
             f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
@@ -117,20 +112,11 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
         )
         
     def run(self):
-        """ Gather the results into a file that is passed to the preprocessing Task for the optimization model.
-        map: json file -> reco output
+        """ Read reconstruction output 
         """
-        reconstruction_array = GatherResults.from_numpy_files(
-            self.get_input_file_names("reconstruction_output"), delimiter=",", dtype=float
-        )
-        parameter_list = GatherResults.from_parameter_dicts(
-            self.get_input_file_names("param_dict.json")
-        )
-        assert reconstruction_array.shape[0] == len(parameter_list), "Mismatched lengths."
-        print("RECO ARRAY", reconstruction_array.shape)
-        print("parameter list", parameter_list)
-        # TODO write to file
-        # TODO Run the surrogate model here?
+        reco_output = self.get_input_file_names("reconstruction_output")[0]
+        df = pd.read_parquet(reco_output)
+        print("OUTPUT df\n", df)
 
 
 if __name__ == "__main__":

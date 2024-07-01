@@ -26,7 +26,7 @@ def convert_sim_to_reco(
     TODO Return everything as lists or as dicts (relevant for 'create_torch_dataset' function)
     """
 
-    def convert_parameters_to_df(parameter_dict: Dict | str, df_length: int) -> pd.DataFrame:
+    def to_df(parameter_dict: Dict | str, df_length: int) -> pd.DataFrame:
         """ Create parameter dict from file if path given. Remove all parameters that are not
         optimizable and also only keep current values. Output is a df of length 'length', so
         that it can be concatenated with the other df's.
@@ -55,11 +55,7 @@ def convert_sim_to_reco(
             item = df[column][0]
 
             if isinstance(item, Iterable):
-                expanded_df = pd.DataFrame(
-                    df[column].tolist(),
-                    index=df.index
-                )
-
+                expanded_df = pd.DataFrame(df[column].tolist(), index=df.index)
                 expanded_df.columns = [f'{column}_{i}' for i in expanded_df.columns]
                 df = pd.concat([df.drop(columns=column), expanded_df], axis=1)
 
@@ -68,17 +64,16 @@ def convert_sim_to_reco(
     if isinstance(simulation_output_df, str):
         input_df: pd.DataFrame = pd.read_parquet(simulation_output_df)
 
-    parameter_df = convert_parameters_to_df(parameter_dict, len(input_df))
+    parameter_df = to_df(parameter_dict, len(input_df))
     df_combined_dict = {
         "Parameters": parameter_df,
-        "Inputs": input_df[input_keys],
-        "Targets": input_df[target_keys],
-        "Context": input_df[context_keys]
+        "Inputs": expand_columns(input_df[input_keys]),
+        "Targets": expand_columns(input_df[target_keys]),
+        "Context": expand_columns(input_df[context_keys])
     }
     df: pd.DataFrame = pd.concat(
         df_combined_dict.values(),
         keys=df_combined_dict.keys(),
         axis=1
     )
-    df = expand_columns(df)
     return df

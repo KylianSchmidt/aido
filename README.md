@@ -8,6 +8,8 @@ The goal of this framework is to optimize the geometry of detectors simulated wi
  - numpy
  - singularity
  - pandas
+ - awkward
+ - pyarrow
  - fastparquet
  - pytorch (motivates the use of another container?)
 

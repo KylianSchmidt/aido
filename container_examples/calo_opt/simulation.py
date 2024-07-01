@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import sys
 import json
+import awkward
 from  G4Calo import G4System, GeometryDescriptor
 
 
@@ -61,4 +62,9 @@ with open(parameter_dict_file_path, "r") as file:
 
 generator = Simulation(parameter_dict)
 df = generator.run_simulation()
+
+for column in df.columns:
+    if df[column].dtype == "awkward":
+        df[column] = df[column].to_list()
+
 df.to_parquet(output_path)

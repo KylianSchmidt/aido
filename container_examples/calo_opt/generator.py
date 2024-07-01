@@ -9,76 +9,66 @@ import json
 from typing import Dict, List
 import torch
 from torch.utils.data import Dataset, DataLoader
-from  G4Calo import G4System, GeometryDescriptor
+from G4Calo import G4System, GeometryDescriptor
 
-        
+
 class ReconstructionDataset(Dataset):
-    def __init__(
-            self,
-            input_df: pd.DataFrame,
-            ):
+    def __init__(self, input_df: pd.DataFrame):
         """Convert the files from the simulation to simple lists.
 
         Args:
-            parameter_dict: Instance of Parameter Dictionary.
-            simulation_df: Instance of pd.DataFrame
-            df["Inputs"]_keys (list of keys in df): Keys of input features to be used by the model.
-            target_features_keys (list of keys in df): Keys of target features of the reconstruction model.
-            context_information (list of keys in df): (Optional) Keys of additional information for each 
-                event.
+            input_df: Instance of pd.DataFrame. Must contain as first level columns:
+            ["Parameters", "Inputs", "Targets", "Context"]
 
         Returns:
             torch.DataSet instance
         """
         self.df = input_df
+        self.parameters = self.df["Parameters"].to_numpy("float32")
+        self.inputs = self.df["Inputs"].to_numpy("float32")
+        self.targets = self.df["Targets"].to_numpy("float32")
+        self.context = self.df["Context"].to_numpy("float32")
 
         self.shape = (
-            self.df["Parameters"].shape[1],
-            self.df["Inputs"].shape[1],
-            self.df["Targets"].shape[1],
-            self.df["Context"].shape[1]
+            self.parameters.shape[1],
+            self.inputs.shape[1],
+            self.targets.shape[1],
+            self.context.shape[1]
         )
 
         # Normalize
         self.means = [
-            np.mean(self.df["Parameters"], axis=0),
-            np.mean(self.df["Inputs"], axis=0),
-            np.mean(self.df["Targets"], axis=0),
-            np.mean(self.df["Context"], axis=0)
+            np.mean(self.parameters, axis=0),
+            np.mean(self.inputs, axis=0),
+            np.mean(self.targets, axis=0),
+            np.mean(self.context, axis=0)
         ]
         self.stds = [
-            np.std(self.df["Parameters"], axis=0) + 1e-3,
-            np.std(self.df["Inputs"], axis=0) + 1e-3,
-            np.std(self.df["Targets"], axis=0) + 1e-3,
-            np.std(self.df["Context"], axis=0) + 1e-3
+            np.std(self.parameters, axis=0) + 1e-3,
+            np.std(self.inputs, axis=0) + 1e-3,
+            np.std(self.targets, axis=0) + 1e-3,
+            np.std(self.context, axis=0) + 1e-3
         ]
 
-        self.df["Parameters"] = (self.df["Parameters"] - self.means[0]) / self.stds[0]
-        self.df["Inputs"] = (self.df["Inputs"] - self.means[1]) / self.stds[1]
+        self.parameters = (self.parameters - self.means[0]) / self.stds[0]
+        self.inputs = (self.inputs - self.means[1]) / self.stds[1]
 
         # A normalised target is important for the surrogate to work given the scheduling we have here
-        self.df["Targets"] = (self.df["Targets"] - self.means[2]) / self.stds[2]
-        self.df["Context"] = (self.df["Context"] - self.means[3]) / self.stds[3]
+        self.targets = (self.targets - self.means[2]) / self.stds[2]
+        self.context = (self.context - self.means[3]) / self.stds[3]
 
         self.c_means = [torch.tensor(a).to('cuda') for a in self.means]
         self.c_stds = [torch.tensor(a).to('cuda') for a in self.stds]
 
-        self.filter_infs_and_nans()
+        self.df = self.filter_infs_and_nans(self.df)
 
-    def filter_infs_and_nans(self):
+    def filter_infs_and_nans(self, df: pd.DataFrame):
         '''
         Removes all events that contain infs or nans.
         '''
-        mask = np.ones(len(self.df["Inputs"]), dtype=bool)
-
-        for i in range(len(self.df["Inputs"])):
-            if np.any(np.isinf(self.df["Inputs"][i])) or np.any(np.isnan(self.df["Inputs"][i])):
-                mask[i] = False
-    
-        self.df["Inputs"] = self.df["Inputs"][mask]
-        self.df["Parameters"] = self.df["Parameters"][mask]
-        self.df["Targets"] = self.df["Targets"][mask]
-        self.df["Context"] = self.df["Context"][mask]
+        df = df.replace([np.inf, -np.inf], np.nan)
+        df = df.dropna(axis=0, ignore_index=True)
+        return df
 
     def unnormalise_target(self, target):
         '''
@@ -105,8 +95,7 @@ class ReconstructionDataset(Dataset):
         return (detector - self.c_means[1]) / self.c_stds[1]
         
     def __len__(self):
-        return len(self.df["Inputs"])
+        return len(self.inputs)
     
     def __getitem__(self, idx):
-        return self.df["Parameters"][idx], self.df["Inputs"][idx], self.df["Targets"][idx]
-    
+        return self.parameters[idx], self.inputs[idx], self.targets[idx]

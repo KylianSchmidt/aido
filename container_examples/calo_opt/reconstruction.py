@@ -75,6 +75,7 @@ class Reconstruction(torch.nn.Module):
         self.train()
 
         for epoch in range(n_epochs):
+    
             for (detector_parameters, x, y) in train_loader:
                 detector_parameters = detector_parameters.to(self.device)
                 x = x.to(self.device)
@@ -144,11 +145,12 @@ class Reconstruction(torch.nn.Module):
 
 
 input_df_path = sys.argv[1]
-output_path = sys.argv[3]
+output_path = sys.argv[2]
 
 simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
+print("DEBUG simulation df\n", simulation_df)
 
-data_set = ReconstructionDataset()
+data_set = ReconstructionDataset(simulation_df)
 print("RECO Shape of model inputs:", data_set.shape)
 
 reco_model = Reconstruction(*data_set.shape)
@@ -166,6 +168,12 @@ for i in range(3):
     reco_result, reco_loss = reco_model.apply_model_in_batches(data_set, batch_size=128)
     print(f"RECO Block {i} DONE, loss={reco_loss:.8f}")
 
-reco_array: np.ndarray = reco_result.detach().cpu().numpy()
-reco_df = pd.DataFrame(reco_array, columns=data_set.target_keys)
-reco_df.to_parquet(output_path)
+reco_result = reco_result.detach().cpu().numpy()
+reco_result = reco_result * data_set.stds[2] + data_set.means[2]
+
+reco_df = pd.DataFrame(reco_result, columns=data_set.df["Targets"].columns)
+reco_df = pd.concat({"Reconstructed": reco_df}, axis=1)
+
+df: pd.DataFrame = pd.concat([simulation_df, reco_df], axis=1)
+print("DEBUG df\n", df)
+df.to_parquet(output_path, index=range(len(df)))
