@@ -1,7 +1,6 @@
-import numpy as np
 import pandas as pd
 import json
-from typing import Dict, List
+from typing import Dict, List, Iterable
 
 
 def convert_sim_to_reco(
@@ -26,50 +25,60 @@ def convert_sim_to_reco(
             simulation parameter list, input features, and target features, context features and the shape
     TODO Return everything as lists or as dicts (relevant for 'create_torch_dataset' function)
     """
-    # 1. Simulation Parameter list
-    if isinstance(parameter_dict, str):
-        with open(parameter_dict, "r") as file:
-            parameter_dict: Dict = json.load(file)
 
-    # Remove parameters if they are not optimizable TODO write to function
-    parameter_dict_only_optimizables = []
+    def convert_parameters_to_df(parameter_dict: Dict | str, df_length: int) -> pd.DataFrame:
+        """ Create parameter dict from file if path given. Remove all parameters that are not
+        optimizable and also only keep current values. Output is a df of length 'length', so
+        that it can be concatenated with the other df's.
+        """
+        if isinstance(parameter_dict, str):
+            with open(parameter_dict, "r") as file:
+                parameter_dict: Dict = json.load(file)
 
-    for parameter in parameter_dict.values():
-        if parameter["optimizable"] is True:
-            parameter_dict_only_optimizables.append(parameter["current_value"])
+        parameter_dict_only_optimizables = {}
 
-    parameter_dict["Parameters"] = parameter_dict_only_optimizables
-    print("DEBUG", parameter_dict)
-    parameter_df = pd.DataFrame(parameter_dict)
+        for parameter in parameter_dict.values():
+            if parameter["optimizable"] is True:
+                parameter_dict_only_optimizables[parameter["name"]] = parameter["current_value"]
 
-    # 2. Simulation output (pd.DataFrame -> linear array)
+        print(
+            "Parameter Dict (optimizables, only current values):\n",
+            json.dumps(parameter_dict_only_optimizables, indent=4)
+        )
+        return pd.DataFrame(parameter_dict_only_optimizables, index=range(df_length))
+    
+    def expand_columns(df: pd.DataFrame) -> pd.DataFrame:
+        """ Check if columns in df are lists and flatten them by replacing those
+        columns with <column_name>_{i} for i in index of the list.
+        """
+        for column in df.columns:
+            item = df[column][0]
+
+            if isinstance(item, Iterable):
+                expanded_df = pd.DataFrame(
+                    df[column].tolist(),
+                    index=df.index
+                )
+
+                expanded_df.columns = [f'{column}_{i}' for i in expanded_df.columns]
+                df = pd.concat([df.drop(columns=column), expanded_df], axis=1)
+
+        return df
+
     if isinstance(simulation_output_df, str):
         input_df: pd.DataFrame = pd.read_parquet(simulation_output_df)
 
-    input_features_df = input_df[input_keys]
-
-    # 3. Reconstruction targets
-    target_features = input_df[target_keys].to_numpy(dtype='float32')
-
-    # 4. Context information from simulation
-    context_information = input_df[context_keys].to_numpy(dtype='float32')
-
-    # Concat df
+    parameter_df = convert_parameters_to_df(parameter_dict, len(input_df))
+    df_combined_dict = {
+        "Parameters": parameter_df,
+        "Inputs": input_df[input_keys],
+        "Targets": input_df[target_keys],
+        "Context": input_df[context_keys]
+    }
     df: pd.DataFrame = pd.concat(
-        [parameter_df, input_features_df, target_features, context_information],
+        df_combined_dict.values(),
+        keys=df_combined_dict.keys(),
         axis=1
     )
-    
-    for column in df.columns:
-        item = df[column][0]
-
-        if isinstance(item, list):
-            expanded_df = pd.DataFrame(
-                df[column].tolist(),
-                index=df.index
-            )
-
-        expanded_df.columns = [f'{column}_{i}' for i in expanded_df.columns]
-        df = pd.concat(df.drop(columns=column), expanded_df, axis=1)
-
+    df = expand_columns(df)
     return df

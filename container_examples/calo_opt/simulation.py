@@ -61,4 +61,4 @@ with open(parameter_dict_file_path, "r") as file:
 
 generator = Simulation(parameter_dict)
 df = generator.run_simulation()
-df.to_pickle(output_path)
+df.to_parquet(output_path)

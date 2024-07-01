@@ -168,4 +168,4 @@ for i in range(3):
 
 reco_array: np.ndarray = reco_result.detach().cpu().numpy()
 reco_df = pd.DataFrame(reco_array, columns=data_set.target_keys)
-reco_df.to_pickle(output_path)
+reco_df.to_parquet(output_path)

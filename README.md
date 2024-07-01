@@ -7,7 +7,8 @@ The goal of this framework is to optimize the geometry of detectors simulated wi
  - b2luigi
  - numpy
  - singularity
- - uproot
+ - pandas
+ - fastparquet
  - pytorch (motivates the use of another container?)
 
 ## Structure
