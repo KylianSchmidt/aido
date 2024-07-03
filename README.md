@@ -58,6 +58,7 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
     - [x] Write to file the output of the reconstruction (same location as simulation)
     - [x] Merge the output of the simulation into pd.DataFrame 
     - [x] API using pd.DataFrame (user has to provide individual keys)
+    - [ ] Normalize once at the first iteration and continue using those normalizations later (for better convergence of the Surrogate model)
 
  - Optimization
     - [-] Read the outputs of the reconstruction and build an array for the training
@@ -65,3 +66,6 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
     - [ ] Use Gradient descent to find local minimum
     - [ ] Write optimal parameters to file for this iteration
     - [ ] Call the class responsable for generating new parameter sets
+
+ - Others
+    - [ ] Pip package or venv list of all packages used in the main b2luigi scheduler file

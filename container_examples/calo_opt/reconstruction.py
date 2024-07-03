@@ -5,14 +5,13 @@ the dataset is provided by the Generator as a pandas dataframe
 Data loader etc are in here, too
 """
 import sys
-import json
-from typing import Dict, List
+from typing import Dict, List, Union
 import torch
-import numpy as np
 import pandas as pd
 import torch.utils.data
-from torch.utils.data import DataLoader
-from generator import ReconstructionDataset
+from torch.utils.data import DataLoader, Dataset
+from generator import ReconstructionDataset, SurrogateDataset
+from surrogate import Surrogate
 
 
 class Reconstruction(torch.nn.Module):
@@ -45,9 +44,6 @@ class Reconstruction(torch.nn.Module):
         # Placeholders for a simpler training loop
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
         self.device = torch.device('cuda')
-
-    def create_torch_dataset(self, simulation_parameter_list, input_features, target_features, context_information):
-        ...
 
     def forward(self, detector_parameters, x):
         """ Concatenate the detector parameters and the input 
@@ -120,28 +116,29 @@ class Reconstruction(torch.nn.Module):
 
         return results, mean_loss
 
-    def pre_train(self, data_set: ReconstructionDataset, n_epochs: int):
-        """ Pre-train the reconstruction algorithm
 
-        TODO Reconstruction results are normalized. In the future only expose the un-normalised ones, 
-        but also requires adjustments to the surrogate dataset
-        """
-        self.to('cuda')
+def pre_train(model: Union[Reconstruction, Surrogate], dataset: Dataset, n_epochs: int):
+    """ Pre-train the  a given model
 
-        print('pre-training 0')
-        self.train_model(data_set, batch_size=256, n_epochs=10, lr=0.03)
+    TODO Reconstruction results are normalized. In the future only expose the un-normalised ones, 
+    but also requires adjustments to the surrogate dataset
+    """
+    model.to('cuda')
 
-        print('pre-training 1')
-        self.train_model(data_set, batch_size=256, n_epochs=n_epochs, lr=0.01)
+    print('pre-training 0')
+    model.train_model(dataset, batch_size=256, n_epochs=10, lr=0.03)
 
-        print('pre-training 2')
-        self.train_model(data_set, batch_size=512, n_epochs=n_epochs, lr=0.001)
+    print('pre-training 1')
+    model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.01)
 
-        print('pre-training 3')
-        self.train_model(data_set, batch_size=1024, n_epochs=n_epochs, lr=0.001)
+    print('pre-training 2')
+    model.train_model(dataset, batch_size=512, n_epochs=n_epochs, lr=0.001)
 
-        reco_result, reco_loss = self.apply_model_in_batches(data_set, batch_size=128)
-        self.to('cpu')
+    print('pre-training 3')
+    model.train_model(dataset, batch_size=1024, n_epochs=n_epochs, lr=0.001)
+
+    model.apply_model_in_batches(reco_dataset, batch_size=128)
+    model.to('cpu')
 
 
 input_df_path = sys.argv[1]
@@ -150,30 +147,54 @@ output_path = sys.argv[2]
 simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
 print("DEBUG simulation df\n", simulation_df)
 
-data_set = ReconstructionDataset(simulation_df)
-print("RECO Shape of model inputs:", data_set.shape)
+reco_dataset = ReconstructionDataset(simulation_df)
+print("RECO Shape of model inputs:", reco_dataset.shape)
 
-reco_model = Reconstruction(*data_set.shape)
+reco_model = Reconstruction(*reco_dataset.shape)
 
 n_epochs_pre = 3
 n_epochs_main = 10
 
-reco_model.pre_train(data_set, n_epochs_pre)
+pre_train(reco_model, reco_dataset, n_epochs_pre)
 
 for i in range(3):
+    # Reconstruction:
     reco_model.to('cuda')
-    reco_model.train_model(data_set, batch_size=256, n_epochs=n_epochs_main // 4, lr=0.003)
-    reco_model.train_model(data_set, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
-    reco_model.train_model(data_set, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
-    reco_result, reco_loss = reco_model.apply_model_in_batches(data_set, batch_size=128)
+    reco_model.train_model(reco_dataset, batch_size=256, n_epochs=n_epochs_main // 4, lr=0.003)
+    reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
+    reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
+    reco_result, reco_loss = reco_model.apply_model_in_batches(reco_dataset, batch_size=128)
     print(f"RECO Block {i} DONE, loss={reco_loss:.8f}")
 
-reco_result = reco_result.detach().cpu().numpy()
-reco_result = reco_result * data_set.stds[2] + data_set.means[2]
+    # Reconstructed array unnormalized:
+    reco_result = reco_result.detach().cpu().numpy()
+    reco_result = reco_result * reco_dataset.stds[2] + reco_dataset.means[2]
 
-reco_df = pd.DataFrame(reco_result, columns=data_set.df["Targets"].columns)
-reco_df = pd.concat({"Reconstructed": reco_df}, axis=1)
+    # Surrogate:
+    print("Surrogate training")
+    surrogate_dataset = SurrogateDataset(reco_dataset, reco_result)
+    print("DEBUG Get item from Surrogate DataSet, idx=0", surrogate_dataset[0])
+    surrogate_model = Surrogate(*surrogate_dataset.shape)
 
-df: pd.DataFrame = pd.concat([simulation_df, reco_df], axis=1)
-print("DEBUG df\n", df)
-df.to_parquet(output_path, index=range(len(df)))
+    surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
+    surrogate_loss = surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
+
+    best_surrogate_loss = 1e10
+
+    while surrogate_loss < 4.0 * best_surrogate_loss:
+
+        if surrogate_loss < best_surrogate_loss:
+            break
+        else:
+            print("Surrogate re-training")
+            pre_train(surrogate_model, surrogate_dataset, n_epochs_pre)
+            surrogate_model.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 5, lr=0.005)
+            surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
+            surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
+            sl = surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0001)
+
+    surr_out, reco_out, true_in = surrogate_model.apply_model_in_batches(surrogate_dataset, batch_size=512)
+
+    print("Finished, surrogate model output:", surr_out)
+
+surrogate_dataset.df.to_parquet(output_path, index=range(len(surrogate_dataset.df)))

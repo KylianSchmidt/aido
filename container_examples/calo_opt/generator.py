@@ -1,18 +1,12 @@
-
-
 import numpy as np
 import pandas as pd
-import time
-import multiprocessing
-import os
-import json
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import torch
-from torch.utils.data import Dataset, DataLoader
-from G4Calo import G4System, GeometryDescriptor
+from torch.utils.data import Dataset
 
 
 class ReconstructionDataset(Dataset):
+
     def __init__(self, input_df: pd.DataFrame):
         """Convert the files from the simulation to simple lists.
 
@@ -35,8 +29,6 @@ class ReconstructionDataset(Dataset):
             self.targets.shape[1],
             self.context.shape[1]
         )
-
-        # Normalize
         self.means = [
             np.mean(self.parameters, axis=0),
             np.mean(self.inputs, axis=0),
@@ -52,14 +44,11 @@ class ReconstructionDataset(Dataset):
 
         self.parameters = (self.parameters - self.means[0]) / self.stds[0]
         self.inputs = (self.inputs - self.means[1]) / self.stds[1]
-
-        # A normalised target is important for the surrogate to work given the scheduling we have here
         self.targets = (self.targets - self.means[2]) / self.stds[2]
         self.context = (self.context - self.means[3]) / self.stds[3]
 
         self.c_means = [torch.tensor(a).to('cuda') for a in self.means]
         self.c_stds = [torch.tensor(a).to('cuda') for a in self.stds]
-
         self.df = self.filter_infs_and_nans(self.df)
 
     def filter_infs_and_nans(self, df: pd.DataFrame):
@@ -99,3 +88,75 @@ class ReconstructionDataset(Dataset):
     
     def __getitem__(self, idx):
         return self.parameters[idx], self.inputs[idx], self.targets[idx]
+
+
+class SurrogateDataset(ReconstructionDataset):
+    """This dataset requires an existing ReconstructionDataset instance. This dataset
+    adds the output of the reconstruction model.
+
+    Args:
+        reco_dataset (ReconstructionDataset): An existing ReconstructionDataset instance.
+        reconstructed_array (np.ndarray): The reconstructed array to be added to the dataset. Must not be normailized.
+
+    Attributes:
+        df (pd.DataFrame): The concatenated dataframe containing the original dataset and the reconstructed array.
+        parameters (np.ndarray): The parameters from the original dataset.
+        inputs (np.ndarray): The inputs from the original dataset.
+        targets (np.ndarray): The targets from the original dataset.
+        context (np.ndarray): The context from the original dataset.
+        reconstructed (np.ndarray): The reconstructed array. Columns are identical to 'targets'.
+        shape (tuple): The shape of the dataset: [parameters, inputs, targets, context, reconstructed].
+        means (list): The means of the original dataset and the reconstructed array.
+        stds (list): The standard deviations of the original dataset and the reconstructed array.
+        c_means (list): The means converted to torch tensors and moved to the 'cuda' device.
+        c_stds (list): The standard deviations converted to torch tensors and moved to the 'cuda' device.
+
+    Methods:
+        __getitem__(self, idx: int): [parameters, targets, context, reconstructed] at the given index
+
+    """
+
+    def __init__(
+            self,
+            reco_dataset: ReconstructionDataset,
+            reconstructed_array: np.ndarray
+            ):
+        reconstructed_df = pd.DataFrame(reconstructed_array, columns=reco_dataset.df["Targets"].columns)
+        reconstructed_df = pd.concat({"Reconstructed": reconstructed_df}, axis=1)
+        self.df: pd.DataFrame = pd.concat([reco_dataset.df, reconstructed_df], axis=1)
+        
+        self.parameters = reco_dataset.parameters
+        self.inputs = reco_dataset.inputs
+        self.targets = reco_dataset.targets
+        self.context = reco_dataset.context
+        self.reconstructed = self.df["Reconstructed"].to_numpy("float32")
+
+        self.shape = (
+            self.parameters.shape[1],
+            self.inputs.shape[1],
+            self.targets.shape[1],
+            self.context.shape[1],
+            self.reconstructed.shape[1]
+        )
+        self.means = [
+            np.mean(self.parameters, axis=0),
+            np.mean(self.inputs, axis=0),
+            np.mean(self.targets, axis=0),
+            np.mean(self.context, axis=0),
+            np.mean(self.reconstructed, axis=0)
+        ]
+        self.stds = [
+            np.std(self.parameters, axis=0) + 1e-3,
+            np.std(self.inputs, axis=0) + 1e-3,
+            np.std(self.targets, axis=0) + 1e-3,
+            np.std(self.context, axis=0) + 1e-3,
+            np.std(self.reconstructed, axis=0) + 1e-3
+        ]
+        self.reconstructed = (self.reconstructed - self.means[4]) / self.stds[4]
+
+        self.c_means = [torch.tensor(a).to('cuda') for a in self.means]
+        self.c_stds = [torch.tensor(a).to('cuda') for a in self.stds]
+        self.df = self.filter_infs_and_nans(self.df)
+
+    def __getitem__(self, idx):
+        return self.parameters[idx], self.targets[idx], self.context[idx], self.reconstructed[idx]

@@ -1,47 +1,16 @@
 import torch
-from generator import CaloDataset
+from typing import Tuple
+import pandas as pd
+import numpy as np
 from torch.utils.data import DataLoader
-
-
-class SurrogateDataset(CaloDataset):
-    '''
-    This dataset is initialised with an existing CaloDataset and copies most of its behaviour and data.
-    However, it adds an additional array that contains the output of the reconstruction model for each event.
-
-    Returns in iterator:
-    - detector parameters
-    - true inputs
-    - reco output
-    '''
-    def __init__(self, calo_dataset: CaloDataset, reco_output):
-        super().__init__(
-            calo_dataset.simulation_output_array,
-            calo_dataset.simulation_parameters_array,
-            calo_dataset.target_array,
-            calo_dataset.context_array
-        )
-
-        self.reco_output = reco_output
-        self.c_means = calo_dataset.c_means
-        self.c_stds = calo_dataset.c_stds
-        assert (
-            len(self.reco_output) == len(self.simulation_output_array)
-        ), "Reco output and sensor array have different lengths!"
-
-    def __getitem__(self, idx):
-        return (
-            self.simulation_parameters_array[idx],
-            self.target_array[idx],
-            self.context_array[idx],
-            self.reco_output[idx]
-        )
+from generator import SurrogateDataset
     
 
-def ddpm_schedules(beta1, beta2, T):
+def ddpm_schedules(beta1: float, beta2: float, T: int):
     """
     Returns pre-computed schedules for DDPM sampling, training process.
     """
-    assert beta1 < beta2 < 1.0, "beta1 and beta2 must be in (0, 1)"
+    assert beta1 < beta2 < 1.0, "beta1 and beta2 must be in ]0, 1["
 
     beta_t = (beta2 - beta1) * torch.arange(0, T + 1, dtype=torch.float32) / T + beta1
     sqrt_beta_t = torch.sqrt(beta_t)
@@ -68,12 +37,12 @@ def ddpm_schedules(beta1, beta2, T):
 
 class NoiseAdder(torch.nn.Module):
 
-    def __init__(self, n_time_steps, betas=(1e-4, 0.02)):
+    def __init__(self, n_time_steps: int, betas=(1e-4, 0.02)):
         super().__init__()
 
         self.n_time_steps = n_time_steps
 
-        for k, v in ddpm_schedules(betas[0], betas[1], n_time_steps).items():
+        for k, v in ddpm_schedules(*betas, n_time_steps).items():
             self.register_buffer(k, v)
 
     def forward(self, x, t):
@@ -100,30 +69,35 @@ class Surrogate(torch.nn.Module):
     the surrogate model itself can be very very simple. It is just a feed forward model but used as a diffusion model
     the training loop is also in here
     """
+
     def __init__(
             self,
-            n_detector_parameters,
-            n_true_context_inputs,
-            n_reco_parameters,
-            n_time_steps,
-            betas=(1e-4, 0.02)
+            num_parameters: int,
+            num_targets: int,
+            num_context: int,
+            num_reconstructed: int,
+            n_time_steps=100,
+            betas: Tuple[float] = (1e-4, 0.02)
             ):
-        super(Surrogate, self).__init__()
+        super().__init__()
 
-        self.n_detector_parameters = n_detector_parameters
+        self.num_parameters = num_parameters
+        self.num_targets = num_targets
+        self.num_context = num_context
+        self.num_reconstructed = num_reconstructed
+        print("DEBUG Size of first layer in surrogate", self.num_parameters + self.num_targets + self.num_context + self.num_reconstructed + 1)
 
         self.layers = torch.nn.Sequential(
-            torch.nn.Linear(n_detector_parameters + n_true_context_inputs + n_reco_parameters + 1, 100),
+            torch.nn.Linear(self.num_parameters + self.num_targets + self.num_context + self.num_reconstructed + 1, 100),
             torch.nn.ELU(),
             torch.nn.Linear(100, 100),
             torch.nn.ELU(),
             torch.nn.Linear(100, 100),
             torch.nn.ELU(),
-            torch.nn.Linear(100, n_reco_parameters),
+            torch.nn.Linear(100, num_reconstructed),
         )
 
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
-        self.n_reco_parameters = n_reco_parameters
         self.n_time_steps = n_time_steps
 
         for k, v in ddpm_schedules(betas[0], betas[1], n_time_steps).items():
@@ -131,22 +105,27 @@ class Surrogate(torch.nn.Module):
 
         self.loss_mse = torch.nn.MSELoss()
         self.device = torch.device('cuda')
-        self.t_is = torch.tensor([i / self.n_time_steps for i in range(self.n_time_steps + 1)]).to(self.device)
+        self.t_is = torch.tensor(
+            [i / self.n_time_steps for i in range(self.n_time_steps + 1)]
+        ).to(self.device)
 
-    def forward(self, detector_parameters, true_inputs, true_context, reco_step_inputs, time_step):
+    def forward(
+            self,
+            parameters: torch.Tensor,
+            targets: torch.Tensor,
+            context: torch.Tensor,
+            reconstructed: torch.Tensor,
+            time_step: torch.Tensor
+            ):
         """ Concatenate the detector parameters and the input
         print all dimensions for debugging
 
         In case the detector parameters don't have batch dimension:
-        tile them here to have same first dimension as 'true_inputs'
+        tile them here to have same first dimension as 'targets'
         """
-        
         time_step = time_step.view(-1, 1)
 
-        if len(detector_parameters.shape) == 1:
-            detector_parameters = detector_parameters.repeat(true_inputs.shape[0], 1)
-
-        x = torch.cat([detector_parameters, true_inputs, true_context, reco_step_inputs, time_step], dim=1)
+        x = torch.cat([parameters, targets, context, reconstructed, time_step], dim=1)
         return self.layers(x)
     
     def to(self, device=None):
@@ -159,17 +138,22 @@ class Surrogate(torch.nn.Module):
         self.sqrtmab = self.sqrtmab.to(device)
         return self
     
-    def create_noisy_input(self, reco_step_inputs):
-        x = reco_step_inputs
+    def create_noisy_input(self, x: torch.Tensor):
+        """ Add noise to a tensor
+        """
         _ts = torch.randint(1, self.n_time_steps + 1, (x.shape[0],)).to(self.device)  # t ~ Uniform(0, n_time_steps)
         noise = torch.randn_like(x)  # eps ~ N(0, 1)
 
-        # add the noise
         x_t = self.sqrtab[_ts, None] * x + self.sqrtmab[_ts, None] * noise
         return x_t, noise, _ts
 
-    def sample_forward(self, detector_parameters, true_inputs, true_context):
-        n_sample = true_inputs.shape[0]
+    def sample_forward(
+            self,
+            parameters: torch.Tensor,
+            targets: torch.Tensor,
+            context: torch.Tensor,
+            ):
+        n_sample = targets.shape[0]
         x_i = torch.randn(n_sample, 1).to(self.device)  # x_0 ~ N(0, 1)
         
         for i in range(self.n_time_steps, 0, -1):
@@ -178,11 +162,11 @@ class Surrogate(torch.nn.Module):
             z = torch.randn(n_sample, 1).to(self.device) if i > 1 else 0
 
             # Split predictions and compute weighting
-            eps = self(detector_parameters, true_inputs, true_context, x_i, t_is)
+            eps = self(parameters, targets, context, x_i, t_is)
             x_i = (
                 self.oneover_sqrta[i] * (x_i - eps * self.mab_over_sqrtmab[i]) + self.sqrt_beta_t[i] * z
             )
-        
+    
         return x_i
     
     def train_model(
@@ -192,26 +176,25 @@ class Surrogate(torch.nn.Module):
             n_epochs: int,
             lr: float
             ):
+        """ Train the Surrogate Diffusion model. The training loop includes the added
+        noise.
+        """
 
         train_loader = DataLoader(surrogate_dataset, batch_size=batch_size, shuffle=True)
         self.optimizer.lr = lr
         self.to(self.device)
-        
         self.train()
 
         for epoch in range(n_epochs):
-            for batch_idx, (detector_parameters, true_inputs, true_context, reco_result) in enumerate(train_loader):
-                # this needs to be adapted since it is a diffusion model. so the noise loop needs to be in here
-                # the noise loop is the same as in the generator
-                
-                detector_parameters = detector_parameters.to(self.device)
-                true_inputs = true_inputs.to(self.device)
-                reco_step_inputs = reco_result.to(self.device)
-                true_context = true_context.to(self.device)
-                # the noise loop
-                x_t, noise, _ts = self.create_noisy_input(reco_step_inputs)
-                # apply the model
-                model_out = self(detector_parameters, true_inputs, true_context, x_t, _ts / self.n_time_steps)
+
+            for batch_idx, (parameters, targets, context, reco_result) in enumerate(train_loader):
+                parameters = parameters.to(self.device)
+                targets = targets.to(self.device)
+                reconstructed = reco_result.to(self.device)
+                context = context.to(self.device)
+
+                x_t, noise, _ts = self.create_noisy_input(reconstructed)
+                model_out = self(parameters, targets, context, x_t, _ts / self.n_time_steps)
 
                 loss = self.loss_mse(noise, model_out)
                 self.optimizer.zero_grad()
@@ -227,31 +210,31 @@ class Surrogate(torch.nn.Module):
         self.to()
         self.eval()
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
-        results = torch.zeros(oversample * len(dataset), self.n_reco_parameters).to('cpu')
-        reco = torch.zeros(oversample * len(dataset), self.n_reco_parameters).to('cpu')
-        true = torch.zeros(oversample * len(dataset), self.n_reco_parameters).to('cpu')
+        results = torch.zeros(oversample * len(dataset), self.num_reconstructed).to('cpu')
+        reco = torch.zeros(oversample * len(dataset), self.num_reconstructed).to('cpu')
+        true = torch.zeros(oversample * len(dataset), self.num_reconstructed).to('cpu')
 
         for i_o in range(oversample):
-            for batch_idx, (detector_parameters, true_inputs, true_context, reco_inputs) in enumerate(data_loader):  # the reco is not needed as it is generated here
+
+            for batch_idx, (parameters, targets, context, reconstructed) in enumerate(data_loader):
                 
-                print(f'batch {batch_idx} of {len(data_loader)}', end='\r')
-                detector_parameters = detector_parameters.to(self.device)
-                true_inputs = true_inputs.to(self.device)
-                true_context = true_context.to(self.device)
-                reco_inputs = reco_inputs.to(self.device)
-                # apply the model
-                reco_surrogate = self.sample_forward(detector_parameters, true_inputs, true_context)
+                print(f'Surrogate batch: {batch_idx} / {len(data_loader)}', end='\r')
+                parameters = parameters.to(self.device)
+                targets = targets.to(self.device)
+                context = context.to(self.device)
+                reconstructed = reconstructed.to(self.device)
+                reco_surrogate = self.sample_forward(parameters, targets, context)
 
-                # un_normalise all to physical values
+                # Unnormalise all to physical values
                 reco_surrogate = dataset.unnormalise_target(reco_surrogate)
-                reco_inputs = dataset.unnormalise_target(reco_inputs)
-                true_inputs = dataset.unnormalise_target(true_inputs)
+                reconstructed = dataset.unnormalise_target(reconstructed)
+                targets = dataset.unnormalise_target(targets)
 
-                # store the results
+                # Store the results
                 start_inject_index = i_o * len(dataset) + batch_idx * batch_size
                 end_inject_index = i_o * len(dataset) + (batch_idx + 1) * batch_size
                 results[start_inject_index: end_inject_index] = reco_surrogate.detach().to('cpu')
-                reco[start_inject_index: end_inject_index] = reco_inputs.detach().to('cpu')
-                true[start_inject_index: end_inject_index] = true_inputs.detach().to('cpu')
+                reco[start_inject_index: end_inject_index] = reconstructed.detach().to('cpu')
+                true[start_inject_index: end_inject_index] = targets.detach().to('cpu')
 
         return results, reco, true
