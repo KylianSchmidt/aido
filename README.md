@@ -56,8 +56,8 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
     - [x] Start a Reconstruction Task for each simulated geometry (link using requires()?)
     - [x] Read the corresponding output parameters of the simulation
     - [x] Write to file the output of the reconstruction (same location as simulation)
-    - [ ] Merge the output of the simulation into np.ndarray 
-    - [ ] API using pd.Series or named arrays such as {"name": np.ndarray}
+    - [x] Merge the output of the simulation into pd.DataFrame 
+    - [x] API using pd.DataFrame (user has to provide individual keys)
 
  - Optimization
     - [-] Read the outputs of the reconstruction and build an array for the training
