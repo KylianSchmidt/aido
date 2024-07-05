@@ -11,7 +11,7 @@ class Simulation():
             self,
             parameter_dict: dict
             ):
-        self.n_events_per_var = 100
+        self.n_events_per_var = parameter_dict["num_events"]["current_value"]
         self.parameter_dict = parameter_dict
         self.cw = produce_descriptor(self.parameter_dict)
 

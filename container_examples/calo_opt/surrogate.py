@@ -1,10 +1,10 @@
+import numpy as np
+import pandas as pd
 import torch
 from typing import Tuple
-import pandas as pd
-import numpy as np
 from torch.utils.data import DataLoader
-from generator import SurrogateDataset
-    
+from reconstruction import ReconstructionDataset
+
 
 def ddpm_schedules(beta1: float, beta2: float, T: int):
     """
@@ -49,14 +49,89 @@ class NoiseAdder(torch.nn.Module):
         """
         x: (B, C, H, W)
         t: (B, 1)
+        z: (B, C, H, W)
+        x_t: (B, C, H, W)
         """
-        # x: (B, C, H, W)
-        # t: (B, 1)
-        # z: (B, C, H, W)
         z = torch.randn_like(x)  # eps ~ N(0, 1)
-        # x_t: (B, C, H, W)
         x_t = self.sqrtab[t, None] * x + self.sqrtmab[t, None] * z
         return x_t, z
+    
+
+class SurrogateDataset(ReconstructionDataset):
+    """This dataset requires an existing ReconstructionDataset instance. This dataset
+    adds the output of the reconstruction model.
+
+    Args:
+    ----
+        reco_dataset (ReconstructionDataset): An existing ReconstructionDataset instance.
+        reconstructed_array (np.ndarray): The reconstructed array to be added to the dataset. Must not be normailized.
+
+    Attributes:
+    ----------
+        df (pd.DataFrame): The concatenated dataframe containing the original dataset and the reconstructed array.
+
+        parameters (np.ndarray): The parameters from the original dataset.
+        targets (np.ndarray): The targets from the original dataset.
+        context (np.ndarray): The context from the original dataset.
+        reconstructed (np.ndarray): The reconstructed array. Columns are identical to 'targets'. MUST REMAIN NORMALISED
+
+        shape (tuple): The shape of the dataset: [parameters, targets, context, reconstructed].
+
+        means (list): The means of the original dataset and the reconstructed array.
+        stds (list): The standard deviations of the original dataset and the reconstructed array.
+        c_means (list): The means converted to torch tensors and moved to the 'cuda' device.
+        c_stds (list): The standard deviations converted to torch tensors and moved to the 'cuda' device.
+
+    Methods:
+    -------
+        __getitem__(self, idx: int): [parameters, targets, context, reconstructed] at the given index
+
+    TODO: Means and Stds are ordered differently to the Reconstruction Dataset
+    """
+
+    def __init__(
+            self,
+            reco_dataset: ReconstructionDataset,
+            reconstructed_array: np.ndarray
+            ):
+        reconstructed_array = reconstructed_array * reco_dataset.stds[2] + reco_dataset.means[2]
+        reconstructed_df = pd.DataFrame(reconstructed_array, columns=reco_dataset.df["Targets"].columns)
+        reconstructed_df = pd.concat({"Reconstructed": reconstructed_df}, axis=1)
+        self.df: pd.DataFrame = pd.concat([reco_dataset.df, reconstructed_df], axis=1)
+        
+        self.parameters = reco_dataset.parameters
+        self.targets = reco_dataset.targets
+        self.context = reco_dataset.context
+        self.reconstructed = self.df["Reconstructed"].to_numpy("float32")
+
+        self.shape = (
+            self.parameters.shape[1],
+            self.targets.shape[1],
+            self.context.shape[1],
+            self.reconstructed.shape[1]
+        )
+        self.means = [
+            reco_dataset.means[0],
+            reco_dataset.means[2],
+            reco_dataset.means[3],
+            reco_dataset.means[2],
+        ]
+        self.stds = [
+            reco_dataset.stds[0],
+            reco_dataset.stds[2],
+            reco_dataset.stds[3],
+            reco_dataset.stds[2],
+        ]
+
+        self.c_means = [torch.tensor(a).to('cuda') for a in self.means]
+        self.c_stds = [torch.tensor(a).to('cuda') for a in self.stds]
+        self.df = self.filter_infs_and_nans(self.df)
+
+    def __getitem__(self, idx):
+        return self.parameters[idx], self.targets[idx], self.context[idx], self.reconstructed[idx]
+    
+    def __len__(self):
+        return len(self.reconstructed)
 
 
 class Surrogate(torch.nn.Module):
@@ -85,8 +160,6 @@ class Surrogate(torch.nn.Module):
         self.num_targets = num_targets
         self.num_context = num_context
         self.num_reconstructed = num_reconstructed
-        print("DEBUG Size of first layer in surrogate", self.num_parameters + self.num_targets + self.num_context + self.num_reconstructed + 1)
-
         self.layers = torch.nn.Sequential(
             torch.nn.Linear(self.num_parameters + self.num_targets + self.num_context + self.num_reconstructed + 1, 100),
             torch.nn.ELU(),
@@ -96,7 +169,6 @@ class Surrogate(torch.nn.Module):
             torch.nn.ELU(),
             torch.nn.Linear(100, num_reconstructed),
         )
-
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
         self.n_time_steps = n_time_steps
 
@@ -105,9 +177,7 @@ class Surrogate(torch.nn.Module):
 
         self.loss_mse = torch.nn.MSELoss()
         self.device = torch.device('cuda')
-        self.t_is = torch.tensor(
-            [i / self.n_time_steps for i in range(self.n_time_steps + 1)]
-        ).to(self.device)
+        self.t_is = torch.tensor([i / self.n_time_steps for i in range(self.n_time_steps + 1)]).to(self.device)
 
     def forward(
             self,

@@ -129,7 +129,8 @@ if __name__ == "__main__":
             SimulationParameter('thickness_absorber_0', 0.7642903, min_value=1E-3),
             SimulationParameter('thickness_absorber_1', 10.469371, min_value=1E-3),
             SimulationParameter('thickness_scintillator_0', 30.585306, min_value=1E-3),
-            SimulationParameter('thickness_scintillator_1', 22.256506, min_value=1E-3)
+            SimulationParameter('thickness_scintillator_1', 22.256506, min_value=1E-3),
+            SimulationParameter("num_events", 100, optimizable=False)
         ]
     )
 
@@ -139,7 +140,7 @@ if __name__ == "__main__":
 
     b2luigi.process(
         SimulationWrapperTask(
-            num_simulation_tasks=2,
+            num_simulation_tasks=50,
             initial_parameter_dict_file_path=initial_parameter_dict_file_path
             ),
         workers=num_simulation_threads
