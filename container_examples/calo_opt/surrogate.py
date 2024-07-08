@@ -87,6 +87,7 @@ class SurrogateDataset(ReconstructionDataset):
         __getitem__(self, idx: int): [parameters, targets, context, reconstructed] at the given index
 
     TODO: Means and Stds are ordered differently to the Reconstruction Dataset
+    TODO: Accomodate for discrete parameters
     """
 
     def __init__(
@@ -198,7 +199,7 @@ class Surrogate(torch.nn.Module):
         x = torch.cat([parameters, targets, context, reconstructed, time_step], dim=1)
         return self.layers(x)
     
-    def to(self, device=None):
+    def to(self, device: str = None):
         if device is None:
             device = self.device
 
@@ -232,10 +233,9 @@ class Surrogate(torch.nn.Module):
             z = torch.randn(n_sample, 1).to(self.device) if i > 1 else 0
 
             # Split predictions and compute weighting
+            print("DEBUG Size in sample forward", parameters.shape, targets.shape, context.shape, x_i.shape, t_is.shape, sep="|")
             eps = self(parameters, targets, context, x_i, t_is)
-            x_i = (
-                self.oneover_sqrta[i] * (x_i - eps * self.mab_over_sqrtmab[i]) + self.sqrt_beta_t[i] * z
-            )
+            x_i = self.oneover_sqrta[i] * (x_i - eps * self.mab_over_sqrtmab[i]) + self.sqrt_beta_t[i] * z
     
         return x_i
     

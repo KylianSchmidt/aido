@@ -2,7 +2,7 @@ import b2luigi
 import os
 import pandas as pd
 from typing import List
-from simulation.SimulationHelpers import SimulationParameterDictionary, SimulationParameter, GatherResults
+from simulation.SimulationHelpers import SimulationParameterDictionary, SimulationParameter
 from simulation.conversion import convert_sim_to_reco
 
 
@@ -93,7 +93,7 @@ class Reconstruction(b2luigi.Task):
 
         os.system(
             f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
-            container_examples/calo_opt/reconstruction.py {reconstruction_input_file_path} {output_file_path}"
+            container_examples/calo_opt/training_script.py {reconstruction_input_file_path} {initial_parameter_dict_file_path} {output_file_path}"
         )
 
 
@@ -140,7 +140,7 @@ if __name__ == "__main__":
 
     b2luigi.process(
         SimulationWrapperTask(
-            num_simulation_tasks=50,
+            num_simulation_tasks=2,
             initial_parameter_dict_file_path=initial_parameter_dict_file_path
             ),
         workers=num_simulation_threads

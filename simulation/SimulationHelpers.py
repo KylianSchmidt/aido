@@ -23,6 +23,7 @@ class SimulationParameter:
             optimizable=True,
             min_value: float | None = None,
             max_value: float | None = None,
+            sigma: float | None = None,
             discrete_values: Iterable | None = None
             ):
         assert isinstance(name, str), "Name must be a string"
@@ -30,6 +31,7 @@ class SimulationParameter:
         self.name = name
         self._starting_value = starting_value
         self._optimizable = optimizable
+        self.sigma = sigma
         
         if min_value is not None:
             assert (
@@ -40,7 +42,7 @@ class SimulationParameter:
             assert (
                 isinstance(max_value, type(starting_value))
             ), "Only float parameters are allowed to have upper bounds"
-    
+
         self._min_value = min_value
         self._max_value = max_value
 
@@ -56,10 +58,9 @@ class SimulationParameter:
         if discrete_values is not None:
             if optimizable is False:
                 raise AssertionError("Non-optimizable parameters are excluded from requiring allowed discrete values")
-            else:
-                assert (
-                    self._current_value in discrete_values
-                ), "Current value must be included in the list of allowed discrete values"
+            assert (
+                self._current_value in discrete_values
+            ), "Current value must be included in the list of allowed discrete values"
             assert (
                 starting_value in discrete_values
             ), "Starting value must be included in the list of allowed discrete values"
@@ -69,6 +70,14 @@ class SimulationParameter:
             ), "Not allowed to specify min and max value for parameter with discrete values"
 
             self.discrete_values = discrete_values
+
+        if sigma is None:
+            if discrete_values is None and optimizable is True:
+                self.sigma = 0.5 * self.current_value
+        else:
+            assert (
+                isinstance(sigma, float) and discrete_values is None and optimizable is True
+            ), "Unable to asign standard deviation to discrete or non-optimizable parameter."
 
     def __str__(self):
         """Return the dict representation of the class, with human-readable indentation
@@ -140,18 +149,19 @@ class SimulationParameterDictionary:
     def __len__(self) -> int:
         return len(self.parameter_list)
 
-    def to_dict(self, serialized=True) -> Dict[str, SimulationParameter]:
+    def to_dict(self, serialized=True) -> Dict[str, SimulationParameter] | List[SimulationParameter]:
         """Converts the parameter list to a dictionary.
 
         :param serialized: A boolean indicating whether to serialize the SimulationParameter objects. \n
-            If True, the SimulationParameter objects will be converted to dictionaries using their `to_dict` method. Used \
-                for example to generate json-readable strings.\n
-            If False, the SimulationParameter objects will be included as is. This is used by this class to allow \
+            If True, the SimulationParameter objects will be converted to dictionaries using their `to_dict` method.
+                Used for example to generate json-readable strings.\n
+            If False, the SimulationParameter objects will be included as is. This is used by this class to allow
                 dictionary-style access to the individual parameters\n
-        :return: A dictionary where the keys are the names of the SimulationParameter objects and the values are either \
+        :return: A dictionary where the keys are the names of the SimulationParameter objects and the values are either
             the serialized dictionaries or the SimulationParameter objects themselves.
         """
         names = [parameter.name for parameter in self.parameter_list]
+
         if serialized is False:
             parameter_dicts = [parameter for parameter in self.parameter_list]
         else:
@@ -167,8 +177,10 @@ class SimulationParameterDictionary:
             json.dump(self.to_dict(), file)
 
     def get_current_values(
-        self, format: Literal["list", "dict"] = "dict", include_non_optimizables=False
-    ):
+            self,
+            format: Literal["list", "dict"] = "dict",
+            include_non_optimizables=False
+            ):
         if format == "list":
             current_values = []
             for parameter in self.parameter_list:
@@ -180,6 +192,15 @@ class SimulationParameterDictionary:
                 if parameter.optimizable is True or include_non_optimizables is True:
                     current_values[parameter.name] = parameter.current_value
         return current_values
+    
+    @property
+    def covariance(self):
+        covariance_matrix = []
+
+        for parameter in self.parameter_list:
+            covariance_matrix.append(parameter.sigma)
+
+        return covariance_matrix
 
     @classmethod
     def from_dict(cls, parameter_dict: Dict):
@@ -197,57 +218,6 @@ class SimulationParameterDictionary:
             return cls.from_dict(parameter_dicts.values())
 
 
-class GatherResults:
-
-    def from_numpy_files(file_paths: List[str], **kwargs) -> np.ndarray:
-        """Combine the output files from the reconstruction Task into one 2D numpy array.
-
-        Args:
-            file_paths (List[str]): A list of file paths to the output files. The file paths must end
-            with .npy (not .npz).
-            **kwargs: Additional keyword arguments to be passed to `np.fromfile` function.
-
-        Returns:
-            numpy.ndarray: A 2D numpy array containing the combined data from all the output files.
-        """
-        reconstruction_array_all_tasks = []
-
-        for file_path in file_paths:
-            arr: np.ndarray = np.fromfile(file_path, sep=",")
-
-            if arr.ndim > 1:
-                warn(
-                    f"Reconstruction output array has {arr.ndim} dimensions, but should only have 1. Array " +
-                     "will be flattened in order to have the correct shape."
-                )
-                arr = arr.flatten()
-
-            reconstruction_array_all_tasks.append(arr)
-
-        return np.array(reconstruction_array_all_tasks)
-
-    def from_parameter_dicts(file_paths: List[str]):
-        """For all parameter dicts found at 'file_paths', construct a nested list (2D) with
-        all their optimizable parameters.
-
-        Args:
-            file_paths (List[str]): A list of file paths containing parameter dictionaries as .json.
-
-        Returns:
-            List[List]]: A nested list containing the optimizable parameters from all
-            the parameter dictionaries.
-
-        TODO implement control to only include floats to this array for best surrogate model handling.
-        """
-        parameter_list = []
-
-        for file_path in file_paths:
-            param_dict = SimulationParameterDictionary.from_json(file_path)
-            parameter_list.append(param_dict.get_current_values(format="list"))
-
-        return parameter_list
-
-
 if __name__ == "__main__":
     sim_param_dict = SimulationParameterDictionary(
         [
@@ -262,3 +232,4 @@ if __name__ == "__main__":
 
     sim_param_dict_2 = SimulationParameterDictionary.from_json("./sim_param_dict")
     print(sim_param_dict_2)
+    print("Covariance matrix", sim_param_dict_2.covariance)
