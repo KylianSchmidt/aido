@@ -196,6 +196,9 @@ class Surrogate(torch.nn.Module):
         """
         time_step = time_step.view(-1, 1)
 
+        if len(parameters.shape) == 1:
+            parameters = parameters.repeat(targets.shape[0], 1)
+
         x = torch.cat([parameters, targets, context, reconstructed, time_step], dim=1)
         return self.layers(x)
     
@@ -233,7 +236,6 @@ class Surrogate(torch.nn.Module):
             z = torch.randn(n_sample, 1).to(self.device) if i > 1 else 0
 
             # Split predictions and compute weighting
-            print("DEBUG Size in sample forward", parameters.shape, targets.shape, context.shape, x_i.shape, t_is.shape, sep="|")
             eps = self(parameters, targets, context, x_i, t_is)
             x_i = self.oneover_sqrta[i] * (x_i - eps * self.mab_over_sqrtmab[i]) + self.sqrt_beta_t[i] * z
     

@@ -47,6 +47,7 @@ class Reconstruction(b2luigi.Task):
         """
         yield self.add_to_output("reconstruction_output")
         yield self.add_to_output("reconstruction_input_file_path")  # Not an output file
+        yield self.add_to_output("param_dict.json")
 
     def requires(self):
 
@@ -72,9 +73,10 @@ class Reconstruction(b2luigi.Task):
         parameter_dict_file_path = self.get_input_file_names("param_dict.json")
         simulation_file_paths = self.get_input_file_names("simulation_output")
         reconstruction_input_file_path = self.get_output_file_name("reconstruction_input_file_path")
+        output_parameter_dict_file_path = self.get_output_file_name("param_dict.json")
 
         df_list: List[pd.DataFrame] = []
-        
+
         for simulation_output_path in list(zip(parameter_dict_file_path, simulation_file_paths)):
             df_list.append(
                 convert_sim_to_reco(
@@ -93,7 +95,8 @@ class Reconstruction(b2luigi.Task):
 
         os.system(
             f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
-            container_examples/calo_opt/training_script.py {reconstruction_input_file_path} {initial_parameter_dict_file_path} {output_file_path}"
+            container_examples/calo_opt/training_script.py {reconstruction_input_file_path} \
+            {initial_parameter_dict_file_path} {output_file_path} {output_parameter_dict_file_path}"
         )
 
 
@@ -118,21 +121,21 @@ class SimulationWrapperTask(b2luigi.WrapperTask):
         df = pd.read_parquet(reco_output)
         print("OUTPUT df\n", df)
 
+        sim_param_dict = SimulationParameterDictionary.from_json(self.initial_parameter_dict_file_path)
+
 
 if __name__ == "__main__":
     num_simulation_threads = 2
     os.system("rm ./results -rf")
     b2luigi.set_setting("result_dir", "results")
 
-    sim_param_dict = SimulationParameterDictionary(
-        [
-            SimulationParameter('thickness_absorber_0', 0.7642903, min_value=1E-3),
-            SimulationParameter('thickness_absorber_1', 10.469371, min_value=1E-3),
-            SimulationParameter('thickness_scintillator_0', 30.585306, min_value=1E-3),
-            SimulationParameter('thickness_scintillator_1', 22.256506, min_value=1E-3),
-            SimulationParameter("num_events", 100, optimizable=False)
-        ]
-    )
+    sim_param_dict = SimulationParameterDictionary([
+        SimulationParameter('thickness_absorber_0', 0.7642903, min_value=1E-3),
+        SimulationParameter('thickness_absorber_1', 10.469371, min_value=1E-3),
+        SimulationParameter('thickness_scintillator_0', 30.585306, min_value=1E-3),
+        SimulationParameter('thickness_scintillator_1', 22.256506, min_value=1E-3),
+        SimulationParameter("num_events", 100, optimizable=False)
+    ])
 
     os.makedirs("./parameters", exist_ok=True)  # make /parameters a variable name
     initial_parameter_dict_file_path = "./parameters/initial_param_dict.json"

@@ -45,7 +45,6 @@ class Optimizer(object):
         self.covariance = self.get_covariance_matrix()
 
         self.to(self.device)
-        print("DEBUG Parameters", self.parameters)
         self.optimizer = torch.optim.Adam([torch.nn.Parameter(self.parameters, requires_grad=True)], lr=self.lr)
 
     def parameter_dict_to_cuda(self):
@@ -80,11 +79,12 @@ class Optimizer(object):
         for parameter in self.parameter_dict:
             covariance_matrix.append(self.parameter_dict[parameter]["sigma"])
 
-        return np.array(covariance_matrix, dtype="float32")
+        return np.diag(np.array(covariance_matrix, dtype="float32"))
 
     def to(self, device: str):
         self.device = device
         self.surrogate_model.to(device)
+        self.starting_parameters.to(device)
         self.parameters.to(device)
         self.parameter_box.to(device)
 
@@ -93,10 +93,10 @@ class Optimizer(object):
         central parameters are negative. Both box size and raw_detector_parameters_list are in non-normalised space, so this is straight forward
         the generator will have to provide the box size
         this will avoid mode collapse
+        TODO Fix problem here
         """
         self.constraints = constraints
-        detector_length = torch.sum(self.parameters)
-
+        detector_length = torch.sum(self.parameters.detach().cpu().numpy())
         total_length_loss = torch.mean(100. * torch.nn.ReLU()(detector_length - self.constraints["length"])**2)
         box_loss = (
             torch.mean(100. * torch.nn.ReLU()(-self.parameter_box / 1.1 - self.parameters[:, 0])**2)
@@ -120,7 +120,7 @@ class Optimizer(object):
         )
         # Adjust the original covariance matrix
         self.covariance = np.diag(self.covariance**2) + M_scaled
-        print("Optimizer: New covariance matrix\n", self.covariance)
+        return np.diag(self.covariance)
 
     def check_parameter_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:
         diff = updated_parameters - self.parameters
@@ -147,11 +147,11 @@ class Optimizer(object):
                 targets = targets.to(self.device)
                 true_context = true_context.to(self.device)
                 reco_result = reco_result.to(self.device)
-
-                print("DEBUG Device", self.device)
+                
+                self.parameters = dataset.normalise_detector(self.parameters)
                 reco_surrogate = self.surrogate_model.sample_forward(self.parameters, targets, true_context)
-                reco_surrogate = reco_surrogate * dataset.stds[1] + dataset.means[1]
-                targets = targets * dataset.stds[1] + dataset.means[1]
+                reco_surrogate = reco_surrogate * dataset.c_stds[1] + dataset.c_means[1]
+                targets = targets * dataset.c_stds[1] + dataset.c_means[1]
                 loss = self.reconstruction_model.loss(reco_surrogate, targets)
 
                 if add_constraints:
@@ -182,7 +182,7 @@ class Optimizer(object):
                         self.parameter_dict[key] = self.updated_parameter_array[index]
 
                     self.parameters.to(self.device)
-                    print('Current parameters: \n', json.dumps(self.parameter_dict, indent=4))
+                    print('Current parameters: \n', self.parameter_dict)
 
             print(f'Optimizer Epoch: {epoch} \tLoss: {loss.item():.8f}')
 
@@ -190,8 +190,9 @@ class Optimizer(object):
                 break
 
         mean_loss /= batch_idx + 1
-        self.adjust_covariance(self.parameters - self.starting_parameters)
-        return self.updated_parameter_array, True, mean_loss
+        
+        self.covariance = self.adjust_covariance(self.parameters - self.starting_parameters.to(self.device))
+        return self.parameter_dict, True, mean_loss
 
     def get_optimum(self):
-        return self.updated_parameter_array
+        return self.parameter_dict

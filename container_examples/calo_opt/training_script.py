@@ -33,13 +33,14 @@ def pre_train(model: Union[Reconstruction, Surrogate], dataset: Dataset, n_epoch
 
 
 input_df_path = sys.argv[1]
-parameter_dict_path = sys.argv[2]
-output_path = sys.argv[3]
+parameter_dict_input_path = sys.argv[2]
+output_df_path = sys.argv[3]
+parameter_dict_output_path = sys.argv[4]
 
 simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
 
-with open(parameter_dict_path, "r") as file:
-    parameter_dict: dict = json.load(file)
+with open(parameter_dict_input_path, "r") as file:
+    parameter_dict_output_path: dict = json.load(file)
 
 reco_dataset = ReconstructionDataset(simulation_df)
 reco_model = Reconstruction(*reco_dataset.shape)
@@ -86,14 +87,16 @@ surr_out = surr_out * surrogate_dataset.stds[1] + surrogate_dataset.means[1]
 surrogate_df = pd.DataFrame(surr_out, columns=reco_dataset.df["Targets"].columns)
 surrogate_df = pd.concat({"Surrogate": surrogate_df}, axis=1)
 output_df: pd.DataFrame = pd.concat([surrogate_dataset.df, surrogate_df], axis=1)
-output_df.to_parquet(output_path, index=range(len(output_df)))
+output_df.to_parquet(output_df_path, index=range(len(output_df)))
 
 # Optimization
 optimizer = Optimizer(surrogate_model, reco_model, parameter_dict)
-updated_detector_parameters, optimal, o_loss = optimizer.optimize(
+updated_parameter_dict, optimal, o_loss = optimizer.optimize(
     surrogate_dataset,
     batch_size=512,
     n_epochs=40,
     lr=0.02,
-    add_constraints=True
+    add_constraints=False
 )
+with open(parameter_dict_output_path, "w") as file:
+    json.dump(updated_parameter_dict, file)
