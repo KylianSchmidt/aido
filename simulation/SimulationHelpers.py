@@ -183,15 +183,26 @@ class SimulationParameterDictionary:
             ):
         if format == "list":
             current_values = []
+
             for parameter in self.parameter_list:
                 if parameter.optimizable is True or include_non_optimizables is True:
                     current_values.append(parameter.current_value)
+
         elif format == "dict":
             current_values = {}
+
             for parameter in self.parameter_list:
                 if parameter.optimizable is True or include_non_optimizables is True:
                     current_values[parameter.name] = parameter.current_value
+
         return current_values
+    
+    def update_current_values(self, current_values_parameter_dict: dict):
+        for key, value in current_values_parameter_dict.items():
+            assert key in self.parameter_dict.keys(), f"Key {key} was not in previous Parameter Dictionary"
+            self.parameter_dict[key].current_value = value
+
+        return self
     
     @property
     def covariance(self):
@@ -200,7 +211,7 @@ class SimulationParameterDictionary:
         for parameter in self.parameter_list:
             covariance_matrix.append(parameter.sigma)
 
-        return covariance_matrix
+        return np.diag(np.array(covariance_matrix))
 
     @classmethod
     def from_dict(cls, parameter_dict: Dict):
@@ -218,6 +229,19 @@ class SimulationParameterDictionary:
             return cls.from_dict(parameter_dicts.values())
 
 
+class Generator:
+    def __init__(self):
+        ...
+    
+    def generate_new(self, initial_param_dict: SimulationParameterDictionary | str) -> SimulationParameterDictionary:
+        if isinstance(initial_param_dict, str):
+            param_dict = SimulationParameterDictionary.from_json(initial_param_dict)
+        elif isinstance(initial_param_dict, SimulationParameterDictionary):
+            param_dict = initial_param_dict
+
+        return param_dict
+
+
 if __name__ == "__main__":
     sim_param_dict = SimulationParameterDictionary(
         [
@@ -232,4 +256,4 @@ if __name__ == "__main__":
 
     sim_param_dict_2 = SimulationParameterDictionary.from_json("./sim_param_dict")
     print(sim_param_dict_2)
-    print("Covariance matrix", sim_param_dict_2.covariance)
+    print("Covariance matrix\n", sim_param_dict_2.covariance)
