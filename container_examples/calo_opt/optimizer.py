@@ -28,11 +28,10 @@ class Optimizer(object):
             ):
         
         self.surrogate_model = surrogate_model
-        self.reconstruction_model = reconstruction_model                
+        self.reconstruction_model = reconstruction_model
 
         self.starting_parameter_dict = starting_parameter_dict
-        self.parameter_dict = self.starting_parameter_dict
-        self.parameter_dict = {k: v for k, v in self.parameter_dict.items() if v.get("optimizable")}
+        self.parameter_dict = {k: v for k, v in self.starting_parameter_dict.items() if v.get("optimizable")}
 
         self.n_time_steps = surrogate_model.n_time_steps
         self.lr = lr
@@ -45,14 +44,15 @@ class Optimizer(object):
         self.covariance = self.get_covariance_matrix()
 
         self.to(self.device)
-        self.optimizer = torch.optim.Adam([torch.nn.Parameter(self.parameters, requires_grad=True)], lr=self.lr)
+        self.optimizer = torch.optim.Adam([self.parameters], lr=self.lr)
 
     def parameter_dict_to_cuda(self):
         """ Parameter list as cuda tensor
         Shape: (Parameter, 1)
         """
         parameters = [parameter["current_value"] for parameter in self.parameter_dict.values()]
-        return torch.tensor(np.array(parameters, dtype="float32"))
+        parameters = torch.tensor(np.array(parameters, dtype="float32")).to(self.device)
+        return torch.nn.Parameter(parameters, requires_grad=True)
 
     def parameter_constraints_to_cuda_box(self):
         """ Convert the constraints of parameters to a multi-dimensional 'box'. Parameters with no constraints
@@ -142,13 +142,15 @@ class Optimizer(object):
             stop_epoch = False
 
             for batch_idx, (_parameters, targets, true_context, reco_result) in enumerate(data_loader):
-                self.parameters = self.parameters.to(self.device)
                 targets = targets.to(self.device)
                 true_context = true_context.to(self.device)
                 reco_result = reco_result.to(self.device)
                 
-                self.parameters = dataset.normalise_detector(self.parameters)
-                reco_surrogate = self.surrogate_model.sample_forward(self.parameters, targets, true_context)
+                reco_surrogate = self.surrogate_model.sample_forward(
+                    dataset.normalise_detector(self.parameters),
+                    targets,
+                    true_context
+                )
                 reco_surrogate = reco_surrogate * dataset.c_stds[1] + dataset.c_means[1]
                 targets = targets * dataset.c_stds[1] + dataset.c_means[1]
                 loss = self.reconstruction_model.loss(reco_surrogate, targets)
@@ -181,7 +183,7 @@ class Optimizer(object):
                         self.parameter_dict[key] = float(self.updated_parameter_array[index])
 
                     self.parameters.to(self.device)
-                    print('Current parameters: \n', self.parameter_dict)
+                    print('Current parameters: \n', self.parameter_dict.values())
 
             print(f'Optimizer Epoch: {epoch} \tLoss: {loss.item():.8f}')
 

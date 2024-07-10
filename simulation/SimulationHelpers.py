@@ -1,6 +1,7 @@
 from typing import Type, Dict, List, Iterable, Literal, Any
 import json
 import numpy as np
+import random
 from warnings import warn
 
 
@@ -13,6 +14,8 @@ class SimulationParameter:
 
     TODO method to convert the parameter that is not a float to a float (discrete
     parameters for the surrogate model)
+
+    TODO Make min and max also private attributes
     """
 
     def __init__(
@@ -43,8 +46,8 @@ class SimulationParameter:
                 isinstance(max_value, type(starting_value))
             ), "Only float parameters are allowed to have upper bounds"
 
-        self._min_value = min_value
-        self._max_value = max_value
+        self.min_value = min_value
+        self.max_value = max_value
 
         if current_value is not None:
             self._current_value = current_value
@@ -66,14 +69,14 @@ class SimulationParameter:
             ), "Starting value must be included in the list of allowed discrete values"
             
             assert (
-                self._min_value is None and self._max_value is None
+                self.min_value is None and self.max_value is None
             ), "Not allowed to specify min and max value for parameter with discrete values"
 
-            self.discrete_values = discrete_values
+        self.discrete_values = discrete_values
 
         if sigma is None:
             if discrete_values is None and optimizable is True:
-                self.sigma = 0.5 * self.current_value
+                self.sigma = 0.1 * self.current_value
         else:
             assert (
                 isinstance(sigma, float) and discrete_values is None and optimizable is True
@@ -228,32 +231,55 @@ class SimulationParameterDictionary:
             parameter_dicts: Dict = json.load(file)
             return cls.from_dict(parameter_dicts.values())
 
+    def generate_new(self, rng_seed: int = 42):
+        """ Generate a set of new values for each parameter, bounded by the min_value and max_value
+        for float parameters. For discrete parameters, the new current_value is randomly chosen from
+        the list of allowed values.
+        TODO Reset parameter value if unable to find a new one and decrease sigma
+        """
+        new_parameter_list = self.parameter_list
 
-class Generator:
-    def __init__(self):
-        ...
-    
-    def generate_new(self, initial_param_dict: SimulationParameterDictionary | str) -> SimulationParameterDictionary:
-        if isinstance(initial_param_dict, str):
-            param_dict = SimulationParameterDictionary.from_json(initial_param_dict)
-        elif isinstance(initial_param_dict, SimulationParameterDictionary):
-            param_dict = initial_param_dict
+        for parameter in new_parameter_list:
+            if parameter.optimizable is False:
+                continue
 
-        return param_dict
+            elif parameter.discrete_values is not None:
+                parameter.current_value = random.choice(parameter.discrete_values)
+                continue
+
+            elif isinstance(parameter.current_value, float):
+                rng = np.random.default_rng(rng_seed)
+
+                for i in range(100):
+                    parameter.current_value = rng.normal(parameter.current_value, parameter.sigma)
+
+                    if parameter.min_value is not None:
+                        if parameter.current_value >= parameter.min_value:
+                            break
+                    if parameter.max_value is not None:
+                        if parameter.current_value <= parameter.max_value:
+                            break
+                    if parameter.min_value is None and parameter.max_value is None:
+                        break
+                else:
+                    print(f"Warning: unable to set new current value for parameter {parameter}")
+
+        return SimulationParameterDictionary(new_parameter_list)
 
 
 if __name__ == "__main__":
-    sim_param_dict = SimulationParameterDictionary(
-        [
-            SimulationParameter("absorber_thickness", 10.0, min_value=0.5, max_value=40.0),
-            SimulationParameter("absorber_material", "LEAD", discrete_values=["LEAD", "TUNGSTEN"]),
-            SimulationParameter("energy", 1000, optimizable=False),
-            SimulationParameter("num_absorber_plates", 2, discrete_values=list(range(0, 5))),
-        ]
-    )
+    sim_param_dict = SimulationParameterDictionary([
+        SimulationParameter("absorber_thickness", 10.0, min_value=0.5, max_value=40.0),
+        SimulationParameter("absorber_material", "LEAD", discrete_values=["LEAD", "TUNGSTEN"]),
+        SimulationParameter("energy", 1000, optimizable=False),
+        SimulationParameter("num_absorber_plates", 2, discrete_values=list(range(0, 5))),
+    ])
 
     sim_param_dict.to_json("./sim_param_dict")
 
     sim_param_dict_2 = SimulationParameterDictionary.from_json("./sim_param_dict")
     print(sim_param_dict_2)
     print("Covariance matrix\n", sim_param_dict_2.covariance)
+
+    sim_param_dict_3 = sim_param_dict.generate_new()
+    print(sim_param_dict_3)

@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import sys
 import json
-import awkward
 from  G4Calo import G4System, GeometryDescriptor
 
 
@@ -43,7 +42,6 @@ def produce_descriptor(parameter_dict: dict):
 
     If materials etc are added, the mapping from parameter_dict to material name has to be added here.
     '''
-
     cw = GeometryDescriptor()
 
     for name, value in parameter_dict.items():

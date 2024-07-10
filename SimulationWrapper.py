@@ -3,30 +3,13 @@ import os
 import pandas as pd
 import json
 from typing import List
-from simulation.SimulationHelpers import SimulationParameterDictionary, SimulationParameter, Generator
+from simulation.SimulationHelpers import SimulationParameterDictionary, SimulationParameter
 from simulation.conversion import convert_sim_to_reco
-
-
-class GeneratorTask(b2luigi.Task):
-    initial_parameter_dict_file_path = b2luigi.PathParameter(hashed=True)
-
-    def output(self):
-        yield self.add_to_output("param_dict.json")
-
-    def run(self):
-        new_generated_param_dict_file_path = self.get_output_file_name("param_dict.json")
-
-        parameter_generator = Generator()
-        new_generated_param_dict = parameter_generator.generate_new(initial_parameter_dict_file_path)
-        new_generated_param_dict.to_json(new_generated_param_dict_file_path)
 
 
 class StartSimulationTask(b2luigi.Task):
     simulation_task_rng_seed = b2luigi.IntParameter()
-    initial_parameter_dict_file_path = b2luigi.PathParameter(hashed=True)
-
-    def requires(self):
-        yield GeneratorTask(initial_parameter_dict_file_path)
+    iter_start_param_dict_file_path = b2luigi.PathParameter(hashed=True)
 
     def output(self):
         yield self.add_to_output("simulation_output")
@@ -41,10 +24,10 @@ class StartSimulationTask(b2luigi.Task):
             TODO the container should be executed by a script provided by the end user
         """
         output_path = self.get_output_file_name("simulation_output")
-        input_parameter_dict_path = self.get_input_file_names("param_dict.json")[0]
         output_parameter_dict_path = self.get_output_file_name("param_dict.json")
 
-        parameters = SimulationParameterDictionary.from_json(input_parameter_dict_path)
+        start_parameters = SimulationParameterDictionary.from_json(self.iter_start_param_dict_file_path)
+        parameters = start_parameters.generate_new(rng_seed=self.simulation_task_rng_seed)
         parameters.to_json(output_parameter_dict_path)
 
         os.system(
@@ -55,7 +38,7 @@ class StartSimulationTask(b2luigi.Task):
 
 class Reconstruction(b2luigi.Task):
     num_simulation_tasks = b2luigi.IntParameter()
-    initial_parameter_dict_file_path = b2luigi.PathParameter(hashed=True)
+    iter_start_param_dict_file_path = b2luigi.PathParameter(hashed=True)
 
     def output(self):
         """
@@ -73,7 +56,7 @@ class Reconstruction(b2luigi.Task):
         for i in range(self.num_simulation_tasks):
             yield self.clone(
                 StartSimulationTask,
-                initial_parameter_dict_file_path=initial_parameter_dict_file_path,
+                iter_start_param_dict_file_path=self.iter_start_param_dict_file_path,
                 simulation_task_rng_seed=i,
             )
 
@@ -114,13 +97,14 @@ class Reconstruction(b2luigi.Task):
         os.system(
             f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
             container_examples/calo_opt/training_script.py {reconstruction_input_file_path} \
-            {initial_parameter_dict_file_path} {output_file_path} {output_parameter_dict_file_path}"
+            {self.iter_start_param_dict_file_path} {output_file_path} {output_parameter_dict_file_path}"
         )
 
 
 class IteratorTask(b2luigi.Task):
+    iteration_counter = b2luigi.IntParameter()
     num_simulation_tasks = b2luigi.IntParameter()
-    initial_parameter_dict_file_path = b2luigi.PathParameter(hashed=True)
+    iter_start_param_dict_file_path = b2luigi.PathParameter(hashed=True)
 
     def output(self):
         yield self.add_to_output("param_dict.json")
@@ -131,7 +115,7 @@ class IteratorTask(b2luigi.Task):
         TODO Have the parameters from the previous iteration and pass them to each sub-task
         """
         yield Reconstruction(
-            initial_parameter_dict_file_path=self.initial_parameter_dict_file_path,
+            iter_start_param_dict_file_path=self.iter_start_param_dict_file_path,
             num_simulation_tasks=self.num_simulation_tasks
         )
 
@@ -141,17 +125,39 @@ class IteratorTask(b2luigi.Task):
         updated_parameter_dict_file_path = self.get_input_file_names("param_dict.json")[0]
         result_parameter_dict_file_path = self.get_output_file_name("param_dict.json")
 
-        initial_param_dict = SimulationParameterDictionary.from_json(self.initial_parameter_dict_file_path)
+        initial_param_dict = SimulationParameterDictionary.from_json(self.iter_start_param_dict_file_path)
 
         with open(updated_parameter_dict_file_path, "r") as file:
             updated_param_dict: dict = json.load(file)
 
         param_dict = initial_param_dict.update_current_values(updated_param_dict)
         param_dict.to_json(result_parameter_dict_file_path)
+        param_dict.to_json(f"./parameters/param_dict_iter_{self.iteration_counter}.json",)
+
+
+class AIDOMainWrapperTask(b2luigi.WrapperTask):
+    """ Trigger recursive calls for each Iteration
+    TODO Fix exit condition in 'run' method
+    TODO parameter results dir
+    """
+    num_simulation_tasks = b2luigi.IntParameter()
+    num_max_iterations = b2luigi.IntParameter()
+    start_param_dict_file_path = b2luigi.PathParameter(hashed=True)
+
+    def requires(self):
+        for iteration in range(self.num_max_iterations):
+            if iteration == 0:
+                param_dict_file_path = self.start_param_dict_file_path
+            else:
+                param_dict_file_path = f"/parameters/param_dict_iter_{iteration}.json"
+            yield IteratorTask(
+                iteration_counter=iteration,
+                num_simulation_tasks=self.num_simulation_tasks,
+                iter_start_param_dict_file_path=param_dict_file_path
+            )
 
 
 if __name__ == "__main__":
-    num_simulation_threads = 2
     os.system("rm ./results -rf")
     b2luigi.set_setting("result_dir", "results")
 
@@ -164,14 +170,15 @@ if __name__ == "__main__":
     ])
 
     os.makedirs("./parameters", exist_ok=True)  # make /parameters a variable name
-    initial_parameter_dict_file_path = "./parameters/initial_param_dict.json"
-    sim_param_dict.to_json(initial_parameter_dict_file_path)
+    start_param_dict_file_path = "./parameters/param_dict_iter_0.json"
+    sim_param_dict.to_json(start_param_dict_file_path)
 
     b2luigi.process(
-        IteratorTask(
-            num_simulation_tasks=2,
-            initial_parameter_dict_file_path=initial_parameter_dict_file_path
+        AIDOMainWrapperTask(
+            num_simulation_tasks=4,
+            num_max_iterations=10,
+            start_param_dict_file_path=start_param_dict_file_path
         ),
-        workers=num_simulation_threads
+        workers=4
     )
     os.system("rm *.pkl")
