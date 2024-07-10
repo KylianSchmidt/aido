@@ -40,7 +40,7 @@ parameter_dict_output_path = sys.argv[4]
 simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
 
 with open(parameter_dict_input_path, "r") as file:
-    parameter_dict_output_path: dict = json.load(file)
+    parameter_dict: dict = json.load(file)
 
 reco_dataset = ReconstructionDataset(simulation_df)
 reco_model = Reconstruction(*reco_dataset.shape)

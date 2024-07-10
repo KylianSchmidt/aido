@@ -90,10 +90,11 @@ class Optimizer(object):
 
     def other_constraints(self, constraints: Dict = {"length": 25}):
         """ Keep parameters such that within the box size of the generator, there are always some positive values even if the 
-        central parameters are negative. Both box size and raw_detector_parameters_list are in non-normalised space, so this is straight forward
-        the generator will have to provide the box size
+        central parameters are negative. Both box size and raw_detector_parameters_list are in non-normalised space, 
+        so this is straight forward the generator will have to provide the box size.
         this will avoid mode collapse
         TODO Fix problem here
+        TODO Improve doc string
         """
         self.constraints = constraints
         detector_length = torch.sum(self.parameters.detach().cpu().numpy())
@@ -114,10 +115,8 @@ class Optimizer(object):
 
         scaling_factor = min_scale * np.max([1., 4. * parameter_direction_length])
         # Create the scaling adjustment matrix
-        M_scaled = (scaling_factor - 1) * np.outer(
-            parameter_direction_vector / parameter_direction_length,
-            parameter_direction_vector / parameter_direction_length
-        )
+        parameter_direction_normed = parameter_direction_vector / parameter_direction_length
+        M_scaled = (scaling_factor - 1) * np.outer(parameter_direction_normed, parameter_direction_normed)
         # Adjust the original covariance matrix
         self.covariance = np.diag(self.covariance**2) + M_scaled
         return np.diag(self.covariance)
@@ -127,7 +126,7 @@ class Optimizer(object):
         diff = diff.detach().cpu().numpy()
         return np.dot(diff, np.dot(np.linalg.inv(self.covariance), diff)) < scale
 
-    def optimize(self, dataset: SurrogateDataset, batch_size: int, n_epochs: int, lr, add_constraints=False):
+    def optimize(self, dataset: SurrogateDataset, batch_size: int, n_epochs: int, lr: float, add_constraints=False):
         '''
         keep both models fixed, train only the detector parameters (self.detector_start_parameters)
         using the reconstruction model loss
@@ -179,7 +178,7 @@ class Optimizer(object):
                     self.updated_parameter_array = self.parameters.detach().cpu().numpy()
 
                     for index, key in enumerate(self.parameter_dict):
-                        self.parameter_dict[key] = self.updated_parameter_array[index]
+                        self.parameter_dict[key] = float(self.updated_parameter_array[index])
 
                     self.parameters.to(self.device)
                     print('Current parameters: \n', self.parameter_dict)
