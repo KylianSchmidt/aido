@@ -102,6 +102,8 @@ class Reconstruction(b2luigi.Task):
 
 
 class IteratorTask(b2luigi.Task):
+    """ This Task wraps around ReconstructionTask and might become redundant in the future
+    """
     iteration_counter = b2luigi.IntParameter()
     num_simulation_tasks = b2luigi.IntParameter()
     iter_start_param_dict_file_path = b2luigi.PathParameter(hashed=True)
@@ -131,8 +133,10 @@ class IteratorTask(b2luigi.Task):
             updated_param_dict: dict = json.load(file)
 
         param_dict = initial_param_dict.update_current_values(updated_param_dict)
+        param_dict.to_json(f"./parameters/param_dict_iter_{self.iteration_counter + 1}.json")
         param_dict.to_json(result_parameter_dict_file_path)
-        param_dict.to_json(f"./parameters/param_dict_iter_{self.iteration_counter}.json",)
+
+        os.system("rm *.pkl")
 
 
 class AIDOMainWrapperTask(b2luigi.WrapperTask):
@@ -145,15 +149,18 @@ class AIDOMainWrapperTask(b2luigi.WrapperTask):
     start_param_dict_file_path = b2luigi.PathParameter(hashed=True)
 
     def requires(self):
-        for iteration in range(self.num_max_iterations):
-            if iteration == 0:
-                param_dict_file_path = self.start_param_dict_file_path
-            else:
-                param_dict_file_path = f"/parameters/param_dict_iter_{iteration}.json"
+        yield IteratorTask(
+            iteration_counter=0,
+            num_simulation_tasks=self.num_simulation_tasks,
+            iter_start_param_dict_file_path="./parameters/param_dict_iter_0.json"
+        )
+
+    def run(self):
+        for iteration in range(1, self.num_max_iterations):
             yield IteratorTask(
                 iteration_counter=iteration,
                 num_simulation_tasks=self.num_simulation_tasks,
-                iter_start_param_dict_file_path=param_dict_file_path
+                iter_start_param_dict_file_path=f"./parameters/param_dict_iter_{iteration}.json"
             )
 
 
@@ -162,11 +169,11 @@ if __name__ == "__main__":
     b2luigi.set_setting("result_dir", "results")
 
     sim_param_dict = SimulationParameterDictionary([
-        SimulationParameter('thickness_absorber_0', 0.7642903, min_value=1E-3),
-        SimulationParameter('thickness_absorber_1', 10.469371, min_value=1E-3),
-        SimulationParameter('thickness_scintillator_0', 30.585306, min_value=1E-3),
-        SimulationParameter('thickness_scintillator_1', 22.256506, min_value=1E-3),
-        SimulationParameter("num_events", 100, optimizable=False)
+        SimulationParameter('thickness_absorber_0', 2.0, min_value=1E-3),
+        SimulationParameter('thickness_absorber_1', 1.0, min_value=1E-3),
+        SimulationParameter('thickness_scintillator_0', 0.5, min_value=1E-3),
+        SimulationParameter('thickness_scintillator_1', 0.1, min_value=1E-3),
+        SimulationParameter("num_events", 200, optimizable=False)
     ])
 
     os.makedirs("./parameters", exist_ok=True)  # make /parameters a variable name
@@ -175,10 +182,10 @@ if __name__ == "__main__":
 
     b2luigi.process(
         AIDOMainWrapperTask(
-            num_simulation_tasks=4,
-            num_max_iterations=10,
-            start_param_dict_file_path=start_param_dict_file_path
+            start_param_dict_file_path=start_param_dict_file_path,
+            num_simulation_tasks=30,
+            num_max_iterations=50,
         ),
-        workers=4
+        workers=10,
     )
     os.system("rm *.pkl")

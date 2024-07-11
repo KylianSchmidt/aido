@@ -91,7 +91,7 @@ output_df.to_parquet(output_df_path, index=range(len(output_df)))
 
 # Optimization
 optimizer = Optimizer(surrogate_model, reco_model, parameter_dict)
-updated_parameter_dict, optimal, o_loss = optimizer.optimize(
+updated_parameter_dict, is_optimal, o_loss = optimizer.optimize(
     surrogate_dataset,
     batch_size=512,
     n_epochs=40,

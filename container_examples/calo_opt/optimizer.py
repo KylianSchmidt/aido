@@ -130,6 +130,7 @@ class Optimizer(object):
         '''
         keep both models fixed, train only the detector parameters (self.detector_start_parameters)
         using the reconstruction model loss
+        TODO add_constraints not implemented yet
         '''
         self.optimizer.lr = lr
         self.surrogate_model.eval()
@@ -183,7 +184,6 @@ class Optimizer(object):
                         self.parameter_dict[key] = float(self.updated_parameter_array[index])
 
                     self.parameters.to(self.device)
-                    print('Current parameters: \n', self.parameter_dict.values())
 
             print(f'Optimizer Epoch: {epoch} \tLoss: {loss.item():.8f}')
 

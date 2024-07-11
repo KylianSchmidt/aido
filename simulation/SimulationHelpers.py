@@ -23,6 +23,7 @@ class SimulationParameter:
             name: str,
             starting_value: Any,
             current_value: Any | None = None,
+            units: str | None = None,
             optimizable=True,
             min_value: float | None = None,
             max_value: float | None = None,
@@ -35,6 +36,7 @@ class SimulationParameter:
         self._starting_value = starting_value
         self._optimizable = optimizable
         self.sigma = sigma
+        self.units = units
         
         if min_value is not None:
             assert (
@@ -235,7 +237,7 @@ class SimulationParameterDictionary:
         """ Generate a set of new values for each parameter, bounded by the min_value and max_value
         for float parameters. For discrete parameters, the new current_value is randomly chosen from
         the list of allowed values.
-        TODO Reset parameter value if unable to find a new one and decrease sigma
+        TODO Decrease sigma if unable to find a new current_value
         """
         new_parameter_list = self.parameter_list
 
