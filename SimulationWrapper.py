@@ -116,24 +116,33 @@ class IteratorTask(b2luigi.Task):
 
         TODO Have the parameters from the previous iteration and pass them to each sub-task
         """
-        yield Reconstruction(
-            iter_start_param_dict_file_path=self.iter_start_param_dict_file_path,
-            num_simulation_tasks=self.num_simulation_tasks
-        )
+        self.next_param_dict_file = f"./parameters/param_dict_iter_{self.iteration_counter + 1}.json"
+        if not os.path.isfile(self.next_param_dict_file):
+            yield Reconstruction(
+                iter_start_param_dict_file_path=self.iter_start_param_dict_file_path,
+                num_simulation_tasks=self.num_simulation_tasks
+            )
 
     def run(self):
         """ Read reconstruction output
         """
-        updated_parameter_dict_file_path = self.get_input_file_names("param_dict.json")[0]
-        result_parameter_dict_file_path = self.get_output_file_name("param_dict.json")
+        self.next_param_dict_file = f"./parameters/param_dict_iter_{self.iteration_counter + 1}.json"
+        if os.path.isfile(self.next_param_dict_file):
+            # Dont change anything
+            updated_parameter_dict_file_path = self.next_param_dict_file
+            updated_param_dict = SimulationParameterDictionary.from_json(updated_parameter_dict_file_path)
+            updated_param_dict = updated_param_dict.get_current_values(format="dict")
+        else:
+            updated_parameter_dict_file_path = self.get_input_file_names("param_dict.json")[0]
 
+            with open(updated_parameter_dict_file_path, "r") as file:
+                updated_param_dict: dict = json.load(file)
+
+        result_parameter_dict_file_path = self.get_output_file_name("param_dict.json")
         initial_param_dict = SimulationParameterDictionary.from_json(self.iter_start_param_dict_file_path)
 
-        with open(updated_parameter_dict_file_path, "r") as file:
-            updated_param_dict: dict = json.load(file)
-
         param_dict = initial_param_dict.update_current_values(updated_param_dict)
-        param_dict.to_json(f"./parameters/param_dict_iter_{self.iteration_counter + 1}.json")
+        param_dict.to_json(self.next_param_dict_file)
         param_dict.to_json(result_parameter_dict_file_path)
 
         os.system("rm *.pkl")
@@ -169,10 +178,10 @@ if __name__ == "__main__":
     b2luigi.set_setting("result_dir", "results")
 
     sim_param_dict = SimulationParameterDictionary([
-        SimulationParameter('thickness_absorber_0', 2.0, min_value=1E-3),
-        SimulationParameter('thickness_absorber_1', 1.0, min_value=1E-3),
-        SimulationParameter('thickness_scintillator_0', 0.5, min_value=1E-3),
-        SimulationParameter('thickness_scintillator_1', 0.1, min_value=1E-3),
+        SimulationParameter('thickness_absorber_0', 2.0, min_value=1E-3, sigma=0.1),
+        SimulationParameter('thickness_absorber_1', 1.0, min_value=1E-3, sigma=0.1),
+        SimulationParameter('thickness_scintillator_0', 0.5, min_value=1E-3, sigma=0.05),
+        SimulationParameter('thickness_scintillator_1', 0.1, min_value=1E-3, sigma=0.05),
         SimulationParameter("num_events", 200, optimizable=False)
     ])
 
