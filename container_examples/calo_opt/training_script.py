@@ -45,8 +45,8 @@ with open(parameter_dict_input_path, "r") as file:
 reco_dataset = ReconstructionDataset(simulation_df)
 reco_model = Reconstruction(*reco_dataset.shape)
 
-n_epochs_pre = 3
-n_epochs_main = 10
+n_epochs_pre = 5
+n_epochs_main = 50
 
 pre_train(reco_model, reco_dataset, n_epochs_pre)
 
@@ -82,7 +82,6 @@ while surrogate_loss < 4.0 * best_surrogate_loss:
         sl = surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0001)
 
 surr_out, reco_out, true_in = surrogate_model.apply_model_in_batches(surrogate_dataset, batch_size=512)
-
 surr_out = surr_out * surrogate_dataset.stds[1] + surrogate_dataset.means[1]
 surrogate_df = pd.DataFrame(surr_out, columns=reco_dataset.df["Targets"].columns)
 surrogate_df = pd.concat({"Surrogate": surrogate_df}, axis=1)

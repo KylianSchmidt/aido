@@ -180,9 +180,9 @@ if __name__ == "__main__":
     sim_param_dict = SimulationParameterDictionary([
         SimulationParameter('thickness_absorber_0', 2.0, min_value=1E-3, sigma=0.1),
         SimulationParameter('thickness_absorber_1', 1.0, min_value=1E-3, sigma=0.1),
-        SimulationParameter('thickness_scintillator_0', 0.5, min_value=1E-3, sigma=0.05),
-        SimulationParameter('thickness_scintillator_1', 0.1, min_value=1E-3, sigma=0.05),
-        SimulationParameter("num_events", 200, optimizable=False)
+        SimulationParameter('thickness_scintillator_0', 0.5, min_value=1E-3, sigma=0.01),
+        SimulationParameter('thickness_scintillator_1', 0.1, min_value=1E-3, sigma=0.01),
+        SimulationParameter("num_events", 1000, optimizable=False)
     ])
 
     os.makedirs("./parameters", exist_ok=True)  # make /parameters a variable name
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     b2luigi.process(
         AIDOMainWrapperTask(
             start_param_dict_file_path=start_param_dict_file_path,
-            num_simulation_tasks=30,
+            num_simulation_tasks=10,
             num_max_iterations=50,
         ),
         workers=10,

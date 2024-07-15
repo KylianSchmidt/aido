@@ -1,9 +1,3 @@
-""" Contains the reconstruction module
-neural network model for reconstruction of energy from detector depostits and parameters
-contains also the training loop
-the dataset is provided by the Generator as a pandas dataframe
-Data loader etc are in here, too
-"""
 import numpy as np
 import pandas as pd
 import torch

@@ -238,6 +238,7 @@ class SimulationParameterDictionary:
         for float parameters. For discrete parameters, the new current_value is randomly chosen from
         the list of allowed values.
         TODO Decrease sigma if unable to find a new current_value
+        TODO Fix an issue if sigma too high and current_value decreases towards negative infinity
         """
         new_parameter_list = self.parameter_list
 
@@ -254,6 +255,7 @@ class SimulationParameterDictionary:
 
                 for i in range(100):
                     parameter.current_value = rng.normal(parameter.current_value, parameter.sigma)
+                    print(f"DEBUG Generate new parameters attempt {i}: ", parameter.name, parameter.current_value)
 
                     if parameter.min_value is not None:
                         if parameter.current_value >= parameter.min_value:
@@ -281,7 +283,7 @@ if __name__ == "__main__":
 
     sim_param_dict_2 = SimulationParameterDictionary.from_json("./sim_param_dict")
     print(sim_param_dict_2)
-    print("Covariance matrix\n", sim_param_dict_2.covariance)
+    print("Covariance matrix:\n", sim_param_dict_2.covariance)
 
     sim_param_dict_3 = sim_param_dict.generate_new()
     print(sim_param_dict_3)
