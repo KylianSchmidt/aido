@@ -1,0 +1,5 @@
+results*
+*ipynb
+*pyc
+logs
+*__pycache__
