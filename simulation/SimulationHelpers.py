@@ -214,7 +214,8 @@ class SimulationParameterDictionary:
         covariance_matrix = []
 
         for parameter in self.parameter_list:
-            covariance_matrix.append(parameter.sigma)
+            if parameter.optimizable is True:
+                covariance_matrix.append(parameter.sigma)
 
         return np.diag(np.array(covariance_matrix))
 
@@ -238,7 +239,6 @@ class SimulationParameterDictionary:
         for float parameters. For discrete parameters, the new current_value is randomly chosen from
         the list of allowed values.
         TODO Decrease sigma if unable to find a new current_value
-        TODO Fix an issue if sigma too high and current_value decreases towards negative infinity
         """
         new_parameter_list = self.parameter_list
 

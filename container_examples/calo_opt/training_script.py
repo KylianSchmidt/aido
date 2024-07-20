@@ -1,7 +1,9 @@
 import sys
+import os
 from typing import Union
 import pandas as pd
 import json
+import torch
 from torch.utils.data import Dataset
 from reconstruction import ReconstructionDataset, Reconstruction
 from surrogate import SurrogateDataset, Surrogate
@@ -32,11 +34,19 @@ def pre_train(model: Union[Reconstruction, Surrogate], dataset: Dataset, n_epoch
     model.to('cpu')
 
 
-input_df_path = sys.argv[1]
-parameter_dict_input_path = sys.argv[2]
-output_df_path = sys.argv[3]
-parameter_dict_output_path = sys.argv[4]
+with open(sys.argv[1], "r") as file:
+    reco_file_paths_dict = json.load(file)
 
+input_df_path = reco_file_paths_dict["reco_input_df"]
+output_df_path = reco_file_paths_dict["reco_output_df"]
+parameter_dict_input_path = reco_file_paths_dict["current_parameter_dict"]
+parameter_dict_output_path = reco_file_paths_dict["updated_parameter_dict"]
+surrogate_model_previous_path = reco_file_paths_dict["surrogate_model_previous_path"]
+optimizer_model_previous_path = reco_file_paths_dict["optimizer_model_previous_path"]
+surrogate_save_path = reco_file_paths_dict["surrogate_model_save_path"]
+optimizer_save_path = reco_file_paths_dict["optimizer_model_save_path"]
+
+# Load the input df
 simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
 
 with open(parameter_dict_input_path, "r") as file:
@@ -61,7 +71,11 @@ reco_result = reco_result.detach().cpu().numpy()
 # Surrogate:
 print("Surrogate training")
 surrogate_dataset = SurrogateDataset(reco_dataset, reco_result)
-surrogate_model = Surrogate(*surrogate_dataset.shape)
+
+if os.path.isfile(surrogate_model_previous_path):
+    surrogate_model = torch.load(surrogate_model_previous_path)
+else:
+    surrogate_model = Surrogate(*surrogate_dataset.shape)
 
 surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
 surrogate_loss = surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
@@ -89,13 +103,23 @@ output_df: pd.DataFrame = pd.concat([surrogate_dataset.df, surrogate_df], axis=1
 output_df.to_parquet(output_df_path, index=range(len(output_df)))
 
 # Optimization
-optimizer = Optimizer(surrogate_model, reco_model, parameter_dict)
+if os.path.isfile(optimizer_model_previous_path):
+    optimizer = torch.load(optimizer_model_previous_path)
+else:
+    optimizer = Optimizer(surrogate_model, reco_model, parameter_dict)
+
 updated_parameter_dict, is_optimal, o_loss = optimizer.optimize(
     surrogate_dataset,
     batch_size=512,
     n_epochs=40,
     lr=0.02,
-    add_constraints=False
+    add_constraints=True
 )
+if not is_optimal:
+    raise RuntimeError
+
 with open(parameter_dict_output_path, "w") as file:
     json.dump(updated_parameter_dict, file)
+
+torch.save(surrogate_model, surrogate_save_path)
+torch.save(optimizer, optimizer_save_path)

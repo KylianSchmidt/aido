@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-import json
 from torch.utils.data import DataLoader
 from surrogate import Surrogate, SurrogateDataset
 from reconstruction import Reconstruction
@@ -36,7 +35,7 @@ class Optimizer(object):
         self.n_time_steps = surrogate_model.n_time_steps
         self.lr = lr
         self.batch_size = batch_size
-        self.device = torch.device('cuda')
+        self.device = "cuda"
 
         self.starting_parameters = self.parameter_dict_to_cuda()
         self.parameters = self.parameter_dict_to_cuda()
@@ -65,14 +64,15 @@ class Optimizer(object):
         parameter_box = []
 
         for parameter in self.parameter_dict:
-            parameter_box.append([
-                self.parameter_dict[parameter]["min_value"],
-                self.parameter_dict[parameter]["max_value"]
-            ])
-        
+            min_value = self.parameter_dict[parameter]["min_value"]
+            max_value = self.parameter_dict[parameter]["max_value"]
+            min_value = np.nan_to_num(min_value, nan=-10e10)  # NOTE Fix to avoid NaN loss in 'other_constraints'
+            max_value = np.nan_to_num(max_value, nan=10e10)
+            parameter_box.append([min_value, max_value])
+
         parameter_box = np.array(parameter_box, dtype="float32")
-        return torch.tensor(parameter_box, dtype=torch.float32)
-    
+        return torch.tensor(parameter_box, dtype=torch.float32).to(self.device)
+
     def get_covariance_matrix(self):
         covariance_matrix = []
 
@@ -89,25 +89,21 @@ class Optimizer(object):
         self.parameter_box.to(device)
 
     def other_constraints(self, constraints: Dict = {"length": 25}):
-        """ Keep parameters such that within the box size of the generator, there are always some positive values even if the 
-        central parameters are negative. Both box size and raw_detector_parameters_list are in non-normalised space, 
-        so this is straight forward the generator will have to provide the box size.
-        this will avoid mode collapse
-        TODO Fix problem here
+        """ Keep parameters such that within the box size of the generator, there are always some positive values even 
+        if the central parameters are negative.
         TODO Improve doc string
         """
-        self.constraints = constraints
-        detector_length = torch.sum(self.parameters.detach().cpu().numpy())
+        self.constraints = {key: torch.tensor(value) for key, value in constraints.items()}
+        detector_length = torch.sum(self.parameters)
         total_length_loss = torch.mean(100. * torch.nn.ReLU()(detector_length - self.constraints["length"])**2)
         box_loss = (
-            torch.mean(100. * torch.nn.ReLU()(-self.parameter_box / 1.1 - self.parameters[:, 0])**2)
-            + torch.mean(100. * torch.nn.ReLU()(-self.parameter_box / 1.1 - self.parameters[:, 0])**2)
+            torch.mean(100. * torch.nn.ReLU()(self.parameter_box[:, 0] / 1.1 - self.parameters))
+            + torch.mean(100. * torch.nn.ReLU()(- self.parameter_box[:, 1] / 1.1 + self.parameters))
         )
-
         return total_length_loss + box_loss
 
     def adjust_covariance(self, direction: torch.Tensor, min_scale=2.0):
-        """ Stretches the box_covariance of the generator in the directon specified as input
+        """ Stretches the box_covariance of the generator in the directon specified as input.
         Direction is a vector in parameter space
         """
         parameter_direction_vector = direction.detach().cpu().numpy()
@@ -124,13 +120,15 @@ class Optimizer(object):
     def check_parameter_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:
         diff = updated_parameters - self.parameters
         diff = diff.detach().cpu().numpy()
+
+        if self.covariance.ndim == 1:
+            self.covariance = np.diag(self.covariance)
+
         return np.dot(diff, np.dot(np.linalg.inv(self.covariance), diff)) < scale
 
     def optimize(self, dataset: SurrogateDataset, batch_size: int, n_epochs: int, lr: float, add_constraints=False):
-        '''
-        keep both models fixed, train only the detector parameters (self.detector_start_parameters)
+        '''Keep both models fixed, train only the detector parameters (self.detector_start_parameters)
         using the reconstruction model loss
-        TODO add_constraints not implemented yet
         '''
         self.optimizer.lr = lr
         self.surrogate_model.eval()
@@ -157,7 +155,7 @@ class Optimizer(object):
                 loss = self.reconstruction_model.loss(reco_surrogate, targets)
 
                 if add_constraints:
-                    loss += self.other_constraints(dataset)
+                    loss += self.other_constraints()
 
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -168,7 +166,11 @@ class Optimizer(object):
                     prev_parameters = self.parameters.detach().cpu().numpy()
                     self.optimizer.step()
                     self.parameters.data = torch.tensor(prev_parameters).to(self.device)
-                    return self.parameters.detach().cpu().numpy(), False, mean_loss / (batch_idx + 1)
+
+                    for index, key in enumerate(self.parameter_dict):
+                        self.parameter_dict[key] = float(prev_parameters[index])
+
+                    return self.parameter_dict, False, mean_loss / (batch_idx + 1)
 
                 self.optimizer.step()
                 mean_loss += loss.item()
@@ -185,13 +187,13 @@ class Optimizer(object):
 
                     self.parameters.to(self.device)
 
-            print(f'Optimizer Epoch: {epoch} \tLoss: {loss.item():.8f}')
+            print(f'Optimizer Epoch: {epoch} \tLoss: {loss.item():.8f}\n{self.parameter_dict}')
 
             if stop_epoch:
                 break
 
         mean_loss /= batch_idx + 1
-        
+
         self.covariance = self.adjust_covariance(self.parameters - self.starting_parameters.to(self.device))
         return self.parameter_dict, True, mean_loss
 

@@ -1,5 +1,6 @@
 results*
-*ipynb
-*pyc
+*.ipynb
+*.pyc
 logs
 *__pycache__
+*.root
