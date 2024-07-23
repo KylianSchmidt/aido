@@ -7,7 +7,6 @@ import torch
 from typing import Tuple
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
-from reconstruction import ReconstructionDataset
 
 
 def ddpm_schedules(beta1: float, beta2: float, T: int):
@@ -61,7 +60,7 @@ class NoiseAdder(torch.nn.Module):
         return x_t, z
     
 
-class SurrogateDataset:
+class SurrogateDataset(Dataset):
     """ Dataset class for the Surrogate model
 
     Args:
@@ -95,7 +94,7 @@ class SurrogateDataset:
 
     def __init__(
             self,
-            input_df
+            input_df: pd.DataFrame
             ):
         
         self.df = input_df
@@ -378,7 +377,6 @@ if __name__ == "__main__":
     with open(sys.argv[1], "r") as file:
         reco_file_paths_dict = json.load(file)
 
-    input_df_path = reco_file_paths_dict["reco_input_df"]
     output_df_path = reco_file_paths_dict["reco_output_df"]
     parameter_dict_input_path = reco_file_paths_dict["current_parameter_dict"]
     parameter_dict_output_path = reco_file_paths_dict["updated_parameter_dict"]

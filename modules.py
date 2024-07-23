@@ -1,5 +1,6 @@
 import os
 from typing import List, Dict
+import numpy as np
 import pandas as pd
 from simulation.conversion import convert_sim_to_reco
 
@@ -15,7 +16,14 @@ class Reconstruction:
         """ This method must be implemented
 
         Start your reconstruction algorithm here. We recommend using a container and starting the
-        reconstruction from the command line, as in the following example.
+        reconstruction from the command line.
+        """
+        raise NotImplementedError
+    
+    def loss(self):
+        """ Important method used by the Optimizer later on
+
+        TODO Find how to pass this to the optimizer (container problems could arise)
         """
         raise NotImplementedError
 
@@ -23,7 +31,8 @@ class Reconstruction:
 class ReconstructionExample(Reconstruction):
 
     def merge(self, parameter_dict_file_paths, simulation_file_paths, reco_input_path):
-        """ This method must be implemented
+        """ Combines parameter dicts and pd.DataFrames into a large pd.DataFrame which is subsequently saved
+        to parquet format.
         """
         df_list: List[pd.DataFrame] = []
 
@@ -43,11 +52,19 @@ class ReconstructionExample(Reconstruction):
         df: pd.DataFrame = pd.concat(df_list, axis=0, ignore_index=True)
         df.to_parquet(reco_input_path, index=range(len(df)))
 
-    def run(self, reco_file_paths_dict: Dict):
-        """ Start your reconstruction algorithm here. We recommend using a container and starting the
-        reconstruction from the command line, as in the following example.
+    def run(self, reco_file_paths_dict: Dict[str, str]):
+        """ Start your reconstruction algorithm from a local container.
+
+        TODO Change to the dockerhub version when deploying to production.
         """
         os.system(
             f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
             container_examples/calo_opt/training_script.py {reco_file_paths_dict["own_path"]}"
         )
+
+    def loss(self, y_pred: np.array, y_true: np.array) -> float:
+        """ Calculate the loss for the optimizer. Easiest way is to rewrite the loss with numpy
+
+        TODO This will not work if the loss requires non-numpy classes and functions.
+        """
+        np.mean((y_pred - y_true)**2 / (np.abs(y_true) + 1.))

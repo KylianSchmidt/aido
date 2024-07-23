@@ -1,8 +1,9 @@
 import b2luigi
 import os
 import json
-from simulation.SimulationHelpers import SimulationParameterDictionary, SimulationParameter
-from modules import ReconstructionExample
+from typing import Callable
+from simulation.SimulationHelpers import SimulationParameterDictionary
+from modules import Reconstruction, ReconstructionExample
 
 
 class StartSimulationTask(b2luigi.Task):
@@ -28,10 +29,7 @@ class StartSimulationTask(b2luigi.Task):
         parameters = start_parameters.generate_new(rng_seed=self.simulation_task_rng_seed)
         parameters.to_json(output_parameter_dict_path)
 
-        os.system(
-            f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
-            container_examples/calo_opt/simulation.py {output_parameter_dict_path} {output_path}"
-        )
+        simulation(output_parameter_dict_path, output_path)
 
 
 class IteratorTask(b2luigi.Task):
@@ -77,8 +75,9 @@ class IteratorTask(b2luigi.Task):
         TODO For now, only the latest file is the output of this Task. Try to merge the output if it is split
         into several files
 
-        Alternative container: /cvmfs/unpacked.cern.ch/registry.hub.docker.com/cernml4reco/deepjetcore3:latest
-        """ 
+        Alternative container:
+            /cvsimulation_scriptmfs/unpacked.cern.ch/registry.hub.docker.com/cernml4reco/deepjetcore3:latest
+        """
         parameter_dict_file_paths = self.get_input_file_names("param_dict.json")
         simulation_file_paths = self.get_input_file_names("simulation_output")
         reconstruction_input_df_path = self.get_output_file_name("reco_input_df")
@@ -102,11 +101,16 @@ class IteratorTask(b2luigi.Task):
             json.dump(self.reco_file_paths_dict, file)
 
         # Run the reconstruction algorithm
-        reco = ReconstructionExample()
+        reco = reconstruction
         reco.merge(parameter_dict_file_paths, simulation_file_paths, self.reco_file_paths_dict["reco_input_df"])
         reco.run(self.reco_file_paths_dict["reco_output_df"])
 
         # Run surrogate and optimizer model
+        print("DEBUG Reached surrogate model")
+        os.system(
+            f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
+            container_examples/calo_opt/surrogate.py {self.reco_file_paths_dict["own_path"]}"
+        )
 
         # Update parameter dict if not exist
         self.next_param_dict_file = self.reco_file_paths_dict["next_parameter_dict"]
@@ -155,29 +159,39 @@ class AIDOMainWrapperTask(b2luigi.WrapperTask):
             )
 
 
-if __name__ == "__main__":
-    os.system("rm ./results -rf")
-    b2luigi.set_setting("result_dir", "results/task_outputs")
+class AIDO:
+    def __init__(
+            self,
+            sim_param_dict: SimulationParameterDictionary,
+            simulation_callable: Callable = None,
+            reconstruction_callable: type[Reconstruction] = ReconstructionExample,
+            simulation_tasks: int = 1,
+            max_iterations: int = 50,
+            threads: int = 1
+            ):
 
-    sim_param_dict = SimulationParameterDictionary([
-        SimulationParameter('thickness_absorber_0', 1.0, min_value=1E-3, max_value=5.0, sigma=0.2),
-        SimulationParameter('thickness_absorber_1', 1.0, min_value=1E-3, max_value=5.0, sigma=0.2),
-        SimulationParameter('thickness_scintillator_0', 0.5, min_value=1E-3, max_value=1.0, sigma=0.2),
-        SimulationParameter('thickness_scintillator_1', 0.1, min_value=1E-3, max_value=1.0, sigma=0.2),
-        SimulationParameter("num_events", 300, optimizable=False)
-    ])
+        b2luigi.set_setting("result_dir", "results/task_outputs")
+        os.makedirs("./results/parameters", exist_ok=True)
+        os.makedirs("./results/models", exist_ok=True)
+        start_param_dict_file_path = "./results/parameters/param_dict_iter_0.json"
+        sim_param_dict.to_json(start_param_dict_file_path)
 
-    os.makedirs("./results/parameters", exist_ok=True)
-    os.makedirs("./results/models", exist_ok=True)
-    start_param_dict_file_path = "./results/parameters/param_dict_iter_0.json"
-    sim_param_dict.to_json(start_param_dict_file_path)
+        global simulation
+        simulation = simulation_callable
 
-    b2luigi.process(
-        AIDOMainWrapperTask(
-            start_param_dict_file_path=start_param_dict_file_path,
-            num_simulation_tasks=5,
-            num_max_iterations=50,
-        ),
-        workers=5,
-    )
-    os.system("rm *.pkl")
+        assert (
+            issubclass(reconstruction_callable, Reconstruction)
+        ), f"The class {reconstruction_callable} must inherit from class 'modules.Reconstruction'"
+
+        global reconstruction
+        reconstruction = reconstruction_callable
+
+        b2luigi.process(
+            AIDOMainWrapperTask(
+                start_param_dict_file_path=start_param_dict_file_path,
+                num_simulation_tasks=simulation_tasks,
+                num_max_iterations=max_iterations,
+            ),
+            workers=threads,
+        )
+        os.system("rm *.pkl")
