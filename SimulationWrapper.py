@@ -1,10 +1,8 @@
 import b2luigi
 import os
-import pandas as pd
 import json
-from typing import List
 from simulation.SimulationHelpers import SimulationParameterDictionary, SimulationParameter
-from simulation.conversion import convert_sim_to_reco
+from modules import ReconstructionExample
 
 
 class StartSimulationTask(b2luigi.Task):
@@ -103,30 +101,12 @@ class IteratorTask(b2luigi.Task):
         with open(self.reco_file_paths_dict["own_path"], "w") as file:
             json.dump(self.reco_file_paths_dict, file)
 
-        # Merge the simulation outputs
-        df_list: List[pd.DataFrame] = []
+        # Run the reconstruction algorithm
+        reco = ReconstructionExample()
+        reco.merge(parameter_dict_file_paths, simulation_file_paths, self.reco_file_paths_dict["reco_input_df"])
+        reco.run(self.reco_file_paths_dict["reco_output_df"])
 
-        for simulation_output_path in list(zip(parameter_dict_file_paths, simulation_file_paths)):
-            df_list.append(
-                convert_sim_to_reco(
-                    *simulation_output_path,
-                    input_keys=[
-                        'sensor_energy', 'sensor_x', 'sensor_y', 'sensor_z',
-                        'sensor_dx', 'sensor_dy', 'sensor_dz', 'sensor_layer'
-                    ],
-                    target_keys=["true_energy"],
-                    context_keys=["true_pid"]
-                )
-            )
-
-        df: pd.DataFrame = pd.concat(df_list, axis=0, ignore_index=True)
-        df.to_parquet(reconstruction_input_df_path, index=range(len(df)))
-
-        # Start the training loop
-        os.system(
-            f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
-            container_examples/calo_opt/training_script.py {self.reco_file_paths_dict["own_path"]}"
-        )
+        # Run surrogate and optimizer model
 
         # Update parameter dict if not exist
         self.next_param_dict_file = self.reco_file_paths_dict["next_parameter_dict"]

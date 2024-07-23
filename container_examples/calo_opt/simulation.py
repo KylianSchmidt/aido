@@ -46,9 +46,9 @@ def produce_descriptor(parameter_dict: dict):
 
     for name, value in parameter_dict.items():
         if name.startswith("thickness_absorber"):
-            cw.addLayer(max([value["min_value"], value["current_value"]]), "G4_Pb", False, 1)
+            cw.addLayer(value["current_value"], "G4_Pb", False, 1)
         elif name.startswith("thickness_scintillator"):
-            cw.addLayer(max([value["min_value"], value["current_value"]]), "G4_PbWO4", True, 1)
+            cw.addLayer(value["current_value"], "G4_PbWO4", True, 1)
     return cw
 
 

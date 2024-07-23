@@ -1,8 +1,12 @@
+import sys
+import os
+import json
 import numpy as np
 import pandas as pd
 import torch
 from typing import Tuple
 from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
 from reconstruction import ReconstructionDataset
 
 
@@ -57,14 +61,14 @@ class NoiseAdder(torch.nn.Module):
         return x_t, z
     
 
-class SurrogateDataset(ReconstructionDataset):
-    """This dataset requires an existing ReconstructionDataset instance. This dataset
-    adds the output of the reconstruction model.
+class SurrogateDataset:
+    """ Dataset class for the Surrogate model
 
     Args:
     ----
-        reco_dataset (ReconstructionDataset): An existing ReconstructionDataset instance.
-        reconstructed_array (np.ndarray): The reconstructed array to be added to the dataset. Must not be normailized.
+        df (pd.DataFrame): A DataFrame containing the following keys: 
+        
+            ["Parameters", "Targets", "Context", "Reconstructed"]
 
     Attributes:
     ----------
@@ -86,23 +90,18 @@ class SurrogateDataset(ReconstructionDataset):
     -------
         __getitem__(self, idx: int): [parameters, targets, context, reconstructed] at the given index
 
-    TODO: Means and Stds are ordered differently to the Reconstruction Dataset
     TODO: Accomodate for discrete parameters
     """
 
     def __init__(
             self,
-            reco_dataset: ReconstructionDataset,
-            reconstructed_array: np.ndarray
+            input_df
             ):
-        reconstructed_array = reconstructed_array * reco_dataset.stds[2] + reco_dataset.means[2]
-        reconstructed_df = pd.DataFrame(reconstructed_array, columns=reco_dataset.df["Targets"].columns)
-        reconstructed_df = pd.concat({"Reconstructed": reconstructed_df}, axis=1)
-        self.df: pd.DataFrame = pd.concat([reco_dataset.df, reconstructed_df], axis=1)
         
-        self.parameters = reco_dataset.parameters
-        self.targets = reco_dataset.targets
-        self.context = reco_dataset.context
+        self.df = input_df
+        self.parameters = self.df["Parameters"].to_numpy("float32")
+        self.targets = self.df["Targets"].to_numpy("float32")
+        self.context = self.df["Context"].to_numpy("float32")
         self.reconstructed = self.df["Reconstructed"].to_numpy("float32")
 
         self.shape = (
@@ -112,21 +111,57 @@ class SurrogateDataset(ReconstructionDataset):
             self.reconstructed.shape[1]
         )
         self.means = [
-            reco_dataset.means[0],
-            reco_dataset.means[2],
-            reco_dataset.means[3],
-            reco_dataset.means[2],
+            np.mean(self.parameters, axis=0),
+            np.mean(self.targets, axis=0),
+            np.mean(self.context, axis=0),
+            np.mean(self.reconstructed, axis=0)
         ]
         self.stds = [
-            reco_dataset.stds[0],
-            reco_dataset.stds[2],
-            reco_dataset.stds[3],
-            reco_dataset.stds[2],
+            np.std(self.parameters, axis=0) + 1e-3,
+            np.std(self.targets, axis=0) + 1e-3,
+            np.std(self.context, axis=0) + 1e-3,
+            np.std(self.reconstructed, axis=0) + 1e-3
         ]
+
+        self.parameters = (self.parameters - self.means[0]) / self.stds[0]
+        self.targets = (self.targets - self.means[1]) / self.stds[1]
+        self.context = (self.context - self.means[2]) / self.stds[2]
+        self.reconstructed = (self.reconstructed - self.means[3]) / self.stds[3]
 
         self.c_means = [torch.tensor(a).to('cuda') for a in self.means]
         self.c_stds = [torch.tensor(a).to('cuda') for a in self.stds]
         self.df = self.filter_infs_and_nans(self.df)
+
+    def filter_infs_and_nans(self, df: pd.DataFrame) -> pd.DataFrame:
+        '''Removes all events that contain infs or nans.
+        '''
+        df = df.replace([np.inf, -np.inf], np.nan)
+        df = df.dropna(axis=0, ignore_index=True)
+        return df
+
+    def unnormalise_target(self, target):
+        '''
+        receives back the physically meaningful target from the normalised target
+        '''
+        return target * self.c_stds[2] + self.c_means[2]
+    
+    def normalise_target(self, target):
+        '''
+        normalises the target
+        '''
+        return (target - self.c_means[2]) / self.c_stds[2]
+    
+    def unnormalise_detector(self, detector):
+        '''
+        receives back the physically meaningful detector from the normalised detector
+        '''
+        return detector * self.c_stds[1] + self.c_means[1]
+    
+    def normalise_detector(self, detector):
+        '''
+        normalises the detector
+        '''
+        return (detector - self.c_means[1]) / self.c_stds[1]
 
     def __getitem__(self, idx):
         return self.parameters[idx], self.targets[idx], self.context[idx], self.reconstructed[idx]
@@ -259,10 +294,10 @@ class Surrogate(torch.nn.Module):
 
         for epoch in range(n_epochs):
 
-            for batch_idx, (parameters, targets, context, reco_result) in enumerate(train_loader):
+            for batch_idx, (parameters, targets, context, reconstructed) in enumerate(train_loader):
                 parameters = parameters.to(self.device)
                 targets = targets.to(self.device)
-                reconstructed = reco_result.to(self.device)
+                reconstructed = reconstructed.to(self.device)
                 context = context.to(self.device)
 
                 x_t, noise, _ts = self.create_noisy_input(reconstructed)
@@ -310,3 +345,81 @@ class Surrogate(torch.nn.Module):
                 true[start_inject_index: end_inject_index] = targets.detach().to('cpu')
 
         return results, reco, true
+    
+
+def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
+    """ Pre-train the  a given model
+
+    TODO Reconstruction results are normalized. In the future only expose the un-normalised ones, 
+    but also requires adjustments to the surrogate dataset
+    """
+    model.to('cuda')
+
+    print('pre-training 0')
+    model.train_model(dataset, batch_size=256, n_epochs=10, lr=0.03)
+
+    print('pre-training 1')
+    model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.01)
+
+    print('pre-training 2')
+    model.train_model(dataset, batch_size=512, n_epochs=n_epochs, lr=0.001)
+
+    print('pre-training 3')
+    model.train_model(dataset, batch_size=1024, n_epochs=n_epochs, lr=0.001)
+
+    model.apply_model_in_batches(dataset, batch_size=128)
+    model.to('cpu')
+
+
+if __name__ == "__main__":
+    n_epochs_pre = 5
+    n_epochs_main = 50
+
+    with open(sys.argv[1], "r") as file:
+        reco_file_paths_dict = json.load(file)
+
+    input_df_path = reco_file_paths_dict["reco_input_df"]
+    output_df_path = reco_file_paths_dict["reco_output_df"]
+    parameter_dict_input_path = reco_file_paths_dict["current_parameter_dict"]
+    parameter_dict_output_path = reco_file_paths_dict["updated_parameter_dict"]
+    surrogate_model_previous_path = reco_file_paths_dict["surrogate_model_previous_path"]
+    optimizer_model_previous_path = reco_file_paths_dict["optimizer_model_previous_path"]
+    surrogate_save_path = reco_file_paths_dict["surrogate_model_save_path"]
+    optimizer_save_path = reco_file_paths_dict["optimizer_model_save_path"]
+
+    with open(parameter_dict_input_path, "r") as file:
+        parameter_dict: dict = json.load(file)
+
+    # Surrogate:
+    print("Surrogate training")
+    surrogate_dataset = SurrogateDataset(pd.read_parquet(output_df_path))
+
+    if os.path.isfile(surrogate_model_previous_path):
+        surrogate_model = torch.load(surrogate_model_previous_path)
+    else:
+        surrogate_model = Surrogate(*surrogate_dataset.shape)
+
+    surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
+    surrogate_loss = surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
+
+    best_surrogate_loss = 1e10
+
+    while surrogate_loss < 4.0 * best_surrogate_loss:
+
+        if surrogate_loss < best_surrogate_loss:
+            break
+
+        else:
+            print("Surrogate re-training")
+            pre_train(surrogate_model, surrogate_dataset, n_epochs_pre)
+            surrogate_model.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 5, lr=0.005)
+            surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
+            surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
+            sl = surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0001)
+
+    surr_out, reco_out, true_in = surrogate_model.apply_model_in_batches(surrogate_dataset, batch_size=512)
+    surr_out = surr_out * surrogate_dataset.stds[1] + surrogate_dataset.means[1]
+    surrogate_df = pd.DataFrame(surr_out, columns=surrogate_dataset.df["Targets"].columns)
+    surrogate_df = pd.concat({"Surrogate": surrogate_df}, axis=1)
+    output_df: pd.DataFrame = pd.concat([surrogate_dataset.df, surrogate_df], axis=1)
+    output_df.to_parquet(output_df_path, index=range(len(output_df)))
