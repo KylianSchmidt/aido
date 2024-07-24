@@ -1,5 +1,6 @@
 import b2luigi
 import os
+import time
 import json
 from typing import Callable
 from simulation.SimulationHelpers import SimulationParameterDictionary
@@ -17,10 +18,7 @@ class StartSimulationTask(b2luigi.Task):
     def run(self):
         """ Workflow:
          1. Generate a new set of parameters based on the previous iteration
-            TODO Do not generate new parameters itself but instead get them from WrapperTask
-
-         2. Execute the container with the geant4 simulation software
-            TODO the container should be executed by a script provided by the end user
+         2. Start geant4 simulations using the Callable provided by the user
         """
         output_path = self.get_output_file_name("simulation_output")
         output_parameter_dict_path = self.get_output_file_name("param_dict.json")
@@ -30,6 +28,7 @@ class StartSimulationTask(b2luigi.Task):
         parameters.to_json(output_parameter_dict_path)
 
         simulation(output_parameter_dict_path, output_path)
+        time.sleep(0.5)  # TODO Issue with last Task not writting fast enough to output
 
 
 class IteratorTask(b2luigi.Task):
@@ -76,11 +75,13 @@ class IteratorTask(b2luigi.Task):
         into several files
 
         Alternative container:
-            /cvsimulation_scriptmfs/unpacked.cern.ch/registry.hub.docker.com/cernml4reco/deepjetcore3:latest
+            /cvmfs/unpacked.cern.ch/registry.hub.docker.com/cernml4reco/deepjetcore3:latest
         """
+        print("DEBUG Start run method")
         parameter_dict_file_paths = self.get_input_file_names("param_dict.json")
         simulation_file_paths = self.get_input_file_names("simulation_output")
         reconstruction_input_df_path = self.get_output_file_name("reco_input_df")
+        print("DEBUG Got input file names")
         self.reco_file_paths_dict = {
             "own_path": str(self.get_output_file_name("reco_file_paths_dict")),
             "surrogate_model_previous_path": f"./results/models/surrogate_{self.iteration_counter - 1}.pt",
@@ -101,8 +102,10 @@ class IteratorTask(b2luigi.Task):
             json.dump(self.reco_file_paths_dict, file)
 
         # Run the reconstruction algorithm
+        print("DEBUG Reached reconstruction step")
         reco = reconstruction
         reco.merge(parameter_dict_file_paths, simulation_file_paths, self.reco_file_paths_dict["reco_input_df"])
+        print("DEBUG Reached merge step ")
         reco.run(self.reco_file_paths_dict["reco_output_df"])
 
         # Run surrogate and optimizer model

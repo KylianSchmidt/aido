@@ -9,6 +9,7 @@ def simulation(output_parameter_dict_path: str, output_path: str):
         f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
         container_examples/calo_opt/simulation.py {output_parameter_dict_path} {output_path}"
     )
+    return None
 
 
 if __name__ == "__main__":
@@ -26,6 +27,6 @@ if __name__ == "__main__":
         sim_param_dict,
         simulation_callable=simulation,
         reconstruction_callable=ReconstructionExample,
-        simulation_tasks=5,
-        threads=5
+        simulation_tasks=2,
+        threads=2
     )

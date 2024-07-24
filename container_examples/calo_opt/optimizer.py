@@ -2,7 +2,6 @@ import torch
 import numpy as np
 from torch.utils.data import DataLoader
 from surrogate import Surrogate, SurrogateDataset
-from reconstruction import Reconstruction
 from typing import Dict
 
 
@@ -118,6 +117,9 @@ class Optimizer(object):
         return np.diag(self.covariance)
 
     def check_parameter_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:
+        """ Assure that the predicted parameters by the optimizer are within the bounds of the covariance
+        matrix spanned by the 'sigma' of each parameter.
+        """
         diff = updated_parameters - self.parameters
         diff = diff.detach().cpu().numpy()
 
@@ -125,14 +127,23 @@ class Optimizer(object):
             self.covariance = np.diag(self.covariance)
 
         return np.dot(diff, np.dot(np.linalg.inv(self.covariance), diff)) < scale
+    
+    def loss(self, y_pred, y_true) -> torch.Tensor:
+        """ Loss function for the optimizer. TODO Should be the same loss as the Reconstruction model
+        but since they are in different containers, that will be tricky to implement.
+        """
+        y_true = torch.where(torch.isnan(y_pred), torch.zeros_like(y_true) + 1., y_true)
+        y_true = torch.where(torch.isinf(y_pred), torch.zeros_like(y_true) + 1., y_true)
+        y_pred = torch.where(torch.isnan(y_pred), torch.zeros_like(y_pred), y_pred)
+        y_pred = torch.where(torch.isinf(y_pred), torch.zeros_like(y_pred), y_pred)
+        return ((y_pred - y_true)**2 / (torch.abs(y_true) + 1.)).mean()
 
     def optimize(self, dataset: SurrogateDataset, batch_size: int, n_epochs: int, lr: float, add_constraints=False):
-        '''Keep both models fixed, train only the detector parameters (self.detector_start_parameters)
-        using the reconstruction model loss
-        '''
+        """ Keep Surrogate model fixed, train only the detector parameters (self.detector_start_parameters)
+        TODO Improve documentation of this method.
+        """
         self.optimizer.lr = lr
         self.surrogate_model.eval()
-        self.reconstruction_model.eval()
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         mean_loss = 0
 
@@ -144,7 +155,7 @@ class Optimizer(object):
                 targets = targets.to(self.device)
                 true_context = true_context.to(self.device)
                 reco_result = reco_result.to(self.device)
-                
+
                 reco_surrogate = self.surrogate_model.sample_forward(
                     dataset.normalise_detector(self.parameters),
                     targets,
@@ -152,7 +163,7 @@ class Optimizer(object):
                 )
                 reco_surrogate = reco_surrogate * dataset.c_stds[1] + dataset.c_means[1]
                 targets = targets * dataset.c_stds[1] + dataset.c_means[1]
-                loss = self.reconstruction_model.loss(reco_surrogate, targets)
+                loss = self.loss(reco_surrogate, targets)
 
                 if add_constraints:
                     loss += self.other_constraints()
