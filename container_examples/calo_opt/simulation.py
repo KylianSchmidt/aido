@@ -66,4 +66,3 @@ for column in df.columns:
         df[column] = df[column].to_list()
 
 df.to_parquet(output_path)
-print(f"DEBUG Simulation successfully written to file {output_path}")

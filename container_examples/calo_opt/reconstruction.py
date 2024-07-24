@@ -193,6 +193,3 @@ class Reconstruction(torch.nn.Module):
         mean_loss /= len(data_loader)
 
         return results, mean_loss
-    
-if __name__ == "__main__":
-    

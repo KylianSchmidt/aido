@@ -19,14 +19,12 @@ class Optimizer(object):
     def __init__(
             self,
             surrogate_model: Surrogate,
-            reconstruction_model: Reconstruction,
             starting_parameter_dict: Dict,
             lr=0.001,
             batch_size=128,
             ):
         
         self.surrogate_model = surrogate_model
-        self.reconstruction_model = reconstruction_model
 
         self.starting_parameter_dict = starting_parameter_dict
         self.parameter_dict = {k: v for k, v in self.starting_parameter_dict.items() if v.get("optimizable")}

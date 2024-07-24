@@ -7,12 +7,17 @@ from simulation.conversion import convert_sim_to_reco
 
 class Reconstruction:
 
-    def merge(self, parameter_dict_file_paths: List[str], simulation_file_paths: List[str], reco_input_path: str):
+    def merge(
+            self,
+            parameter_dict_file_paths: List[str],
+            simulation_file_paths: List[str],
+            reco_input_path: str
+            ) -> None:
         """ This method must be implemented
         """
         raise NotImplementedError
 
-    def run(self, reco_file_paths_dict: Dict[str, str]):
+    def run(self, reco_file_paths_dict: Dict[str, str]) -> None:
         """ This method must be implemented
 
         Start your reconstruction algorithm here. We recommend using a container and starting the
@@ -20,7 +25,7 @@ class Reconstruction:
         """
         raise NotImplementedError
     
-    def loss(self):
+    def loss(self, y_pred, y_true) -> float:
         """ Important method used by the Optimizer later on
 
         TODO Find how to pass this to the optimizer (container problems could arise)
@@ -59,7 +64,7 @@ class ReconstructionExample(Reconstruction):
         """
         os.system(
             f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
-            container_examples/calo_opt/training_script.py {reco_file_paths_dict["own_path"]}"
+            container_examples/calo_opt/reco_script.py {reco_file_paths_dict["own_path"]}"
         )
 
     def loss(self, y_pred: np.array, y_true: np.array) -> float:

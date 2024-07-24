@@ -1,6 +1,5 @@
 import b2luigi
 import os
-import time
 import json
 from typing import Callable
 from simulation.SimulationHelpers import SimulationParameterDictionary
@@ -28,7 +27,6 @@ class StartSimulationTask(b2luigi.Task):
         parameters.to_json(output_parameter_dict_path)
 
         simulation(output_parameter_dict_path, output_path)
-        time.sleep(0.5)  # TODO Issue with last Task not writting fast enough to output
 
 
 class IteratorTask(b2luigi.Task):
@@ -77,11 +75,9 @@ class IteratorTask(b2luigi.Task):
         Alternative container:
             /cvmfs/unpacked.cern.ch/registry.hub.docker.com/cernml4reco/deepjetcore3:latest
         """
-        print("DEBUG Start run method")
         parameter_dict_file_paths = self.get_input_file_names("param_dict.json")
         simulation_file_paths = self.get_input_file_names("simulation_output")
         reconstruction_input_df_path = self.get_output_file_name("reco_input_df")
-        print("DEBUG Got input file names")
         self.reco_file_paths_dict = {
             "own_path": str(self.get_output_file_name("reco_file_paths_dict")),
             "surrogate_model_previous_path": f"./results/models/surrogate_{self.iteration_counter - 1}.pt",
@@ -102,17 +98,15 @@ class IteratorTask(b2luigi.Task):
             json.dump(self.reco_file_paths_dict, file)
 
         # Run the reconstruction algorithm
-        print("DEBUG Reached reconstruction step")
         reco = reconstruction
         reco.merge(parameter_dict_file_paths, simulation_file_paths, self.reco_file_paths_dict["reco_input_df"])
-        print("DEBUG Reached merge step ")
-        reco.run(self.reco_file_paths_dict["reco_output_df"])
+        reco.run(self.reco_file_paths_dict)
 
         # Run surrogate and optimizer model
         print("DEBUG Reached surrogate model")
         os.system(
             f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
-            container_examples/calo_opt/surrogate.py {self.reco_file_paths_dict["own_path"]}"
+            container_examples/calo_opt/training_script.py {self.reco_file_paths_dict["own_path"]}"
         )
 
         # Update parameter dict if not exist
@@ -167,7 +161,7 @@ class AIDO:
             self,
             sim_param_dict: SimulationParameterDictionary,
             simulation_callable: Callable = None,
-            reconstruction_callable: type[Reconstruction] = ReconstructionExample,
+            reconstruction_callable: Reconstruction = ReconstructionExample,
             simulation_tasks: int = 1,
             max_iterations: int = 50,
             threads: int = 1
@@ -183,7 +177,7 @@ class AIDO:
         simulation = simulation_callable
 
         assert (
-            issubclass(reconstruction_callable, Reconstruction)
+            issubclass(type(reconstruction_callable), Reconstruction)
         ), f"The class {reconstruction_callable} must inherit from class 'modules.Reconstruction'"
 
         global reconstruction

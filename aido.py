@@ -20,13 +20,13 @@ if __name__ == "__main__":
         SimulationParameter('thickness_absorber_1', 1.0, min_value=1E-3, max_value=5.0, sigma=0.2),
         SimulationParameter('thickness_scintillator_0', 0.5, min_value=1E-3, max_value=1.0, sigma=0.2),
         SimulationParameter('thickness_scintillator_1', 0.1, min_value=1E-3, max_value=1.0, sigma=0.2),
-        SimulationParameter("num_events", 300, optimizable=False)
+        SimulationParameter("num_events", 100, optimizable=False)
     ])
 
     AIDO(
         sim_param_dict,
         simulation_callable=simulation,
-        reconstruction_callable=ReconstructionExample,
+        reconstruction_callable=ReconstructionExample(),
         simulation_tasks=2,
         threads=2
     )
