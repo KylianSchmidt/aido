@@ -255,7 +255,6 @@ class SimulationParameterDictionary:
 
                 for i in range(100):
                     parameter.current_value = rng.normal(parameter.current_value, parameter.sigma)
-                    print(f"DEBUG Generate new parameters attempt {i}: ", parameter.name, parameter.current_value)
 
                     if parameter.min_value is not None:
                         if parameter.current_value >= parameter.min_value:

@@ -27,6 +27,6 @@ if __name__ == "__main__":
         sim_param_dict,
         simulation_callable=simulation,
         reconstruction_callable=ReconstructionExample(),
-        simulation_tasks=2,
-        threads=2
+        simulation_tasks=4,
+        threads=6
     )
