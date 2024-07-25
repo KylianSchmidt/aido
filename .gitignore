@@ -1,0 +1,6 @@
+results*
+*.ipynb
+*.pyc
+logs
+*__pycache__
+*.root
