@@ -1,6 +1,5 @@
 import sys
 import pandas as pd
-import json
 from torch.utils.data import Dataset
 from reconstruction import ReconstructionDataset, Reconstruction
 
@@ -30,11 +29,9 @@ def pre_train(model: Reconstruction, dataset: Dataset, n_epochs: int):
 
 
 if __name__ == "__main__":
-    with open(sys.argv[1], "r") as file:
-        reco_file_paths_dict = json.load(file)
 
-    input_df_path = reco_file_paths_dict["reco_input_df"]
-    output_df_path = reco_file_paths_dict["reco_output_df"]
+    input_df_path = sys.argv[1]
+    output_df_path = sys.argv[2]
 
     # Load the input df
     simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)

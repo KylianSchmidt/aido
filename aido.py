@@ -1,15 +1,7 @@
 import os
 from SimulationWrapper import AIDO
 from simulation.SimulationHelpers import SimulationParameter, SimulationParameterDictionary
-from modules import ReconstructionExample
-
-
-def simulation(output_parameter_dict_path: str, output_path: str):
-    os.system(
-        f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
-        container_examples/calo_opt/simulation.py {output_parameter_dict_path} {output_path}"
-    )
-    return None
+from interface import AIDOUserInterfaceExample
 
 
 if __name__ == "__main__":
@@ -25,8 +17,7 @@ if __name__ == "__main__":
 
     AIDO(
         sim_param_dict,
-        simulation_callable=simulation,
-        reconstruction_callable=ReconstructionExample(),
+        user_interface=AIDOUserInterfaceExample,
         simulation_tasks=4,
-        threads=6
+        threads=5
     )

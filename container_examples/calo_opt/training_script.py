@@ -3,12 +3,11 @@ import os
 import pandas as pd
 import json
 import torch
-from torch.utils.data import Dataset
 from surrogate import SurrogateDataset, Surrogate
 from optimizer import Optimizer
 
 
-def pre_train(model: Surrogate, dataset: Dataset, n_epochs: int):
+def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     """ Pre-train the  a given model
 
     TODO Reconstruction results are normalized. In the future only expose the un-normalised ones, 
@@ -37,7 +36,6 @@ if __name__ == "__main__":
     with open(sys.argv[1], "r") as file:
         reco_file_paths_dict = json.load(file)
 
-    input_df_path = reco_file_paths_dict["reco_input_df"]
     output_df_path = reco_file_paths_dict["reco_output_df"]
     parameter_dict_input_path = reco_file_paths_dict["current_parameter_dict"]
     parameter_dict_output_path = reco_file_paths_dict["updated_parameter_dict"]
@@ -45,9 +43,6 @@ if __name__ == "__main__":
     optimizer_model_previous_path = reco_file_paths_dict["optimizer_model_previous_path"]
     surrogate_save_path = reco_file_paths_dict["surrogate_model_save_path"]
     optimizer_save_path = reco_file_paths_dict["optimizer_model_save_path"]
-
-    # Load the input df
-    simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
 
     with open(parameter_dict_input_path, "r") as file:
         parameter_dict: dict = json.load(file)

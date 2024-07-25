@@ -196,7 +196,7 @@ class Optimizer(object):
 
                     self.parameters.to(self.device)
 
-            print(f'Optimizer Epoch: {epoch} \tLoss: {loss.item():.8f}\n{self.parameter_dict}')
+            print(f"Optimizer Epoch: {epoch} \tLoss: {loss.item():.8f}")
 
             if stop_epoch:
                 break

@@ -1,6 +1,7 @@
 from typing import Type, Dict, List, Iterable, Literal, Any
 import json
 import numpy as np
+import pandas as pd
 import random
 from warnings import warn
 
@@ -108,10 +109,9 @@ class SimulationParameter:
 
     @current_value.setter
     def current_value(self, value):
-        assert isinstance(value, type(self._starting_value)), (
-            f"The updated value is of another type ({type(value)}) "
-            + f"than the starting value ({type(self._starting_value)})"
-        )
+        assert (
+            isinstance(value, type(self._starting_value))
+        ), f"The updated value is of another type ({type(value)}) than before ({type(self._starting_value)})"
         if self._optimizable is False:
             warn("Do not change the current value of non-optimizable parameter")
         self._current_value = value
@@ -180,6 +180,13 @@ class SimulationParameterDictionary:
         """
         with open(file_path, "w") as file:
             json.dump(self.to_dict(), file)
+
+    def to_df(self, df_length: int = 1) -> pd.DataFrame:
+        """ Create parameter dict from file if path given. Remove all parameters that are not
+        optimizable and also only keep current values. Output is a df of length 'df_length', so
+        that it can be concatenated with the other df's.
+        """
+        return pd.DataFrame(self.get_current_values("dict"), index=range(df_length))
 
     def get_current_values(
             self,

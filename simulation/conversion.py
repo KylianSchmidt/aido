@@ -28,7 +28,7 @@ def convert_sim_to_reco(
 
     def to_df(parameter_dict: Dict | str, df_length: int) -> pd.DataFrame:
         """ Create parameter dict from file if path given. Remove all parameters that are not
-        optimizable and also only keep current values. Output is a df of length 'length', so
+        optimizable and also only keep current values. Output is a df of length 'df_length', so
         that it can be concatenated with the other df's.
         """
         if isinstance(parameter_dict, str):
@@ -41,12 +41,8 @@ def convert_sim_to_reco(
             if parameter["optimizable"] is True:
                 parameter_dict_only_optimizables[parameter["name"]] = parameter["current_value"]
 
-        print(
-            "Parameter Dict (optimizables, only current values):\n",
-            json.dumps(parameter_dict_only_optimizables, indent=4)
-        )
         return pd.DataFrame(parameter_dict_only_optimizables, index=range(df_length))
-    
+
     def expand_columns(df: pd.DataFrame) -> pd.DataFrame:
         """ Check if columns in df are lists and flatten them by replacing those
         columns with <column_name>_{i} for i in index of the list.
