@@ -102,10 +102,7 @@ class IteratorTask(b2luigi.Task):
         interface.reconstruct(self.reco_paths_dict["reco_input_df"], self.reco_paths_dict["reco_output_df"])
 
         # Run surrogate and optimizer model
-        os.system(
-            f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
-            modules/training_script.py {self.reco_paths_dict["own_path"]}"
-        )
+        os.system(f"python3 modules/training_script.py {self.reco_paths_dict["own_path"]}")
 
         # Update parameter dict if not exist
         if os.path.isfile(self.next_param_dict_file):

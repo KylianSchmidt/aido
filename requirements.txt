@@ -26,5 +26,6 @@ setuptools==71.1.0
 six==1.16.0
 smmap==5.0.1
 tenacity==8.5.0
+torch==2.4.0
 tornado==6.4.1
 tzdata==2024.1
