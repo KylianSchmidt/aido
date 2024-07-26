@@ -25,10 +25,11 @@ For the scheduler:
  - awkward
  - pyarrow
  - fastparquet
-
-In order to start the optimizer container, you will need an installation of singularity and a device with an nvidia GPU with cuda drivers.
+ - torch
 
 ## Usage
+
+TBI
 
 ## Structure
 
