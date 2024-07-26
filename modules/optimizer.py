@@ -8,8 +8,8 @@ from typing import Dict
 class Optimizer(object):
     '''
     The optimizer uses the surrogate model to optimise the detector parameters in batches.
-    It is also linked to a generator object, to check if the parameters are still in bounds using the function is_local(parameters)
-    of the generator.
+    It is also linked to a generator object, to check if the parameters are still in bounds using
+    the function is_local(parameters) of the generator.
 
     Once the parameters are not local anymore, the optimizer will return the last parameters that were local and stop.
     For this purpose, the surrogate model will need to be applied using fixed weights.
@@ -86,7 +86,7 @@ class Optimizer(object):
         self.parameter_box.to(device)
 
     def other_constraints(self, constraints: Dict = {"length": 25}):
-        """ Keep parameters such that within the box size of the generator, there are always some positive values even 
+        """ Keep parameters such that within the box size of the generator, there are always some positive values even
         if the central parameters are negative.
         TODO Improve doc string
         """

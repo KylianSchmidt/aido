@@ -1,6 +1,3 @@
-import sys
-import os
-import json
 import numpy as np
 import pandas as pd
 import torch
@@ -65,7 +62,7 @@ class SurrogateDataset(Dataset):
 
     Args:
     ----
-        df (pd.DataFrame): A DataFrame containing the following keys: 
+        df (pd.DataFrame): A DataFrame containing the following keys:
         
             ["Parameters", "Targets", "Context", "Reconstructed"]
 

@@ -2,8 +2,8 @@ import b2luigi
 import os
 import json
 import inspect
-from simulation.SimulationHelpers import SimulationParameterDictionary
-from interface import AIDOUserInterface, AIDOUserInterfaceExample
+from modules.simulation_helpers import SimulationParameterDictionary
+from interface import AIDOUserInterface
 
 
 class StartSimulationTask(b2luigi.Task):
@@ -52,7 +52,8 @@ class IteratorTask(b2luigi.Task):
         yield self.add_to_output("reco_paths_dict")
 
     def requires(self):
-        """ Create Tasks for each set of simulation parameters
+        """ Create Tasks for each set of simulation parameters. The seed 'num_simulation_tasks' ensures that
+        b2luigi does not skip any Task due to duplicates.
 
         TODO Have the parameters from the previous iteration and pass them to each sub-task
         """
@@ -71,9 +72,6 @@ class IteratorTask(b2luigi.Task):
     def run(self):
         """ For each root file produced by the simulation Task, start a container with the reconstruction algorithm.
         Afterwards, the parameter dictionary used to generate these results are also passed as output
-
-        TODO For now, only the latest file is the output of this Task. Try to merge the output if it is split
-        into several files
 
         Alternative container:
             /cvmfs/unpacked.cern.ch/registry.hub.docker.com/cernml4reco/deepjetcore3:latest
@@ -106,25 +104,22 @@ class IteratorTask(b2luigi.Task):
         # Run surrogate and optimizer model
         os.system(
             f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base python3 \
-            container_examples/calo_opt/training_script.py {self.reco_paths_dict["own_path"]}"
+            modules/training_script.py {self.reco_paths_dict["own_path"]}"
         )
 
         # Update parameter dict if not exist
-        self.next_param_dict_file = self.reco_paths_dict["next_parameter_dict"]
-
         if os.path.isfile(self.next_param_dict_file):
             # Dont change anything, just propagate the values for b2luigi
-            updated_parameter_dict_file_path = self.next_param_dict_file
-            updated_param_dict = SimulationParameterDictionary.from_json(updated_parameter_dict_file_path)
+            updated_param_dict = SimulationParameterDictionary.from_json(self.reco_paths_dict["next_parameter_dict"])
             updated_param_dict = updated_param_dict.get_current_values(format="dict")
         else:
             with open(self.reco_paths_dict["updated_parameter_dict"], "r") as file:
-                updated_param_dict: dict = json.load(file)
+                updated_param_dict = json.load(file)
 
         initial_param_dict = SimulationParameterDictionary.from_json(self.reco_paths_dict["current_parameter_dict"])
 
         new_param_dict = initial_param_dict.update_current_values(updated_param_dict)
-        new_param_dict.to_json(self.next_param_dict_file)
+        new_param_dict.to_json(self.reco_paths_dict["next_parameter_dict"])
         new_param_dict.to_json(self.reco_paths_dict["updated_parameter_dict"])
 
 
@@ -157,7 +152,7 @@ class AIDO:
     def __init__(
             self,
             sim_param_dict: SimulationParameterDictionary,
-            user_interface: AIDOUserInterface = AIDOUserInterfaceExample,
+            user_interface: AIDOUserInterface,
             simulation_tasks: int = 1,
             max_iterations: int = 50,
             threads: int = 1
@@ -201,7 +196,7 @@ class AIDO:
 
             4) Convert to pandas.DataFrame for the Optimizer model
 
-            5) Run the Optimizer, which predicts a best set of parameters for this iteration
+            5) Run the Optimizer, which predicts the best set of parameters for this iteration
 
         Repeat for a number of 'max_iterations'.
 
@@ -226,13 +221,17 @@ class AIDO:
         start_param_dict_file_path = "./results/parameters/param_dict_iter_0.json"
         sim_param_dict.to_json(start_param_dict_file_path)
 
+        assert (
+            sim_param_dict.get_current_values("list") != []
+        ), "Simulation Parameter Dictionary requires at least one optimizable Parameter."
+
         if inspect.isclass(user_interface):
             user_interface = user_interface()
         assert (
             issubclass(type(user_interface), AIDOUserInterface)
-        ), f"{user_interface} must inherit from {AIDOUserInterface}."
+        ), f"The class {user_interface} must inherit from {AIDOUserInterface}."
 
-        global interface
+        global interface  # Fix for b2luigi, as passing b2luigi.Parameter of non-serializable classes is not possible
         interface = user_interface
 
         b2luigi.process(
