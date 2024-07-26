@@ -1,0 +1,7 @@
+discrete parameters one hot encode -> vector of probabilities for each discrete value. Sample uniformly with these weights to get the current discrete parameter in SimulationTask.
+
+Take out all the code that does something practical from the scheduler code. Everything else in a class that gets called by the scheduler that the end user can inherit from and change.
+
+self.optimizer.lr = lr assignement does not work because not setter method is implemented in pytorch
+
+
