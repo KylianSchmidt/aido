@@ -1,9 +1,14 @@
+<<<<<<< HEAD
+from typing import List, Any
+from abc import ABC, abstractmethod
+=======
 import os
 from typing import List, Any
 import numpy as np
 import pandas as pd
 from abc import ABC, abstractmethod
 from simulation.conversion import convert_sim_to_reco
+>>>>>>> main
 
 
 class AIDOUserInterface(ABC):
@@ -75,6 +80,8 @@ class AIDOUserInterface(ABC):
         TODO Find how to pass this to the optimizer (container problems could arise)
         """
         raise NotImplementedError
+<<<<<<< HEAD
+=======
 
 
 class AIDOUserInterfaceExample(AIDOUserInterface):
@@ -129,3 +136,4 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
         TODO This will not work if the loss requires non-numpy classes and functions.
         """
         return np.mean((y_pred - y_true)**2 / (np.abs(y_true) + 1.))
+>>>>>>> main

@@ -3,4 +3,11 @@ results*
 *.pyc
 logs
 *__pycache__
+<<<<<<< HEAD
 *.root
+*.aido*
+build
+*.egg-info
+=======
+*.root
+>>>>>>> main

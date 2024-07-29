@@ -2,16 +2,42 @@
 
 The goal of this framework is to optimize the geometry of detectors simulated with geant4.
 
-## Requires
+## Installation
+
+Requires pip>=24.0 and python>=3.12. 
+
+1. Installation with 'setup.py':
+```
+python3 -m pip install .
+```
+2. Or with 'requirements.txt'
+```
+python3 -m pip install -r requirements.txt
+```
+
+## Requirements
+
+For the scheduler:
 
  - b2luigi
  - numpy
+<<<<<<< HEAD
+=======
  - singularity
+>>>>>>> main
  - pandas
  - awkward
  - pyarrow
  - fastparquet
+<<<<<<< HEAD
+ - torch
+
+## Usage
+
+TBI
+=======
  - matplotlib
+>>>>>>> main
 
 ## Structure
 
@@ -49,7 +75,7 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
     - [ ] Implement a method that converts a discrete parameter (such as material type: str) to a float that the surrogate model can then learn
     - [x] Set the output directory of the simulation handled by b2luigi
     - [x] Spawn multiple containers from b2luigi, each with different parameters
-    - [ ] Open the API to the user for spawning the containers (e.g. CLI commands)
+    - [x] Open the API to the user for spawning the containers (e.g. CLI commands)
 
  - Reconstruction
     - [x] Start a Task with GPU support
@@ -61,6 +87,16 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
     - [ ] Normalize once at the first iteration and continue using those normalizations later (for better convergence of the Surrogate model)
 
  - Optimization
+<<<<<<< HEAD
+    - [x] Read the outputs of the reconstruction and build an array for the training
+    - [x] Start a GPU training Task that produces the surrogate model
+    - [x] Use Gradient descent to find local minimum
+    - [x] Write optimal parameters to file for this iteration
+    - [x] Call the class responsable for generating new parameter sets. Now in SimulationParameterDictionary
+
+ - Others
+    - [x] Pip package or venv list of all packages used in the main b2luigi scheduler file
+=======
     - [-] Read the outputs of the reconstruction and build an array for the training
     - [ ] Start a GPU training Task that produces the surrogate model
     - [ ] Use Gradient descent to find local minimum
@@ -69,3 +105,4 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
 
  - Others
     - [ ] Pip package or venv list of all packages used in the main b2luigi scheduler file
+>>>>>>> main
