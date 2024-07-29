@@ -22,22 +22,31 @@ For the scheduler:
  - b2luigi
  - numpy
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
  - singularity
 >>>>>>> main
+=======
+>>>>>>> 16247e8c4e3577c68c0e736b65ee0c33345e9d15
  - pandas
  - awkward
  - pyarrow
  - fastparquet
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 16247e8c4e3577c68c0e736b65ee0c33345e9d15
  - torch
 
 ## Usage
 
 TBI
+<<<<<<< HEAD
 =======
  - matplotlib
 >>>>>>> main
+=======
+>>>>>>> 16247e8c4e3577c68c0e736b65ee0c33345e9d15
 
 ## Structure
 
@@ -88,6 +97,9 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
 
  - Optimization
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 16247e8c4e3577c68c0e736b65ee0c33345e9d15
     - [x] Read the outputs of the reconstruction and build an array for the training
     - [x] Start a GPU training Task that produces the surrogate model
     - [x] Use Gradient descent to find local minimum
@@ -96,6 +108,7 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
 
  - Others
     - [x] Pip package or venv list of all packages used in the main b2luigi scheduler file
+<<<<<<< HEAD
 =======
     - [-] Read the outputs of the reconstruction and build an array for the training
     - [ ] Start a GPU training Task that produces the surrogate model
@@ -106,3 +119,5 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
  - Others
     - [ ] Pip package or venv list of all packages used in the main b2luigi scheduler file
 >>>>>>> main
+=======
+>>>>>>> 16247e8c4e3577c68c0e736b65ee0c33345e9d15

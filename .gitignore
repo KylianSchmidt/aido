@@ -4,6 +4,7 @@ results*
 logs
 *__pycache__
 <<<<<<< HEAD
+<<<<<<< HEAD
 *.root
 *.aido*
 build
@@ -11,3 +12,7 @@ build
 =======
 *.root
 >>>>>>> main
+=======
+*.root
+*.aido*
+>>>>>>> 16247e8c4e3577c68c0e736b65ee0c33345e9d15

@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 from typing import List, Any
 from abc import ABC, abstractmethod
 =======
@@ -9,6 +10,10 @@ import pandas as pd
 from abc import ABC, abstractmethod
 from simulation.conversion import convert_sim_to_reco
 >>>>>>> main
+=======
+from typing import List, Any
+from abc import ABC, abstractmethod
+>>>>>>> 16247e8c4e3577c68c0e736b65ee0c33345e9d15
 
 
 class AIDOUserInterface(ABC):
@@ -81,6 +86,7 @@ class AIDOUserInterface(ABC):
         """
         raise NotImplementedError
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 
@@ -137,3 +143,5 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
         """
         return np.mean((y_pred - y_true)**2 / (np.abs(y_true) + 1.))
 >>>>>>> main
+=======
+>>>>>>> 16247e8c4e3577c68c0e736b65ee0c33345e9d15
