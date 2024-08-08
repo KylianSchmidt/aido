@@ -1,0 +1,11 @@
+cp aido repo
+copy venv (or make new, or check if pytorch lying in cvmfs)
+python3 -m pip install . # install aido
+cp user defined container # for example, thats the ml_base container from jan
+source env
+
+# General requirements
+As many cores as indicated in b2luigi
+Use one GPU
+large enough disk space for the intermediate root files (n_events * n_simulation_tasks * size of one event=5MB for RAM in Belle2)
+

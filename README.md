@@ -102,4 +102,4 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
     - [ ] Call the class responsable for generating new parameter sets
 
  - Others
-    - [ ] Pip package or venv list of all packages used in the main b2luigi scheduler file
+    - [x] Pip package or venv list of all packages used in the main b2luigi scheduler file
