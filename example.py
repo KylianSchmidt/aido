@@ -3,6 +3,21 @@ from modules.aido import AIDO  # required
 from modules.simulation_helpers import SimulationParameter, SimulationParameterDictionary  # required
 from container_examples.calo_opt.calo_opt_interface import AIDOUserInterfaceExample  # Import your derived class
 
+global_htcondor_settings = {
+    # "requirements": '(Machine != "f03-001-140-e.gridka.de")',
+    "+remotejob": "true",
+    "request_cpus": "1",
+    "universe": "docker",
+    "docker_image": "mschnepf/slc7-condocker",
+    "stream_output": "true",
+    "stream_error": "true",
+    "transfer_executable": "true",
+    "when_to_transfer_output": "ON_SUCCESS",
+    "ShouldTransferFiles": "True",
+    "getenv": "True",
+    "+evictable": "True",
+}
+
 
 if __name__ == "__main__":
     os.system("rm ./results -rf")  # remove everything from results
