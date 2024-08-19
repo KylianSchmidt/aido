@@ -2,7 +2,7 @@ import b2luigi
 import os
 import json
 import inspect
-from typing import List
+from typing import List, Any, Iterable
 from modules.simulation_helpers import SimulationParameterDictionary, SimulationParameter
 from interface import AIDOUserInterface
 
@@ -244,3 +244,7 @@ class AIDO:
             workers=threads,
         )
         os.system("rm *.pkl")
+
+    @classmethod
+    def parameter(**kwargs):
+        return SimulationParameter(**kwargs)

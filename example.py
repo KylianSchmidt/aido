@@ -1,6 +1,5 @@
 import os
 from modules.aido import AIDO  # required
-from modules.simulation_helpers import SimulationParameter  # required
 from container_examples.calo_opt.calo_opt_interface import AIDOUserInterfaceExample  # Import your derived class
 
 global_htcondor_settings = {
@@ -24,13 +23,14 @@ if __name__ == "__main__":
 
     AIDO(
         parameters=[
-            SimulationParameter('thickness_absorber_0', 1.0, min_value=1E-3, max_value=5.0, sigma=0.2),
-            SimulationParameter('thickness_absorber_1', 1.0, min_value=1E-3, max_value=5.0, sigma=0.2),
-            SimulationParameter('thickness_scintillator_0', 0.5, min_value=1E-3, max_value=1.0, sigma=0.2),
-            SimulationParameter('thickness_scintillator_1', 0.1, min_value=1E-3, max_value=1.0, sigma=0.2),
-            SimulationParameter("num_events", 100, optimizable=False)
+            AIDO.parameter('thickness_absorber_0', 1.0, min_value=1E-3, max_value=5.0, sigma=0.2),
+            AIDO.parameter('thickness_absorber_1', 1.0, min_value=1E-3, max_value=5.0, sigma=0.2),
+            AIDO.parameter('thickness_scintillator_0', 0.5, min_value=1E-3, max_value=1.0, sigma=0.2),
+            AIDO.parameter('thickness_scintillator_1', 0.1, min_value=1E-3, max_value=1.0, sigma=0.2),
+            AIDO.parameter("num_events", 100, optimizable=False)
         ],
         user_interface=AIDOUserInterfaceExample,
         simulation_tasks=4,
         threads=5
     )
+

@@ -25,7 +25,7 @@ class SimulationParameter:
             starting_value: Any,
             current_value: Any | None = None,
             units: str | None = None,
-            optimizable=True,
+            optimizable: bool = True,
             min_value: float | None = None,
             max_value: float | None = None,
             sigma: float | None = None,
