@@ -246,6 +246,7 @@ class SimulationParameterDictionary:
         for float parameters. For discrete parameters, the new current_value is randomly chosen from
         the list of allowed values.
         TODO Decrease sigma if unable to find a new current_value
+        TODO This method is better implemented for each SimulationParameter, not the Dictionary
         """
         new_parameter_list = self.parameter_list
 
