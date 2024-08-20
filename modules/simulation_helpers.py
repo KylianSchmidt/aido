@@ -1,4 +1,5 @@
 from typing import Type, Dict, List, Iterable, Literal, Any
+import copy
 import json
 import numpy as np
 import pandas as pd
@@ -148,8 +149,11 @@ class SimulationParameterDictionary:
         self.parameter_list.append(simulation_parameter)
         self.parameter_dict[name] = simulation_parameter
 
-    def __getitem__(self, key: str) -> SimulationParameter:
-        return self.parameter_dict[key]
+    def __getitem__(self, key: str | int) -> SimulationParameter:
+        if isinstance(key, str):
+            return self.parameter_dict[key]
+        if isinstance(key, int):
+            return self.parameter_list[key]
 
     def __len__(self) -> int:
         return len(self.parameter_list)
@@ -181,12 +185,15 @@ class SimulationParameterDictionary:
         with open(file_path, "w") as file:
             json.dump(self.to_dict(), file)
 
-    def to_df(self, df_length: int = 1) -> pd.DataFrame:
+    def to_df(self, df_length: int | None = None, **kwargs) -> pd.DataFrame:
         """ Create parameter dict from file if path given. Remove all parameters that are not
         optimizable and also only keep current values. Output is a df of length 'df_length', so
         that it can be concatenated with the other df's.
         """
-        return pd.DataFrame(self.get_current_values("dict"), index=range(df_length))
+        if df_length is not None:
+            kwargs["index"] = range(df_length)
+
+        return pd.DataFrame(self.get_current_values("dict"), **kwargs)
 
     def get_current_values(
             self,
@@ -246,9 +253,10 @@ class SimulationParameterDictionary:
         for float parameters. For discrete parameters, the new current_value is randomly chosen from
         the list of allowed values.
         TODO Decrease sigma if unable to find a new current_value
-        TODO This method is better implemented for each SimulationParameter, not the Dictionary
+        TODO This method is better implemented for each SimulationParameter, not the Dictionary,
+        in order to allow easier inheritance.
         """
-        new_parameter_list = self.parameter_list
+        new_parameter_list = copy.deepcopy(self.parameter_list)  # Prevents the modification of this instance
 
         for parameter in new_parameter_list:
             if parameter.optimizable is False:
@@ -275,7 +283,7 @@ class SimulationParameterDictionary:
                 else:
                     print(f"Warning: unable to set new current value for parameter {parameter}")
 
-        return SimulationParameterDictionary(new_parameter_list)
+        return type(self)(new_parameter_list)
 
 
 if __name__ == "__main__":

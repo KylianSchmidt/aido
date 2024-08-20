@@ -169,24 +169,28 @@ class AIDO:
         AIDO
         ----
         
-        The AI Detector Optimization framework (AIDO) is a tool for learning optimal
-        design for particle physics detectors. By interpolating the results of simulations
+        The AI Detector Optimization framework (AIDO) is a tool for finding the optimal
+        design of particle physics detectors. By interpolating the results of simulations
         with slightly different geometries, it can learn the best set of detector parameters.
 
-        Using b2luigi Tasks, this framework can run parallel simulation Tasks and running
+        Using b2luigi Tasks, this framework can run parallel simulation Tasks and
         reconstruction and optimization ML models on GPUs.
 
         Args:
             parameters (List[AIDO.parameter] | SimulationParameterDictionary): Instance of a
                 SimulationParameterDictionary with all the desired parameters. These are the starting parameters
-                for the optimization loop and the outcome can depend on their starting values.
+                for the optimization loop and the outcome can depend on their starting values. Can also be a
+                simple list of SimulationParameter / AIDO.parameters (the latter is a proxy method).
             user_interface (class or instance inherited from AIDOUserInterface): Regulates the interaction
                 between user-defined code (simulation, reconstruction, merging of output files) and the
                 AIDO workflow manager.
             simulation_tasks (int): Number of simulations started during each iteration.
             max_iterations (int): Maximum amount of iterations of the optimization loop
-            threads (int): Allowed number of threads to allocate the simulation tasks. There is no benefit
-                in having 'threads' > 'simulation_tasks'.
+            threads (int): Allowed number of threads to allocate the simulation tasks. 
+                NOTE There is no benefit in having 'threads' > 'simulation_tasks' per se, but in some cases,
+                errors involving missing dependencies after the simulation step can be fixed by setting:
+                    
+                    'threads' = 'simulation_tasks' + 1.
 
         Remarks
         -------
@@ -256,4 +260,6 @@ class AIDO:
         )
 
     def parameter(*args, **kwargs):
+        """ Proxy method that instanciates simulation_helpers.SimulationParameter.
+        """
         return SimulationParameter(*args, **kwargs)

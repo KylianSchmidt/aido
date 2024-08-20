@@ -127,6 +127,7 @@ class AIDOPlotting:
 
             plt.xlabel("Iteration", loc="right")
             plt.ylabel("Parameter Value", loc="top")
+            plt.legend()
             plt.savefig(fig_savepath)
 
         return df_params
