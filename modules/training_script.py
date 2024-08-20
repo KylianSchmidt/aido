@@ -78,7 +78,7 @@ if __name__ == "__main__":
             sl = surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0001)
 
     surr_out, reco_out, true_in = surrogate_model.apply_model_in_batches(surrogate_dataset, batch_size=512)
-    surr_out = surr_out * surrogate_dataset.stds[1] + surrogate_dataset.means[1]
+    surr_out = surr_out.numpy() * surrogate_dataset.stds[1] + surrogate_dataset.means[1]
     surrogate_df = pd.DataFrame(surr_out, columns=surrogate_dataset.df["Targets"].columns)
     surrogate_df = pd.concat({"Surrogate": surrogate_df}, axis=1)
     output_df: pd.DataFrame = pd.concat([surrogate_dataset.df, surrogate_df], axis=1)
