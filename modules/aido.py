@@ -4,6 +4,7 @@ import json
 import inspect
 from typing import List
 from modules.simulation_helpers import SimulationParameterDictionary, SimulationParameter
+from modules.plotting import AIDOPlotting
 from interface import AIDOUserInterface
 
 
@@ -120,6 +121,10 @@ class IteratorTask(b2luigi.Task):
         new_param_dict.to_json(self.reco_paths_dict["next_parameter_dict"])
         new_param_dict.to_json(self.reco_paths_dict["updated_parameter_dict"])
 
+        # Plot the evolution
+        # TODO Make it accessible to the end user to add plotting scripts
+        AIDOPlotting.parameter_evolution()
+
 
 class AIDOMainWrapperTask(b2luigi.WrapperTask):
     """ Trigger recursive calls for each Iteration
@@ -167,9 +172,9 @@ class AIDO:
         reconstruction and optimization ML models on GPUs.
 
         Args:
-            sim_param_dict (SimulationParameterDictionary): Instance of a SimulationParameterDictionary
-                with all the desired parameters. These are the starting parameters for the optimization
-                loop and the outcome can depend on their starting values.
+            parameters (List[AIDO.parameter] | SimulationParameterDictionary): Instance of a
+                SimulationParameterDictionary with all the desired parameters. These are the starting parameters
+                for the optimization loop and the outcome can depend on their starting values.
             user_interface (class or instance inherited from AIDOUserInterface): Regulates the interaction
                 between user-defined code (simulation, reconstruction, merging of output files) and the
                 AIDO workflow manager.
@@ -245,6 +250,5 @@ class AIDO:
         )
         os.system("rm *.pkl")
 
-    @classmethod
-    def parameter(**kwargs):
-        return SimulationParameter(**kwargs)
+    def parameter(*args, **kwargs):
+        return SimulationParameter(*args, **kwargs)
