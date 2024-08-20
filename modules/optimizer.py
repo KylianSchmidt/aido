@@ -83,19 +83,25 @@ class Optimizer(object):
         self.parameters.to(device)
         self.parameter_box.to(device)
 
-    def other_constraints(self, constraints: Dict = {"length": 25}):
+    def other_constraints(self, constraints: Dict = {}):
         """ Keep parameters such that within the box size of the generator, there are always some positive values even
         if the central parameters are negative.
         TODO Improve doc string
+        TODO Total detector length is an example of possible additional constraints. Unused for now, must be added
+        in the UserInterface class later on.
         """
         self.constraints = {key: torch.tensor(value) for key, value in constraints.items()}
-        detector_length = torch.sum(self.parameters)
-        total_length_loss = torch.mean(100. * torch.nn.ReLU()(detector_length - self.constraints["length"])**2)
-        box_loss = (
+
+        loss = (
             torch.mean(100. * torch.nn.ReLU()(self.parameter_box[:, 0] / 1.1 - self.parameters))
             + torch.mean(100. * torch.nn.ReLU()(- self.parameter_box[:, 1] / 1.1 + self.parameters))
         )
-        return total_length_loss + box_loss
+
+        if "length" in self.constraints.keys():
+            detector_length = torch.sum(self.parameters)
+            loss += torch.mean(100. * torch.nn.ReLU()(detector_length - self.constraints["length"])**2)
+
+        return loss
 
     def adjust_covariance(self, direction: torch.Tensor, min_scale=2.0):
         """ Stretches the box_covariance of the generator in the directon specified as input.
