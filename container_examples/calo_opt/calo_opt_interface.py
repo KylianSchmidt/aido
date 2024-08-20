@@ -19,7 +19,6 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
         )
         return None
     
-    @classmethod
     def convert_sim_to_reco(
             parameter_dict: Dict | str,
             simulation_output_df: pd.DataFrame | str,
@@ -98,7 +97,7 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
 
         for simulation_output_path in list(zip(parameter_dict_file_paths, simulation_file_paths)):
             df_list.append(
-                self.convert_sim_to_reco(
+                AIDOUserInterfaceExample.convert_sim_to_reco(
                     *simulation_output_path,
                     input_keys=[
                         'sensor_energy', 'sensor_x', 'sensor_y', 'sensor_z',
