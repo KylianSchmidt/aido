@@ -194,7 +194,10 @@ class Optimizer(object):
 
                     self.parameters.to(self.device)
 
-            print(f"Optimizer Epoch: {epoch} \tLoss: {loss.item():.8f}")
+            print(
+                f"Optimizer Epoch: {epoch} \tLoss: {(self.loss(reco_surrogate, targets)):.5f} (reco)\t"
+                f"+ {(self.other_constraints()):.5f} (constraints)\t = {loss.item():.5f} (total)"
+            )
             epoch_loss /= batch_idx + 1
             optimizer_loss.append(epoch_loss)
 

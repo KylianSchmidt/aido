@@ -23,15 +23,15 @@ if __name__ == "__main__":
 
     AIDO(
         parameters=[
-            AIDO.parameter('thickness_absorber_0', 10.0, min_value=1E-3, max_value=50.0, sigma=0.2),
-            AIDO.parameter('thickness_absorber_1', 10.0, min_value=1E-3, max_value=50.0, sigma=0.2),
-            AIDO.parameter('thickness_absorber_2', 10.0, min_value=1E-3, max_value=50.0, sigma=0.2),
-            AIDO.parameter('thickness_scintillator_0', 20.0, min_value=1E-3, max_value=30.0, sigma=0.2),
-            AIDO.parameter('thickness_scintillator_1', 1.0, min_value=1E-3, max_value=30.0, sigma=0.2),
-            AIDO.parameter('thickness_scintillator_2', 1.0, min_value=1E-3, max_value=10.0, sigma=0.2),
+            AIDO.parameter('thickness_absorber_0', 10.0, min_value=1E-3, max_value=50.0, sigma=1.0),
+            AIDO.parameter('thickness_absorber_1', 10.0, min_value=1E-3, max_value=50.0, sigma=1.0),
+            AIDO.parameter('thickness_absorber_2', 10.0, min_value=1E-3, max_value=50.0, sigma=1.0),
+            AIDO.parameter('thickness_scintillator_0', 20.0, min_value=1E-3, max_value=30.0, sigma=1.0),
+            AIDO.parameter('thickness_scintillator_1', 1.0, min_value=1E-3, max_value=30.0, sigma=0.5),
+            AIDO.parameter('thickness_scintillator_2', 1.0, min_value=1E-3, max_value=10.0, sigma=0.5),
             AIDO.parameter("num_events", 100, optimizable=False)
         ],
         user_interface=AIDOUserInterfaceExample,
-        simulation_tasks=5,
-        threads=6
+        simulation_tasks=10,
+        threads=11
     )
