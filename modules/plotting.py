@@ -121,6 +121,7 @@ class AIDOPlotting:
             for i, col in enumerate(df_optim.columns):
                 plt.fill_between(df_optim[col].index, df_optim[col] - sigma[:, i], df_optim[col] + sigma[:, i], alpha=0.5)
 
+            plt.gca().set_prop_cycle(None)
             for i, col in enumerate(df_params.columns.drop(["Iteration", "Task_ID"])):
                 plt.scatter(df_params["Iteration"], df_params[col].values, marker="+", s=100)
 
