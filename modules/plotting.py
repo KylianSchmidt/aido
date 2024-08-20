@@ -93,8 +93,20 @@ class AIDOPlotting:
             fig_savepath: str | os.PathLike | None = "./results/plots/simulation_samples",
             sampled_param_dict_filepath: str | os.PathLike = "./results/task_outputs/simulation_task*"
             ) -> Tuple[pd.DataFrame, np.ndarray]:
-        """ TODO Check for the files in a dynamic way in case b2luigi changes the names of the directories
+        """ Generate a DataFrame of simulation parameters and their values for each iteration and task.
+        Args:
+            fig_savepath (str | os.PathLike | None, optional): Path to save the generated plot.
+                Defaults to "./results/plots/simulation_samples".
+            sampled_param_dict_filepath (str | os.PathLike, optional): Path to the sampled parameter dictionary files.
+                Defaults to "./results/task_outputs/simulation_task*".
+        Returns:
+            Tuple[pd.DataFrame, np.ndarray]: A tuple containing the DataFrame of simulation parameters and a
+                numpy array of sigma values.
+        
+        TODO Check for the files in a dynamic way in case b2luigi changes the names of the directories
         due to changes in the b2luigi.Parameters of the SimulationTasks.
+
+
         """
         df_list = []
 
