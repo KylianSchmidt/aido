@@ -128,6 +128,7 @@ class IteratorTask(b2luigi.Task):
         # TODO Make it accessible to the end user to add plotting scripts
         AIDOPlotting.parameter_evolution()
         AIDOPlotting.optimizer_loss()
+        AIDOPlotting.simulation_samples()
 
 
 class AIDOMainWrapperTask(b2luigi.WrapperTask):

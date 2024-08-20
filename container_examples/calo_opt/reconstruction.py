@@ -124,7 +124,7 @@ class Reconstruction(torch.nn.Module):
         self.device = torch.device('cuda')
 
     def forward(self, detector_parameters, x):
-        """ Concatenate the detector parameters and the input 
+        """ Concatenate the detector parameters and the input
         """
         x = torch.cat([detector_parameters, x], dim=1)
         return self.layers(x)
