@@ -58,6 +58,8 @@ class IteratorTask(b2luigi.Task):
         b2luigi does not skip any Task due to duplicates.
 
         TODO Have the parameters from the previous iteration and pass them to each sub-task
+        TODO Check that the param_dict of is of the same shape as the previous one (in case the user changes
+        something in the SPD and then continues training)
         """
         
         self.next_param_dict_file = f"./results/parameters/param_dict_iter_{self.iteration_counter + 1}.json"
@@ -248,7 +250,6 @@ class AIDO:
             ),
             workers=threads,
         )
-        os.system("rm *.pkl")
 
     def parameter(*args, **kwargs):
         return SimulationParameter(*args, **kwargs)

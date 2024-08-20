@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import os
 import sys
 import json
 from  G4Calo import G4System, GeometryDescriptor
@@ -65,4 +66,5 @@ for column in df.columns:
     if df[column].dtype == "awkward":
         df[column] = df[column].to_list()
 
+os.system("rm *.pkl")
 df.to_parquet(output_path)
