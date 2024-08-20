@@ -128,5 +128,10 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
         """ Calculate the loss for the optimizer. Easiest way is to rewrite the loss with numpy
 
         TODO This will not work if the loss requires non-numpy classes and functions.
+
+        Optimizer has loss:
+
+            ((y_pred - y_true)**2 / (torch.abs(y_true) + 1.)).mean()
         """
         return np.mean((y_pred - y_true)**2 / (np.abs(y_true) + 1.))
+    

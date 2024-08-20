@@ -92,7 +92,8 @@ class IteratorTask(b2luigi.Task):
             "updated_parameter_dict": str(self.get_output_file_name("param_dict.json")),
             "next_parameter_dict": f"./results/parameters/param_dict_iter_{self.iteration_counter + 1}.json",
             "reco_input_df": str(self.get_output_file_name("reco_input_df")),
-            "reco_output_df": str(self.get_output_file_name("reco_output_df"))
+            "reco_output_df": str(self.get_output_file_name("reco_output_df")),
+            "optimizer_loss_save_path": f"./results/loss/optimizer/optimizer_loss_{self.iteration_counter}"
         }
         if os.path.isfile(self.next_param_dict_file):
             print(f"Iteration {self.iteration_counter} has an updated parameter dict already and will be skipped")
@@ -126,6 +127,7 @@ class IteratorTask(b2luigi.Task):
         # Plot the evolution
         # TODO Make it accessible to the end user to add plotting scripts
         AIDOPlotting.parameter_evolution()
+        AIDOPlotting.optimizer_loss()
 
 
 class AIDOMainWrapperTask(b2luigi.WrapperTask):
@@ -223,6 +225,7 @@ class AIDO:
         os.makedirs("./results/parameters", exist_ok=True)
         os.makedirs("./results/models", exist_ok=True)
         os.makedirs("./results/plots", exist_ok=True)
+        os.makedirs("./results/loss/optimizer", exist_ok=True)
         start_param_dict_file_path = "./results/parameters/param_dict_iter_0.json"
 
         if isinstance(parameters, list):

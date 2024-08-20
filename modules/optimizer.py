@@ -25,10 +25,8 @@ class Optimizer(object):
             ):
         
         self.surrogate_model = surrogate_model
-
         self.starting_parameter_dict = starting_parameter_dict
         self.parameter_dict = {k: v for k, v in self.starting_parameter_dict.items() if v.get("optimizable")}
-
         self.n_time_steps = surrogate_model.n_time_steps
         self.lr = lr
         self.batch_size = batch_size
@@ -36,7 +34,7 @@ class Optimizer(object):
 
         self.starting_parameters = self.parameter_dict_to_cuda()
         self.parameters = self.parameter_dict_to_cuda()
-        self.parameter_box = self.parameter_constraints_to_cuda_box()
+        self.parameter_box = self.parameter_constraints_to_cuda()
         self.covariance = self.get_covariance_matrix()
 
         self.to(self.device)
@@ -50,7 +48,7 @@ class Optimizer(object):
         parameters = torch.tensor(np.array(parameters, dtype="float32")).to(self.device)
         return torch.nn.Parameter(parameters, requires_grad=True)
 
-    def parameter_constraints_to_cuda_box(self):
+    def parameter_constraints_to_cuda(self):
         """ Convert the constraints of parameters to a multi-dimensional 'box'. Parameters with no constraints
         will have entries marked as np.Nan.
         Shape: (Parameter, Constraint)
@@ -143,10 +141,10 @@ class Optimizer(object):
         self.optimizer.lr = lr
         self.surrogate_model.eval()
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-        mean_loss = 0
+        optimizer_loss = []
 
         for epoch in range(n_epochs):
-            mean_loss = 0
+            epoch_loss = 0
             stop_epoch = False
 
             for batch_idx, (_parameters, targets, true_context, reco_result) in enumerate(data_loader):
@@ -179,10 +177,10 @@ class Optimizer(object):
                     for index, key in enumerate(self.parameter_dict):
                         self.parameter_dict[key] = float(prev_parameters[index])
 
-                    return self.parameter_dict, False, mean_loss / (batch_idx + 1)
+                    return self.parameter_dict, False, epoch_loss / (batch_idx + 1)
 
                 self.optimizer.step()
-                mean_loss += loss.item()
+                epoch_loss += loss.item()
 
                 if not self.check_parameter_are_local(self.parameters, 0.8):
                     stop_epoch = True
@@ -197,14 +195,14 @@ class Optimizer(object):
                     self.parameters.to(self.device)
 
             print(f"Optimizer Epoch: {epoch} \tLoss: {loss.item():.8f}")
+            epoch_loss /= batch_idx + 1
+            optimizer_loss.append(epoch_loss)
 
             if stop_epoch:
                 break
 
-        mean_loss /= batch_idx + 1
-
         self.covariance = self.adjust_covariance(self.parameters - self.starting_parameters.to(self.device))
-        return self.parameter_dict, True, mean_loss
+        return self.parameter_dict, True, np.array(optimizer_loss)
 
     def get_optimum(self):
         return self.parameter_dict

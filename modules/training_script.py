@@ -43,6 +43,7 @@ if __name__ == "__main__":
     optimizer_model_previous_path = reco_file_paths_dict["optimizer_model_previous_path"]
     surrogate_save_path = reco_file_paths_dict["surrogate_model_save_path"]
     optimizer_save_path = reco_file_paths_dict["optimizer_model_save_path"]
+    optimizer_loss_save_path = reco_file_paths_dict["optimizer_loss_save_path"]
 
     with open(parameter_dict_input_path, "r") as file:
         parameter_dict: dict = json.load(file)
@@ -90,7 +91,7 @@ if __name__ == "__main__":
     else:
         optimizer = Optimizer(surrogate_model, parameter_dict)
 
-    updated_parameter_dict, is_optimal, o_loss = optimizer.optimize(
+    updated_parameter_dict, is_optimal, optimizer_loss = optimizer.optimize(
         surrogate_dataset,
         batch_size=512,
         n_epochs=40,
@@ -102,6 +103,8 @@ if __name__ == "__main__":
 
     with open(parameter_dict_output_path, "w") as file:
         json.dump(updated_parameter_dict, file)
+
+    pd.DataFrame(optimizer_loss).to_csv(optimizer_loss_save_path, header=False)
 
     torch.save(surrogate_model, surrogate_save_path)
     torch.save(optimizer, optimizer_save_path)
