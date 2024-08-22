@@ -91,7 +91,7 @@ class AIDOPlotting:
 
     def simulation_samples(
             fig_savepath: str | os.PathLike | None = "./results/plots/simulation_samples",
-            sampled_param_dict_filepath: str | os.PathLike = "./results/task_outputs/simulation_task*"
+            sampled_param_dict_filepath: str | os.PathLike = "./results/task_outputs/iteration/*"
             ) -> Tuple[pd.DataFrame, np.ndarray]:
         """ Generate a DataFrame of simulation parameters and their values for each iteration and task.
         Args:
@@ -112,7 +112,11 @@ class AIDOPlotting:
 
         for task_id, simulation_task in enumerate(sorted(glob.glob(sampled_param_dict_filepath))):
 
+            print(f"DEBUG TaskID {task_id}\t{simulation_task}")
+
             for iteration, file in enumerate(glob.glob(simulation_task + "/*/param_dict.json")):
+
+                print(f"DEBUG Iteration {iteration}\t {file}")
                 spd = SimulationParameterDictionary.from_json(file)
                 spd_dict = spd.get_current_values()
                 
@@ -143,3 +147,4 @@ class AIDOPlotting:
             plt.savefig(fig_savepath)
 
         return df_params
+

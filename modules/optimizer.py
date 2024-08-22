@@ -93,8 +93,8 @@ class Optimizer(object):
         self.constraints = {key: torch.tensor(value) for key, value in constraints.items()}
 
         loss = (
-            torch.mean(100. * torch.nn.ReLU()(self.parameter_box[:, 0] / 1.1 - self.parameters))
-            + torch.mean(100. * torch.nn.ReLU()(- self.parameter_box[:, 1] / 1.1 + self.parameters))
+            torch.mean(100. * torch.nn.ReLU()(self.parameter_box[:, 0] / 1.1 - self.parameters)) +
+            torch.mean(100. * torch.nn.ReLU()(- self.parameter_box[:, 1] / 1.1 + self.parameters))
         )
 
         if "length" in self.constraints.keys():

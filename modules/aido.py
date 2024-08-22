@@ -10,8 +10,9 @@ from interface import AIDOUserInterface
 
 
 class StartSimulationTask(b2luigi.Task):
-    simulation_task_rng_seed = b2luigi.IntParameter()
-    iter_start_param_dict_file_path = b2luigi.PathParameter(hashed=True)
+    iteration = b2luigi.IntParameter()
+    simulation_task_id = b2luigi.IntParameter()
+    iter_start_param_dict_file_path = b2luigi.PathParameter(hashed=True, significant=False)
 
     def output(self):
         yield self.add_to_output("simulation_output")
@@ -38,9 +39,9 @@ class IteratorTask(b2luigi.Task):
     When running, it calls the user-provided 'interface.merge()' and 'interface.reconstruct' methods. The
     output of the later is passed to the Surrogate/Optimizer.
     """
-    iteration_counter = b2luigi.IntParameter()
-    num_simulation_tasks = b2luigi.IntParameter()
-    iter_start_param_dict_file_path = b2luigi.PathParameter(hashed=True)
+    iteration = b2luigi.IntParameter()
+    num_simulation_tasks = b2luigi.IntParameter(significant=False)
+    iter_start_param_dict_file_path = b2luigi.PathParameter(hashed=True, significant=False)
 
     def output(self):
         """
@@ -63,16 +64,20 @@ class IteratorTask(b2luigi.Task):
         something in the SPD and then continues training)
         """
         
-        self.next_param_dict_file = f"./results/parameters/param_dict_iter_{self.iteration_counter + 1}.json"
+        self.next_param_dict_file = f"./results/parameters/param_dict_iter_{self.iteration + 1}.json"
 
         if not os.path.isfile(self.next_param_dict_file):
 
             for i in range(self.num_simulation_tasks):
                 yield self.clone(
                     StartSimulationTask,
+                    iteration=self.iteration,
                     iter_start_param_dict_file_path=self.iter_start_param_dict_file_path,
-                    simulation_task_rng_seed=i,
+                    simulation_task_id=i,
                 )
+
+            start_parameters = SimulationParameterDictionary.from_json(self.iter_start_param_dict_file_path)
+            start_parameters.to_json(f"./debug/param_dict_{self.iteration}.json")  # DEBUG
 
     def run(self):
         """ For each root file produced by the simulation Task, start a container with the reconstruction algorithm.
@@ -85,19 +90,19 @@ class IteratorTask(b2luigi.Task):
         simulation_file_paths = self.get_input_file_names("simulation_output")
         self.reco_paths_dict = {
             "own_path": str(self.get_output_file_name("reco_paths_dict")),
-            "surrogate_model_previous_path": f"./results/models/surrogate_{self.iteration_counter - 1}.pt",
-            "optimizer_model_previous_path": f"./results/models/optimizer_{self.iteration_counter - 1}.pt",
-            "surrogate_model_save_path": f"./results/models/surrogate_{self.iteration_counter}.pt",
-            "optimizer_model_save_path": f"./results/models/optimizer_{self.iteration_counter}.pt",
+            "surrogate_model_previous_path": f"./results/models/surrogate_{self.iteration - 1}.pt",
+            "optimizer_model_previous_path": f"./results/models/optimizer_{self.iteration - 1}.pt",
+            "surrogate_model_save_path": f"./results/models/surrogate_{self.iteration}.pt",
+            "optimizer_model_save_path": f"./results/models/optimizer_{self.iteration}.pt",
             "current_parameter_dict": str(self.iter_start_param_dict_file_path),
             "updated_parameter_dict": str(self.get_output_file_name("param_dict.json")),
-            "next_parameter_dict": f"./results/parameters/param_dict_iter_{self.iteration_counter + 1}.json",
+            "next_parameter_dict": f"./results/parameters/param_dict_iter_{self.iteration + 1}.json",
             "reco_input_df": str(self.get_output_file_name("reco_input_df")),
             "reco_output_df": str(self.get_output_file_name("reco_output_df")),
-            "optimizer_loss_save_path": f"./results/loss/optimizer/optimizer_loss_{self.iteration_counter}"
+            "optimizer_loss_save_path": f"./results/loss/optimizer/optimizer_loss_{self.iteration}"
         }
         if os.path.isfile(self.next_param_dict_file):
-            print(f"Iteration {self.iteration_counter} has an updated parameter dict already and will be skipped")
+            print(f"Iteration {self.iteration} has an updated parameter dict already and will be skipped")
             return None
 
         with open(self.reco_paths_dict["own_path"], "w") as file:
@@ -129,7 +134,7 @@ class IteratorTask(b2luigi.Task):
         # TODO Make it accessible to the end user to add plotting scripts
         AIDOPlotting.parameter_evolution()
         AIDOPlotting.optimizer_loss()
-        AIDOPlotting.simulation_samples()
+        #AIDOPlotting.simulation_samples()
 
 
 class AIDOMainWrapperTask(b2luigi.WrapperTask):
@@ -137,13 +142,13 @@ class AIDOMainWrapperTask(b2luigi.WrapperTask):
     TODO Fix exit condition in 'run' method
     TODO parameter results dir
     """
-    num_max_iterations = b2luigi.IntParameter()
-    num_simulation_tasks = b2luigi.IntParameter()
+    num_max_iterations = b2luigi.IntParameter(significant=False)
+    num_simulation_tasks = b2luigi.IntParameter(significant=False)
     start_param_dict_file_path = b2luigi.PathParameter(hashed=True)
 
     def requires(self):
         yield IteratorTask(
-            iteration_counter=0,
+            iteration=0,
             num_simulation_tasks=self.num_simulation_tasks,
             iter_start_param_dict_file_path="./results/parameters/param_dict_iter_0.json"
         )
@@ -151,7 +156,7 @@ class AIDOMainWrapperTask(b2luigi.WrapperTask):
     def run(self):
         for iteration in range(1, self.num_max_iterations):
             yield IteratorTask(
-                iteration_counter=iteration,
+                iteration=iteration,
                 num_simulation_tasks=self.num_simulation_tasks,
                 iter_start_param_dict_file_path=f"./results/parameters/param_dict_iter_{iteration}.json"
             )
