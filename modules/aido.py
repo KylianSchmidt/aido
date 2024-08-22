@@ -1,6 +1,5 @@
 import b2luigi
 import os
-import numpy as np
 import json
 import inspect
 from typing import List
@@ -27,7 +26,9 @@ class StartSimulationTask(b2luigi.Task):
         output_parameter_dict_path = self.get_output_file_name("param_dict.json")
 
         start_parameters = SimulationParameterDictionary.from_json(self.iter_start_param_dict_file_path)
-        parameters = start_parameters.generate_new(rng_seed=np.random.randint(1, 1E10))
+        parameters = start_parameters.generate_new()
+
+        print(f"DEBUG Parameter = {parameters[0].current_value}")
         parameters.to_json(output_parameter_dict_path)
 
         interface.simulate(output_parameter_dict_path, output_path)

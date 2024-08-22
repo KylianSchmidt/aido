@@ -1,4 +1,6 @@
 from typing import Type, Dict, List, Iterable, Literal, Any
+import os
+import time
 import copy
 import json
 import numpy as np
@@ -248,14 +250,25 @@ class SimulationParameterDictionary:
             parameter_dicts: Dict = json.load(file)
             return cls.from_dict(parameter_dicts.values())
 
-    def generate_new(self, rng_seed: int = 42):
-        """ Generate a set of new values for each parameter, bounded by the min_value and max_value
-        for float parameters. For discrete parameters, the new current_value is randomly chosen from
-        the list of allowed values.
-        TODO Decrease sigma if unable to find a new current_value
-        TODO This method is better implemented for each SimulationParameter, not the Dictionary,
-        in order to allow easier inheritance.
+    def generate_new(self, rng_seed: int | None = None):
         """
+        Generates a new set of values for each parameter, bounded by specified minimum and maximum
+        values for float parameters. For discrete parameters, the new value is randomly chosen from
+        the list of allowed values.
+
+        Args:
+        ----
+        rng_seed (int | None): Optional seed for the random number generator. If an integer is provided,
+            the random number generator is initialized with that seed to ensure reproducibility. If None,
+            a pseudo-random seed is generated based on the current time and the process ID, ensuring that
+            each execution results in different random values:
+
+            rng_seed = int(time.time()) + os.getpid()
+        """
+        if rng_seed is None:
+            rng_seed = int(time.time()) + os.getpid()
+
+        rng = np.random.default_rng(rng_seed)
         new_parameter_list = copy.deepcopy(self.parameter_list)  # Prevents the modification of this instance
 
         for parameter in new_parameter_list:
@@ -267,7 +280,6 @@ class SimulationParameterDictionary:
                 continue
 
             elif isinstance(parameter.current_value, float):
-                rng = np.random.default_rng(rng_seed)
 
                 for i in range(100):
                     parameter.current_value = rng.normal(parameter.current_value, parameter.sigma)
