@@ -135,7 +135,7 @@ class IteratorTask(b2luigi.Task):
         # TODO Make it accessible to the end user to add plotting scripts
         AIDOPlotting.parameter_evolution()
         AIDOPlotting.optimizer_loss()
-        #AIDOPlotting.simulation_samples()
+        AIDOPlotting.simulation_samples()
 
 
 class AIDOMainWrapperTask(b2luigi.WrapperTask):
@@ -170,7 +170,8 @@ class AIDO:
             user_interface: AIDOUserInterface,
             simulation_tasks: int = 1,
             max_iterations: int = 50,
-            threads: int = 1
+            threads: int = 1,
+            results_dir: str | os.PathLike = "./results/"
             ):
         """
         AIDO
@@ -233,12 +234,12 @@ class AIDO:
                 save disc space.
         """
 
-        b2luigi.set_setting("result_dir", "results/task_outputs")
-        os.makedirs("./results/parameters", exist_ok=True)
-        os.makedirs("./results/models", exist_ok=True)
-        os.makedirs("./results/plots", exist_ok=True)
-        os.makedirs("./results/loss/optimizer", exist_ok=True)
-        start_param_dict_file_path = "./results/parameters/param_dict_iter_0.json"
+        b2luigi.set_setting("result_dir", f"{results_dir}/task_outputs")
+        os.makedirs(f"{results_dir}/parameters", exist_ok=True)
+        os.makedirs(f"{results_dir}/models", exist_ok=True)
+        os.makedirs(f"{results_dir}/plots", exist_ok=True)
+        os.makedirs(f"{results_dir}/loss/optimizer", exist_ok=True)
+        start_param_dict_file_path = f"{results_dir}/parameters/param_dict_iter_0.json"
 
         if isinstance(parameters, list):
             parameters = SimulationParameterDictionary(parameters)

@@ -22,8 +22,8 @@ class AIDOPlotting:
             parameter_dir (str | os.PathLike, optional): The directory path where the SimulationParameterDictionaries
                 are stored (.json files). Defaults to "./results/parameters".
         Returns:
-            df (pd.DataFrame): A DataFrame with all parameters provided by the optimizer after each iteration.
-            sigma (np.ndarray): A 2d-array of the sampling standard deviation.
+            Tuple(pd.DataFrame, np.ndarray): A Tuple containing the DataFrame with all parameters provided by the
+                optimizer after each iteration, and the simulation sampling standard deviation (2D array).
         """
         df_list = []
         sigma_df_list = []
@@ -59,11 +59,11 @@ class AIDOPlotting:
             ) -> None:
         """
         Plot the optimizer loss over epochs and save the figure if `fig_savepath` is provided.
-        Parameters:
-        - fig_savepath (str | os.PathLike | None): Path to save the figure. If None, the figure will not be saved.
-        - optimizer_loss_dir (str | os.PathLike): Directory containing the optimizer loss files.
+        Args:
+            fig_savepath (str | os.PathLike | None): Path to save the figure. If None, the figure will not be saved.
+            optimizer_loss_dir (str | os.PathLike): Directory containing the optimizer loss files.
         Returns:
-        - df_loss (pd.DataFrame): DataFrame with the optimizer loss at each iteration
+            df_loss (pd.DataFrame): DataFrame with the optimizer loss at each iteration
         """
         df_loss_list = []
 
@@ -81,7 +81,6 @@ class AIDOPlotting:
                 label="optimizer_loss"
             )
             plt.xlim(0, df_loss.shape[1])
-            plt.xticks(np.arange(0, df_loss.shape[1] + 1))
             plt.xlabel("Epoch", loc="right")
             plt.ylabel("Loss", loc="top")
             plt.yscale("linear")
@@ -101,7 +100,7 @@ class AIDOPlotting:
             sampled_param_dict_filepath (str | os.PathLike, optional): Path to the sampled parameter dictionary files.
                 Defaults to "./results/task_outputs/simulation_task*".
         Returns:
-            Tuple[pd.DataFrame, np.ndarray]: A tuple containing the DataFrame of simulation parameters and a
+            Tuple(pd.DataFrame, np.ndarray): A tuple containing the DataFrame of simulation parameters and a
                 numpy array of sigma values.
         
         TODO Check for the files in a dynamic way in case b2luigi changes the names of the directories
