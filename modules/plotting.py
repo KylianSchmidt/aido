@@ -1,4 +1,5 @@
 import os
+import re
 import glob
 import numpy as np
 import pandas as pd
@@ -91,7 +92,7 @@ class AIDOPlotting:
 
     def simulation_samples(
             fig_savepath: str | os.PathLike | None = "./results/plots/simulation_samples",
-            sampled_param_dict_filepath: str | os.PathLike = "./results/task_outputs/iteration/*"
+            sampled_param_dict_filepath: str | os.PathLike = "./results/task_outputs/iteration=*/"
             ) -> Tuple[pd.DataFrame, np.ndarray]:
         """ Generate a DataFrame of simulation parameters and their values for each iteration and task.
         Args:
@@ -105,28 +106,20 @@ class AIDOPlotting:
         
         TODO Check for the files in a dynamic way in case b2luigi changes the names of the directories
         due to changes in the b2luigi.Parameters of the SimulationTasks.
-
-
         """
         df_list = []
 
-        for task_id, simulation_task in enumerate(sorted(glob.glob(sampled_param_dict_filepath))):
+        for iteration_dir in glob.glob(sampled_param_dict_filepath):
+            
+            for simulation_dir in glob.glob(iteration_dir + "/simulation_task_id=*"):
 
-            print(f"DEBUG TaskID {task_id}\t{simulation_task}")
-
-            for iteration, file in enumerate(glob.glob(simulation_task + "/*/param_dict.json")):
-
-                print(f"DEBUG Iteration {iteration}\t {file}")
-                spd = SimulationParameterDictionary.from_json(file)
-                spd_dict = spd.get_current_values()
-                
-                df = pd.DataFrame({"Iteration": iteration}, index=[0])
-                df["Task_ID"] = task_id
-                df[list(spd_dict.keys())] = list(spd_dict.values())
+                df = SimulationParameterDictionary.from_json(simulation_dir + "/param_dict.json").to_df(1)
+                df["Iteration"] = int(re.search(r"/iteration=(\d+)/", iteration_dir).group(1))
+                df["Task_ID"] = int(re.search(r"task_id=(\d+)", simulation_dir).group(1))
                 df_list.append(df)
 
         df_params = pd.concat(df_list)
-        df_params.sort_values(["Iteration", "Task_ID"]).reset_index(drop=True)
+        df_params = df_params.sort_values(["Iteration", "Task_ID"]).reset_index(drop=True)
 
         if fig_savepath is not None:
             df_optim, sigma = AIDOPlotting.parameter_evolution(None)
@@ -138,6 +131,7 @@ class AIDOPlotting:
                 plt.fill_between(df_optim[col].index, df_optim[col] - sigma[:, i], df_optim[col] + sigma[:, i], alpha=0.5)
 
             plt.gca().set_prop_cycle(None)
+
             for i, col in enumerate(df_params.columns.drop(["Iteration", "Task_ID"])):
                 plt.scatter(df_params["Iteration"], df_params[col].values, marker="+", s=100)
 
@@ -146,5 +140,5 @@ class AIDOPlotting:
             plt.legend()
             plt.savefig(fig_savepath)
 
-        return df_params
+        return df_params, sigma
 

@@ -35,3 +35,5 @@ if __name__ == "__main__":
         simulation_tasks=10,
         threads=11
     )
+
+    os.system("rm *.root")
