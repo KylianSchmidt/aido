@@ -34,6 +34,19 @@ class SimulationParameter:
             sigma: float | None = None,
             discrete_values: Iterable | None = None
             ):
+        """ Create a new Simulation Parameter
+
+        Args:
+                name (str): The name of the parameter.
+                starting_value (Any): The starting value of the parameter.
+                current_value (Any, optional): The current value of the parameter. Defaults to None.
+                units (str, optional): The units of the parameter. Defaults to None.
+                optimizable (bool, optional): Whether the parameter is optimizable. Defaults to True.
+                min_value (float, optional): The minimum value of the parameter. Defaults to None.
+                max_value (float, optional): The maximum value of the parameter. Defaults to None.
+                sigma (float, optional): The standard deviation of the parameter. Defaults to None.
+                discrete_values (Iterable, optional): The allowed discrete values of the parameter. Defaults to None.
+        """
         assert isinstance(name, str), "Name must be a string"
 
         self.name = name

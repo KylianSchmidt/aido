@@ -1,6 +1,6 @@
 import os
 from modules.aido import AIDO  # required
-from container_examples.calo_opt.calo_opt_interface import AIDOUserInterfaceExample  # Import your derived class
+from container_examples.calo_opt.interface import AIDOUserInterfaceExample  # Import your derived class
 
 global_htcondor_settings = {
     # "requirements": '(Machine != "f03-001-140-e.gridka.de")',
@@ -21,7 +21,7 @@ global_htcondor_settings = {
 if __name__ == "__main__":
     os.system("rm ./results -rf")  # remove everything from results
 
-    AIDO(
+    AIDO.optimize(
         parameters=[
             AIDO.parameter('thickness_absorber_0', 10.0, min_value=1E-3, max_value=50.0, sigma=0.1),
             AIDO.parameter('thickness_scintillator_0', 5.0, min_value=1E-3, max_value=10.0, sigma=0.1),

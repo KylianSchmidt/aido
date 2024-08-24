@@ -4,11 +4,35 @@ import glob
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from typing import Tuple
+from typing import Tuple, List
 from .simulation_helpers import SimulationParameterDictionary
 
 
 class AIDOPlotting:
+
+    @classmethod
+    def plot(cls, plot_types: str | List[str] = "all"):
+        """
+        Plot the evolution of variables of interest over the Optimization process.
+
+        Args:
+            plot_types (str | List[str], optional): The types of plots to be generated.
+                It can be a string or a list of strings. If "all" is specified, it will
+                generate all available plots. Available methods:
+
+                    ["parameter_evolution", "optimizer_loss", "simulation_samples"]
+
+        Returns:
+            None
+        """
+        if plot_types == "all":
+            plot_types = ["parameter_evolution", "optimizer_loss", "simulation_samples"]
+
+        if isinstance(plot_types, str):
+            plot_types = [plot_types]
+
+        for plot_type in plot_types:
+            getattr(cls, plot_type)()
 
     def parameter_evolution(
             fig_savepath: str | os.PathLike | None = "./results/plots/parameter_evolution",
@@ -127,7 +151,12 @@ class AIDOPlotting:
             plt.plot(df_optim, label=df_optim.columns)
 
             for i, col in enumerate(df_optim.columns):
-                plt.fill_between(df_optim[col].index, df_optim[col] - sigma[:, i], df_optim[col] + sigma[:, i], alpha=0.5)
+                plt.fill_between(
+                    df_optim[col].index,
+                    df_optim[col] - sigma[:, i],
+                    df_optim[col] + sigma[:, i],
+                    alpha=0.5
+                )
 
             plt.gca().set_prop_cycle(None)
 

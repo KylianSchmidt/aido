@@ -97,7 +97,7 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
 
         for simulation_output_path in list(zip(parameter_dict_file_paths, simulation_file_paths)):
             df_list.append(
-                AIDOUserInterfaceExample.convert_sim_to_reco(
+                type(self).convert_sim_to_reco(
                     *simulation_output_path,
                     input_keys=[
                         'sensor_energy', 'sensor_x', 'sensor_y', 'sensor_z',
