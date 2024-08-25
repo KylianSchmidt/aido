@@ -91,20 +91,22 @@ class AIDOPlotting:
         """
         df_loss_list = []
 
-        for file_name in sorted(os.listdir(optimizer_loss_dir)):
-            df_loss_list.append(pd.read_csv(optimizer_loss_dir + "/" + file_name, index_col=0))
+        for file_name in glob.glob(f"{optimizer_loss_dir}/*"):
+            df_i = pd.read_csv(file_name, names=["Epoch", "Loss"])
+            df_i["Iteration"] = int(re.search(r"optimizer_loss_(\d+)", file_name).group(1))
+            df_loss_list.append(df_i)
 
-        df_loss: pd.DataFrame = pd.concat(df_loss_list, axis=1)
+        df_loss: pd.DataFrame = pd.concat(df_loss_list).sort_values(["Iteration", "Epoch"])
 
         if fig_savepath is not None:
             plt.figure(figsize=(8, 6), dpi=400)
             plt.plot(
-                np.linspace(0, df_loss.shape[1], df_loss.shape[0] * df_loss.shape[1]),
-                df_loss.to_numpy().flatten("F"),
+                np.linspace(0, df_loss["Iteration"].to_numpy()[-1], len(df_loss)),
+                df_loss["Loss"].to_numpy().flatten("F"),
                 c="k",
                 label="optimizer_loss"
             )
-            plt.xlim(0, df_loss.shape[1])
+            plt.xlim(0, df_loss["Iteration"].to_numpy()[-1])
             plt.xlabel("Epoch", loc="right")
             plt.ylabel("Loss", loc="top")
             plt.yscale("linear")

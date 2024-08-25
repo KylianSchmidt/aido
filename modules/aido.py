@@ -28,10 +28,7 @@ class StartSimulationTask(b2luigi.Task):
 
         start_parameters = SimulationParameterDictionary.from_json(self.iter_start_param_dict_file_path)
         parameters = start_parameters.generate_new()
-
-        print(f"DEBUG Parameter = {parameters[0].current_value}")
         parameters.to_json(output_parameter_dict_path)
-
         interface.simulate(output_parameter_dict_path, output_path)
 
 
@@ -77,9 +74,6 @@ class IteratorTask(b2luigi.Task):
                     iter_start_param_dict_file_path=self.iter_start_param_dict_file_path,
                     simulation_task_id=i,
                 )
-
-            start_parameters = SimulationParameterDictionary.from_json(self.iter_start_param_dict_file_path)
-            start_parameters.to_json(f"./debug/param_dict_{self.iteration}.json")  # DEBUG
 
     def run(self):
         """ For each root file produced by the simulation Task, start a container with the reconstruction algorithm.
@@ -141,6 +135,7 @@ class AIDOMainWrapperTask(b2luigi.WrapperTask):
     """ Trigger recursive calls for each Iteration
     TODO Fix exit condition in 'run' method
     TODO parameter results dir
+    TODO Unable to resume optimization because only condition is that iteration 0 worked
     """
     num_max_iterations = b2luigi.IntParameter(significant=False)
     num_simulation_tasks = b2luigi.IntParameter(significant=False)
@@ -266,7 +261,7 @@ class AIDO:
             workers=threads,
         )
 
-    def parameter():
+    def parameter(*args, **kwargs):
         """ Create a new Simulation Parameter
 
         Args:
@@ -285,4 +280,4 @@ class AIDO:
         def wrapper(*args, **kwargs):
             return SimulationParameter(*args, **kwargs)
 
-        return wrapper
+        return wrapper(*args, **kwargs)

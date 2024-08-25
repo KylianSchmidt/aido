@@ -29,7 +29,7 @@ if __name__ == "__main__":
             AIDO.parameter('thickness_scintillator_1', 1.0, min_value=1E-3, max_value=10.0, sigma=0.1),
             AIDO.parameter('thickness_absorber_2', 10.0, min_value=1.0, max_value=50.0, sigma=0.1),
             AIDO.parameter('thickness_scintillator_2', 1.0, min_value=0.05, max_value=10.0, sigma=0.1),
-            AIDO.parameter("num_events", 100, optimizable=False)
+            AIDO.parameter("num_events", 400, optimizable=False)
         ],
         user_interface=AIDOUserInterfaceExample,
         simulation_tasks=10,
