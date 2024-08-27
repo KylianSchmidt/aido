@@ -66,5 +66,5 @@ for column in df.columns:
     if df[column].dtype == "awkward":
         df[column] = df[column].to_list()
 
-os.system("rm *.pkl")
 df.to_parquet(output_path)
+os.system("rm ./*.pkl")
