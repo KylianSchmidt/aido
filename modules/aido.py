@@ -95,7 +95,8 @@ class IteratorTask(b2luigi.Task):
             "next_parameter_dict": f"./results/parameters/param_dict_iter_{self.iteration + 1}.json",
             "reco_input_df": str(self.get_output_file_name("reco_input_df")),
             "reco_output_df": str(self.get_output_file_name("reco_output_df")),
-            "optimizer_loss_save_path": f"./results/loss/optimizer/optimizer_loss_{self.iteration}"
+            "optimizer_loss_save_path": f"./results/loss/optimizer/optimizer_loss_{self.iteration}",
+            "constraints_loss_save_path": f"./results/loss/constraints/contraints_loss_{self.iteration}"
         }
         if os.path.isfile(self.next_param_dict_file):
             print(f"Iteration {self.iteration} has an updated parameter dict already and will be skipped")

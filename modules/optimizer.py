@@ -140,14 +140,22 @@ class Optimizer(object):
         y_pred = torch.where(torch.isinf(y_pred), torch.zeros_like(y_pred), y_pred)
         return ((y_pred - y_true)**2 / (torch.abs(y_true) + 1.)).mean()
 
-    def optimize(self, dataset: SurrogateDataset, batch_size: int, n_epochs: int, lr: float, add_constraints=False):
+    def optimize(
+            self,
+            dataset: SurrogateDataset,
+            batch_size: int,
+            n_epochs: int,
+            lr: float,
+            add_constraints=True,
+            ):
         """ Keep Surrogate model fixed, train only the detector parameters (self.detector_start_parameters)
         TODO Improve documentation of this method.
         """
         self.optimizer.lr = lr
         self.surrogate_model.eval()
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-        optimizer_loss = []
+        self.optimizer_loss = []
+        self.constraints_loss = []
 
         for epoch in range(n_epochs):
             epoch_loss = 0
@@ -205,13 +213,14 @@ class Optimizer(object):
                 f"+ {(self.other_constraints()):.5f} (constraints)\t = {loss.item():.5f} (total)"
             )
             epoch_loss /= batch_idx + 1
-            optimizer_loss.append(epoch_loss)
+            self.optimizer_loss.append(epoch_loss)
+            self.constraints_loss.append(self.other_constraints().detach().cpu().numpy())
 
             if stop_epoch:
                 break
 
         self.covariance = self.adjust_covariance(self.parameters - self.starting_parameters.to(self.device))
-        return self.parameter_dict, True, np.array(optimizer_loss)
+        return self.parameter_dict, True
 
     def get_optimum(self):
         return self.parameter_dict

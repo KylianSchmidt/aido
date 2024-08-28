@@ -92,7 +92,7 @@ class AIDOPlotting:
         df_loss_list = []
 
         for file_name in glob.glob(f"{optimizer_loss_dir}/*"):
-            df_i = pd.read_csv(file_name, names=["Epoch", "Loss"])
+            df_i = pd.read_csv(file_name, header=1)
             df_i["Iteration"] = int(re.search(r"optimizer_loss_(\d+)", file_name).group(1))
             df_loss_list.append(df_i)
 
