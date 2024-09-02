@@ -41,6 +41,7 @@ class IteratorTask(b2luigi.Task):
     iteration = b2luigi.IntParameter()
     num_simulation_tasks = b2luigi.IntParameter(significant=False)
     iter_start_param_dict_file_path = b2luigi.PathParameter(hashed=True, significant=False)
+    results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def output(self):
         """
@@ -63,7 +64,7 @@ class IteratorTask(b2luigi.Task):
         something in the SPD and then continues training)
         """
         
-        self.next_param_dict_file = f"./results/parameters/param_dict_iter_{self.iteration + 1}.json"
+        self.next_param_dict_file = f"{self.results_dir}/parameters/param_dict_iter_{self.iteration + 1}.json"
 
         if not os.path.isfile(self.next_param_dict_file):
 
@@ -86,17 +87,17 @@ class IteratorTask(b2luigi.Task):
         simulation_file_paths = self.get_input_file_names("simulation_output")
         self.reco_paths_dict = {
             "own_path": str(self.get_output_file_name("reco_paths_dict")),
-            "surrogate_model_previous_path": f"./results/models/surrogate_{self.iteration - 1}.pt",
-            "optimizer_model_previous_path": f"./results/models/optimizer_{self.iteration - 1}.pt",
-            "surrogate_model_save_path": f"./results/models/surrogate_{self.iteration}.pt",
-            "optimizer_model_save_path": f"./results/models/optimizer_{self.iteration}.pt",
+            "surrogate_model_previous_path": f"{self.results_dir}/models/surrogate_{self.iteration - 1}.pt",
+            "optimizer_model_previous_path": f"{self.results_dir}/models/optimizer_{self.iteration - 1}.pt",
+            "surrogate_model_save_path": f"{self.results_dir}/models/surrogate_{self.iteration}.pt",
+            "optimizer_model_save_path": f"{self.results_dir}/models/optimizer_{self.iteration}.pt",
             "current_parameter_dict": str(self.iter_start_param_dict_file_path),
             "updated_parameter_dict": str(self.get_output_file_name("param_dict.json")),
-            "next_parameter_dict": f"./results/parameters/param_dict_iter_{self.iteration + 1}.json",
+            "next_parameter_dict": f"{self.results_dir}/parameters/param_dict_iter_{self.iteration + 1}.json",
             "reco_input_df": str(self.get_output_file_name("reco_input_df")),
             "reco_output_df": str(self.get_output_file_name("reco_output_df")),
-            "optimizer_loss_save_path": f"./results/loss/optimizer/optimizer_loss_{self.iteration}",
-            "constraints_loss_save_path": f"./results/loss/constraints/contraints_loss_{self.iteration}"
+            "optimizer_loss_save_path": f"{self.results_dir}/loss/optimizer/optimizer_loss_{self.iteration}",
+            "constraints_loss_save_path": f"{self.results_dir}/loss/constraints/contraints_loss_{self.iteration}"
         }
         if os.path.isfile(self.next_param_dict_file):
             print(f"Iteration {self.iteration} has an updated parameter dict already and will be skipped")
@@ -141,12 +142,14 @@ class AIDOMainWrapperTask(b2luigi.WrapperTask):
     num_max_iterations = b2luigi.IntParameter(significant=False)
     num_simulation_tasks = b2luigi.IntParameter(significant=False)
     start_param_dict_file_path = b2luigi.PathParameter(hashed=True)
+    results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def requires(self):
         yield IteratorTask(
             iteration=0,
             num_simulation_tasks=self.num_simulation_tasks,
-            iter_start_param_dict_file_path="./results/parameters/param_dict_iter_0.json"
+            iter_start_param_dict_file_path=f"{self.results_dir}/parameters/param_dict_iter_0.json",
+            results_dir=self.results_dir
         )
 
     def run(self):
@@ -154,7 +157,8 @@ class AIDOMainWrapperTask(b2luigi.WrapperTask):
             yield IteratorTask(
                 iteration=iteration,
                 num_simulation_tasks=self.num_simulation_tasks,
-                iter_start_param_dict_file_path=f"./results/parameters/param_dict_iter_{iteration}.json"
+                iter_start_param_dict_file_path=f"{self.results_dir}/parameters/param_dict_iter_{iteration}.json",
+                results_dir=self.results_dir
             )
 
 
@@ -226,7 +230,7 @@ class AIDO:
             threads (int): Allowed number of threads to allocate the simulation tasks. 
                 NOTE There is no benefit in having 'threads' > 'simulation_tasks' per se, but in some cases,
                 errors involving missing dependencies after the simulation step can be fixed by setting:
-                    
+
                 'threads' = 'simulation_tasks' + 1.
         """
         b2luigi.set_setting("result_dir", f"{results_dir}/task_outputs")
@@ -234,6 +238,7 @@ class AIDO:
         os.makedirs(f"{results_dir}/models", exist_ok=True)
         os.makedirs(f"{results_dir}/plots", exist_ok=True)
         os.makedirs(f"{results_dir}/loss/optimizer", exist_ok=True)
+        os.makedirs(f"{results_dir}/loss/constraints", exist_ok=True)
         start_param_dict_file_path = f"{results_dir}/parameters/param_dict_iter_0.json"
 
         if isinstance(parameters, list):
@@ -258,6 +263,7 @@ class AIDO:
                 start_param_dict_file_path=start_param_dict_file_path,
                 num_simulation_tasks=simulation_tasks,
                 num_max_iterations=max_iterations,
+                results_dir=results_dir
             ),
             workers=threads,
         )

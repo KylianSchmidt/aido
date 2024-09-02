@@ -11,7 +11,7 @@ from .simulation_helpers import SimulationParameterDictionary
 class AIDOPlotting:
 
     @classmethod
-    def plot(cls, plot_types: str | List[str] = "all"):
+    def plot(cls, plot_types: str | List[str] = "all", results_dir: str | os.PathLike = "./results/"):
         """
         Plot the evolution of variables of interest over the Optimization process.
 
@@ -32,28 +32,33 @@ class AIDOPlotting:
             plot_types = [plot_types]
 
         for plot_type in plot_types:
-            getattr(cls, plot_type)()
+            getattr(cls, plot_type)(results_dir=results_dir)
 
     def parameter_evolution(
-            fig_savepath: str | os.PathLike | None = "./results/plots/parameter_evolution",
-            parameter_dir: str | os.PathLike = "./results/parameters"
+            fig_savepath: str | os.PathLike | None = "/plots/parameter_evolution",
+            results_dir: str = "./results/",
+            parameter_dir: str | os.PathLike = "/parameters/"
             ) -> Tuple[pd.DataFrame, np.ndarray]:
         """ Plots the evolution of all simulation parameters along with their respective "sigma".
 
         Args:
             fig_savepath (str | os.PathLike, optional): The file path to save the figure.
-                Defaults to "./results/plots/parameter_evolution".
+                Defaults to "<results_dir>/plots/parameter_evolution". If None, the figure will not be saved.
+            results_dir (str | os.PathLike, optional): Results directory. Defaults to "./results/"
             parameter_dir (str | os.PathLike, optional): The directory path where the SimulationParameterDictionaries
-                are stored (.json files). Defaults to "./results/parameters".
+                are stored (.json files). Defaults to "<results_dir>/parameters".
         Returns:
             Tuple(pd.DataFrame, np.ndarray): A Tuple containing the DataFrame with all parameters provided by the
                 optimizer after each iteration, and the simulation sampling standard deviation (2D array).
         """
+        fig_savepath = f"{results_dir}/{fig_savepath}"
+        parameter_dir = f"{results_dir}/{parameter_dir}"
+
         df_list = []
         sigma_df_list = []
 
         for file_name in sorted(os.listdir(parameter_dir)):
-            param_dict = SimulationParameterDictionary.from_json("./results/parameters/" + file_name)
+            param_dict = SimulationParameterDictionary.from_json(parameter_dir + file_name)
             index = int(file_name.removeprefix("param_dict_iter_").removesuffix(".json"))
 
             df_list.append(pd.DataFrame(param_dict.get_current_values(format="dict"), index=[index]))
@@ -78,21 +83,26 @@ class AIDOPlotting:
         return df, sigma
 
     def optimizer_loss(
-            fig_savepath: str | os.PathLike | None = "./results/plots/optimizer_loss",
-            optimizer_loss_dir: str | os.PathLike = "./results/loss/optimizer"
+            fig_savepath: str | os.PathLike | None = "/plots/optimizer_loss",
+            results_dir: str = "./results/",
+            optimizer_loss_dir: str | os.PathLike = "/loss/optimizer"
             ) -> None:
         """
         Plot the optimizer loss over epochs and save the figure if `fig_savepath` is provided.
         Args:
             fig_savepath (str | os.PathLike | None): Path to save the figure. If None, the figure will not be saved.
+            results_dir (str | os.PathLike, optional): Results directory. Defaults to "./results/"
             optimizer_loss_dir (str | os.PathLike): Directory containing the optimizer loss files.
         Returns:
             df_loss (pd.DataFrame): DataFrame with the optimizer loss at each iteration
         """
+        fig_savepath = f"{results_dir}/{fig_savepath}"
+        optimizer_loss_dir = f"{results_dir}/{optimizer_loss_dir}"
+
         df_loss_list = []
 
         for file_name in glob.glob(f"{optimizer_loss_dir}/*"):
-            df_i = pd.read_csv(file_name, header=1)
+            df_i = pd.read_csv(file_name, names=["Epoch", "Loss"])
             df_i["Iteration"] = int(re.search(r"optimizer_loss_(\d+)", file_name).group(1))
             df_loss_list.append(df_i)
 
@@ -116,8 +126,9 @@ class AIDOPlotting:
         return df_loss
 
     def simulation_samples(
-            fig_savepath: str | os.PathLike | None = "./results/plots/simulation_samples",
-            sampled_param_dict_filepath: str | os.PathLike = "./results/task_outputs/iteration=*/"
+            fig_savepath: str | os.PathLike | None = "/plots/simulation_samples",
+            results_dir: str = "./results/",
+            sampled_param_dict_filepath: str | os.PathLike = "/task_outputs/iteration=*/"
             ) -> Tuple[pd.DataFrame, np.ndarray]:
         """ Generate a DataFrame of simulation parameters and their values for each iteration and task.
         Args:
@@ -132,6 +143,9 @@ class AIDOPlotting:
         TODO Check for the files in a dynamic way in case b2luigi changes the names of the directories
         due to changes in the b2luigi.Parameters of the SimulationTasks.
         """
+        fig_savepath = f"{results_dir}/{fig_savepath}"
+        sampled_param_dict_filepath = f"{results_dir}/{sampled_param_dict_filepath}"
+
         df_list = []
 
         for iteration_dir in glob.glob(sampled_param_dict_filepath):
