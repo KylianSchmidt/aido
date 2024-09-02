@@ -1,12 +1,44 @@
 import torch
 import numpy as np
-import torch
 from torch.utils.data import DataLoader
 from surrogate import Surrogate, SurrogateDataset
 from typing import Dict
 
 
-class Optimizer(object):
+class OneHotEncoder(torch.nn.Module):
+    """
+    OneHotEncoder is a module that performs one-hot encoding on discrete values.
+
+    Attributes:
+        logits (torch.Tensor): A set of unnormalized, real-valued scores for each category. These logits
+            represent the model's confidence in each category prior to normalization. They can take any
+            real value, including negatives, and are not probabilities themselves. Use the to_probabilities()
+            method to convert the logits to probabilities.
+    """
+    def __init__(self, parameter: dict, temperature: float = 1.0):
+        """
+        Args:
+            parameter (dict): A dictionary containing the parameter information.
+            temperature (float, optional): The temperature parameter for gumbel softmax. Defaults to 1.0.
+        """
+        super().__init__()
+        self.discrete_values: list = parameter["discrete_values"]
+        starting_value = torch.tensor(self.discrete_values.index(parameter["current_value"]))
+
+        self.logits = torch.nn.functional.one_hot(starting_value, len(self.discrete_values)).float()
+        self.temperature = temperature
+
+    def forward(self):
+        return torch.nn.functional.gumbel_softmax(self.logits, tau=self.temperature, hard=True)
+
+    def current_value(self):
+        return self.discrete_values[torch.argmax(self).item()]
+
+    def to_probabilities(self):
+        return torch.nn.functional.softmax(self.logits, dim=0)
+
+
+class Optimizer(torch.nn.Module):
     '''
     The optimizer uses the surrogate model to optimise the detector parameters in batches.
     It is also linked to a generator object, to check if the parameters are still in bounds using
@@ -25,6 +57,7 @@ class Optimizer(object):
             batch_size=128,
             ):
         
+        super().__init__()
         self.surrogate_model = surrogate_model
         self.starting_parameter_dict = starting_parameter_dict
         self.parameter_dict = {k: v for k, v in self.starting_parameter_dict.items() if v.get("optimizable")}
@@ -33,26 +66,30 @@ class Optimizer(object):
         self.batch_size = batch_size
         self.device = "cuda"
 
-        self.starting_parameters = self.parameter_dict_to_cuda()
-        self.parameters = self.parameter_dict_to_cuda()
+        self.starting_parameters_continuous = self.parameter_dict_to_cuda()
+        self.parameters_discrete, self.parameters_continuous = self.parameter_dict_to_cuda()
         self.parameter_box = self.parameter_constraints_to_cuda()
         self.covariance = self.get_covariance_matrix()
 
         self.to(self.device)
-        self.optimizer = torch.optim.Adam([self.parameters], lr=self.lr)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
 
     def parameter_dict_to_cuda(self):
         """ Parameter list as cuda tensor
         Shape: (Parameter, 1)
         """
-        parameters = []
+        parameters_discrete = torch.nn.ModuleDict()
+        parameters_continuous = torch.nn.ModuleDict()
 
-        for parameter in self.parameter_dict.values():
+        # NOTE Need to consider continuous and discrete parameters seperately then add their Loss
+
+        for name, parameter in self.parameter_dict.items():
             if parameter["discrete_values"] is True:
-                parameter_logits = 
-        parameters = [parameter["current_value"] for parameter in self.parameter_dict.values()]
-        parameters = torch.tensor(np.array(parameters, dtype="float32")).to(self.device)
-        return torch.nn.Parameter(parameters, requires_grad=True)
+                parameters_discrete[name] = OneHotEncoder(parameter)
+            else:
+                parameters_continuous[name] = torch.nn.Parameter(torch.tensor(parameter["current_value"]).float())
+
+        return parameters_discrete, parameters_continuous
 
     def parameter_constraints_to_cuda(self):
         """ Convert the constraints of parameters to a multi-dimensional 'box'. Parameters with no constraints
@@ -85,26 +122,26 @@ class Optimizer(object):
     def to(self, device: str):
         self.device = device
         self.surrogate_model.to(device)
-        self.starting_parameters.to(device)
-        self.parameters.to(device)
+        self.starting_parameters_continuous.to(device)
+        self.parameters().to(device)
         self.parameter_box.to(device)
 
     def other_constraints(self, constraints: Dict = {}):
         """ Keep parameters such that within the box size of the generator, there are always some positive values even
         if the central parameters are negative.
         TODO Improve doc string
-        TODO Total detector length is an example of possible additional constraints. Unused for now, must be added
-        in the UserInterface class later on.
+        TODO Total detector length is an example of possible additional constraints. Very specific use now, must be 
+        added in the UserInterface class later on.
         """
         self.constraints = {key: torch.tensor(value) for key, value in constraints.items()}
 
         loss = (
-            torch.mean(100. * torch.nn.ReLU()(self.parameter_box[:, 0] - self.parameters)) +
-            torch.mean(100. * torch.nn.ReLU()(- self.parameter_box[:, 1] + self.parameters))
+            torch.mean(100. * torch.nn.ReLU()(self.parameter_box[:, 0] - self.parameters_continuous)) +
+            torch.mean(100. * torch.nn.ReLU()(- self.parameter_box[:, 1] + self.parameters_continuous))
         )
 
         if "length" in self.constraints.keys():
-            detector_length = torch.sum(self.parameters)
+            detector_length = torch.sum(self.parameters_continuous)
             loss += torch.mean(100. * torch.nn.ReLU()(detector_length - self.constraints["length"])**2)
 
         return loss
@@ -128,7 +165,7 @@ class Optimizer(object):
         """ Assure that the predicted parameters by the optimizer are within the bounds of the covariance
         matrix spanned by the 'sigma' of each parameter.
         """
-        diff = updated_parameters - self.parameters
+        diff = updated_parameters - self.parameters_continuous
         diff = diff.detach().cpu().numpy()
 
         if self.covariance.ndim == 1:
@@ -173,7 +210,7 @@ class Optimizer(object):
                 reco_result = reco_result.to(self.device)
 
                 reco_surrogate = self.surrogate_model.sample_forward(
-                    dataset.normalise_detector(self.parameters),
+                    dataset.normalise_detector(self.parameters_continuous),
                     targets,
                     true_context
                 )
@@ -190,9 +227,9 @@ class Optimizer(object):
                 if np.isnan(loss.item()):
                     # Save parameters, reset the optimizer as if it made a step but without updating the parameters
                     print("Optimizer: NaN loss, exiting.")
-                    prev_parameters = self.parameters.detach().cpu().numpy()
+                    prev_parameters = self.parameters().detach().cpu()
                     self.optimizer.step()
-                    self.parameters.data = torch.tensor(prev_parameters).to(self.device)
+                    self.parameters().data = prev_parameters.to(self.device)
 
                     for index, key in enumerate(self.parameter_dict):
                         self.parameter_dict[key] = float(prev_parameters[index])
@@ -202,17 +239,17 @@ class Optimizer(object):
                 self.optimizer.step()
                 epoch_loss += loss.item()
 
-                if not self.check_parameter_are_local(self.parameters):
+                if not self.check_parameter_are_local(self.parameters_continuous):
                     stop_epoch = True
                     break
 
                 if batch_idx % 20 == 0:
-                    self.updated_parameter_array = self.parameters.detach().cpu().numpy()
+                    self.updated_parameter_array = self.parameters().detach().cpu().numpy()  # TODO Might break with discrete parameters
 
                     for index, key in enumerate(self.parameter_dict):
                         self.parameter_dict[key] = float(self.updated_parameter_array[index])
 
-                    self.parameters.to(self.device)
+                    self.parameters().to(self.device)
 
             print(
                 f"Optimizer Epoch: {epoch} \tLoss: {(self.loss(reco_surrogate, targets)):.5f} (reco)\t"
@@ -225,7 +262,7 @@ class Optimizer(object):
             if stop_epoch:
                 break
 
-        self.covariance = self.adjust_covariance(self.parameters - self.starting_parameters.to(self.device))
+        self.covariance = self.adjust_covariance(self.parameters_continuous - self.starting_parameters_continuous.to(self.device))
         return self.parameter_dict, True
 
     def get_optimum(self):

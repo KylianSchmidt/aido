@@ -11,15 +11,19 @@ class Simulation():
             self,
             parameter_dict: dict
             ):
-        self.n_events_per_var = parameter_dict["num_events"]["current_value"]
         self.parameter_dict = parameter_dict
 
+        if "num_events" in parameter_dict:
+            self.n_events_per_var = parameter_dict["num_events"]["current_value"]
+        else:
+            self.n_events_per_var = 100
+
         if "num_blocks" in parameter_dict:  # Case for discrete number of parameters
-            cw = GeometryDescriptor()
+            self.cw = GeometryDescriptor()
 
             for _ in range(parameter_dict["num_blocks"]["current_value"]):
-                cw.addLayer(parameter_dict["thickness_absorber"]["current_value"], "G4_Pb", False, 1)
-                cw.addLayer(parameter_dict["thickness_schintillator"]["current_value"], "G4_PbWO4", True, 1)
+                self.cw.addLayer(parameter_dict["thickness_absorber"]["current_value"], "G4_Pb", False, 1)
+                self.cw.addLayer(parameter_dict["thickness_scintillator"]["current_value"], "G4_PbWO4", True, 1)
 
         else:  # Case optimization of layer thickness
             self.cw = self.produce_descriptor(self.parameter_dict)

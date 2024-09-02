@@ -75,6 +75,7 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
                     expanded_df.columns = [f'{column}_{i}' for i in expanded_df.columns]
                     df = pd.concat([df.drop(columns=column), expanded_df], axis=1)
 
+            df = df.fillna(0)
             return df
 
         if isinstance(simulation_output_df, str):
