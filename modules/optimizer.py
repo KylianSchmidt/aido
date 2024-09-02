@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import torch
 from torch.utils.data import DataLoader
 from surrogate import Surrogate, SurrogateDataset
 from typing import Dict
@@ -44,6 +45,11 @@ class Optimizer(object):
         """ Parameter list as cuda tensor
         Shape: (Parameter, 1)
         """
+        parameters = []
+
+        for parameter in self.parameter_dict.values():
+            if parameter["discrete_values"] is True:
+                parameter_logits = 
         parameters = [parameter["current_value"] for parameter in self.parameter_dict.values()]
         parameters = torch.tensor(np.array(parameters, dtype="float32")).to(self.device)
         return torch.nn.Parameter(parameters, requires_grad=True)

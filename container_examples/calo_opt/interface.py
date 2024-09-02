@@ -58,7 +58,7 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
 
             return pd.DataFrame(parameter_dict_only_optimizables, index=range(df_length))
 
-        def expand_columns(df: pd.DataFrame) -> pd.DataFrame:
+        def expand_columns(df: pd.DataFrame, padding: int | None = None) -> pd.DataFrame:
             """ Check if columns in df are lists and flatten them by replacing those
             columns with <column_name>_{i} for i in index of the list.
             """
@@ -66,7 +66,12 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
                 item = df[column][0]
 
                 if isinstance(item, Iterable):
-                    expanded_df = pd.DataFrame(df[column].tolist(), index=df.index)
+                    column_list = df[column].tolist()
+
+                    if isinstance(padding, int):
+                        column_list = np.pad(np.array(column_list), padding)
+
+                    expanded_df = pd.DataFrame(column_list, index=df.index)
                     expanded_df.columns = [f'{column}_{i}' for i in expanded_df.columns]
                     df = pd.concat([df.drop(columns=column), expanded_df], axis=1)
 
@@ -75,12 +80,17 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
         if isinstance(simulation_output_df, str):
             input_df: pd.DataFrame = pd.read_parquet(simulation_output_df)
 
+        if "num_blocks" in parameter_dict:
+            padding = parameter_dict["num_blocks"]["current_value"]
+        else:
+            padding = None
+
         parameter_df = to_df(parameter_dict, len(input_df))
         df_combined_dict = {
             "Parameters": parameter_df,
-            "Inputs": expand_columns(input_df[input_keys]),
-            "Targets": expand_columns(input_df[target_keys]),
-            "Context": expand_columns(input_df[context_keys])
+            "Inputs": expand_columns(input_df[input_keys], padding),
+            "Targets": expand_columns(input_df[target_keys], padding),
+            "Context": expand_columns(input_df[context_keys], padding)
         }
         df: pd.DataFrame = pd.concat(
             df_combined_dict.values(),

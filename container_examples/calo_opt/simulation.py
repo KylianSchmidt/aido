@@ -13,7 +13,16 @@ class Simulation():
             ):
         self.n_events_per_var = parameter_dict["num_events"]["current_value"]
         self.parameter_dict = parameter_dict
-        self.cw = produce_descriptor(self.parameter_dict)
+
+        if "num_blocks" in parameter_dict:  # Case for discrete number of parameters
+            cw = GeometryDescriptor()
+
+            for _ in range(parameter_dict["num_blocks"]["current_value"]):
+                cw.addLayer(parameter_dict["thickness_absorber"]["current_value"], "G4_Pb", False, 1)
+                cw.addLayer(parameter_dict["thickness_schintillator"]["current_value"], "G4_PbWO4", True, 1)
+
+        else:  # Case optimization of layer thickness
+            self.cw = self.produce_descriptor(self.parameter_dict)
 
     def run_simulation(self) -> pd.DataFrame:
         G4System.init(self.cw)
@@ -34,23 +43,22 @@ class Simulation():
             
         return pd.concat(dfs, axis=0, ignore_index=True)
 
+    def produce_descriptor(parameter_dict: dict):
+        ''' Returns a GeometryDescriptor from the given parameters.
+        Strictly takes a dict as input to ensure that the parameter names are consistent.
+        Current parameters:
+        - layer_thickness, alternating between absorber and scintillator
 
-def produce_descriptor(parameter_dict: dict):
-    ''' Returns a GeometryDescriptor from the given parameters.
-    Strictly takes a dict as input to ensure that the parameter names are consistent.
-    Current parameters:
-     - layer_thickness, alternating between absorber and scintillator
+        If materials etc are added, the mapping from parameter_dict to material name has to be added here.
+        '''
+        cw = GeometryDescriptor()
 
-    If materials etc are added, the mapping from parameter_dict to material name has to be added here.
-    '''
-    cw = GeometryDescriptor()
-
-    for name, value in parameter_dict.items():
-        if name.startswith("thickness_absorber"):
-            cw.addLayer(value["current_value"], "G4_Pb", False, 1)
-        elif name.startswith("thickness_scintillator"):
-            cw.addLayer(value["current_value"], "G4_PbWO4", True, 1)
-    return cw
+        for name, value in parameter_dict.items():
+            if name.startswith("thickness_absorber"):
+                cw.addLayer(value["current_value"], "G4_Pb", False, 1)
+            elif name.startswith("thickness_scintillator"):
+                cw.addLayer(value["current_value"], "G4_PbWO4", True, 1)
+        return cw
 
 
 parameter_dict_file_path = sys.argv[1]
