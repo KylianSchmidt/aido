@@ -146,7 +146,7 @@ class SurrogateDataset(Dataset):
         normalises the target
         '''
         return (target - self.c_means[2]) / self.c_stds[2]
-    
+
     def unnormalise_detector(self, detector):
         '''
         receives back the physically meaningful detector from the normalised detector

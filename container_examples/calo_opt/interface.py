@@ -75,7 +75,6 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
                     expanded_df.columns = [f'{column}_{i}' for i in expanded_df.columns]
                     df = pd.concat([df.drop(columns=column), expanded_df], axis=1)
 
-            df = df.fillna(0)
             return df
 
         if isinstance(simulation_output_df, str):
@@ -120,6 +119,7 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
             )
 
         df: pd.DataFrame = pd.concat(df_list, axis=0, ignore_index=True)
+        df = df.fillna(0)
         df.to_parquet(reco_input_path, index=range(len(df)))
         return None
 

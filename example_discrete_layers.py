@@ -9,12 +9,12 @@ if __name__ == "__main__":
     AIDO.optimize(
         parameters=[
             AIDO.parameter("thickness_absorber", 10.0, optimizable=False),
-            AIDO.parameter("thickness_scintillator", 1.0, optimizable=False),
-            AIDO.parameter("num_blocks", 1, discrete_values=list(range(0, 20))),
-            AIDO.parameter("num_events", 200, optimizable=False)
+            AIDO.parameter("thickness_scintillator", 3.14, min_value=0.0, max_value=10.0),
+            AIDO.parameter("num_blocks", 2, discrete_values=list(range(0, 20))),
+            AIDO.parameter("num_events", 100, optimizable=False)
         ],
         user_interface=AIDOUserInterfaceExample,
-        simulation_tasks=4,
-        threads=5,
+        simulation_tasks=10,
+        threads=11,
         results_dir="./results_discrete/"
     )
