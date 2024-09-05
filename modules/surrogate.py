@@ -258,6 +258,7 @@ class Surrogate(torch.nn.Module):
             targets: torch.Tensor,
             context: torch.Tensor,
             ):
+        
         n_sample = targets.shape[0]
         x_i = torch.randn(n_sample, 1).to(self.device)  # x_0 ~ N(0, 1)
         

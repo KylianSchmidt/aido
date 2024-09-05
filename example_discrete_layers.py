@@ -9,8 +9,8 @@ if __name__ == "__main__":
     AIDO.optimize(
         parameters=[
             AIDO.parameter("thickness_absorber", 10.0, optimizable=False),
-            AIDO.parameter("thickness_scintillator", 3.14, min_value=0.0, max_value=10.0),
-            AIDO.parameter("num_blocks", 2, discrete_values=list(range(0, 20))),
+            AIDO.parameter("thickness_scintillator", 3.14, optimizable=False),
+            AIDO.parameter("num_blocks", 5, discrete_values=list(range(0, 10))),
             AIDO.parameter("num_events", 100, optimizable=False)
         ],
         user_interface=AIDOUserInterfaceExample,

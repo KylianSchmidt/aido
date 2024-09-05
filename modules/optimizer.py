@@ -24,20 +24,17 @@ class OneHotEncoder(torch.nn.Module):
         super().__init__()
         self.discrete_values: list = parameter["discrete_values"]
         self.starting_value = torch.tensor(self.discrete_values.index(parameter["current_value"]))
-        self.logits = torch.nn.functional.one_hot(
-            self.starting_value,
-            len(self.discrete_values)
-        ).float()
-        self.parameter = torch.nn.Parameter(self.logits)
+        self.logits = torch.nn.Parameter(torch.nn.functional.one_hot(self.starting_value, len(self.discrete_values)).float())
         self.temperature = temperature
 
     def forward(self):
-        print("DEBUG Called forward on Module OneHotEncoder!")
-        return torch.nn.functional.gumbel_softmax(self.parameter, tau=self.temperature, hard=True)
+        res = torch.nn.functional.gumbel_softmax(self.logits, tau=self.temperature, hard=True)
+        print(f"DEBUG Called forward with parameters {torch.argmax(res)}")
+        return res
 
     @property
     def current_value(self):
-        return torch.argmax(self.parameter)
+        return torch.argmax(self.logits)
     
     @property
     def physical_value(self):
@@ -45,18 +42,21 @@ class OneHotEncoder(torch.nn.Module):
 
     @property
     def probabilities(self):
-        return torch.nn.functional.softmax(self.parameter, dim=0)
+        return torch.nn.functional.softmax(self.logits, dim=0)
 
 
 class ContinuousParameter(torch.nn.Module):
     def __init__(self, parameter: dict):
         super().__init__()
         self.starting_value = torch.tensor(parameter["current_value"])
-        self.parameter = torch.nn.Parameter(self.starting_value.clone())
+        self.parameter = torch.nn.Parameter(self.starting_value.clone(), requires_grad=True)
         self.min_value = np.nan_to_num(parameter["min_value"], nan=-10E10)
         self.max_value = np.nan_to_num(parameter["max_value"], nan=10E10)
         self.boundaries = torch.tensor(np.array([self.min_value, self.max_value], dtype="float32"))
         self.sigma = torch.tensor(parameter["sigma"])
+
+    def forward(self):
+        return self.parameter
 
     @property
     def current_value(self):  # TODO Normalization
@@ -96,8 +96,6 @@ class Optimizer(torch.nn.Module):
         self.device = "cuda"
 
         self.parameters_all, self.parameters_discrete, self.parameters_continuous = self.parameter_dict_to_cuda()
-        print(f"DEBUG parameters_all {self.parameters_all} and values {self.module_dict_to_tensor(self.parameters_all)}")
-        print(f"DEBUG discrete parameter probabilities:\n {self.parameters_all["num_blocks"].probabilities}")
         self.starting_parameters_continuous = self.module_dict_to_tensor(self.parameters_continuous)
         self.parameter_box = self.parameter_constraints_to_cuda(self.parameters_continuous)
         self.covariance = self.get_covariance_matrix()
@@ -117,11 +115,12 @@ class Optimizer(torch.nn.Module):
     def module_dict_to_tensor(self, module_dict: torch.nn.ModuleDict):
         # TODO Make this also a part of Continuous parameter class!
         tensor_list = [parameter.current_value for parameter in module_dict.values()]
+
         if tensor_list == []:
             return torch.tensor([])
         else:
             return torch.stack(tensor_list)
-    
+
     def parameter_dict_to_cuda(self):
         """ Parameter list as cuda tensor
         Shape: (Parameter, 1)
@@ -242,6 +241,8 @@ class Optimizer(torch.nn.Module):
                 true_context = true_context.to(self.device)
                 reco_result = reco_result.to(self.device)
 
+                ohe = self.parameters_all["num_blocks"]()
+                #print("DEBUG OHE value in training loop: ", torch.argmax(ohe))
                 reco_surrogate = self.surrogate_model.sample_forward(
                     self.module_dict_to_tensor(self.parameters_all),
                     targets,
@@ -262,6 +263,7 @@ class Optimizer(torch.nn.Module):
                     print("Optimizer: NaN loss, exiting.")
                     prev_parameters = self.module_dict_to_tensor(self.parameters_all)
                     self.optimizer.step()
+
                     for i, parameter in enumerate(self.parameters_all):
                         parameter.data = prev_parameters[i].to(self.device)
 
@@ -271,6 +273,9 @@ class Optimizer(torch.nn.Module):
                     return self.parameter_dict, False, epoch_loss / (batch_idx + 1)
 
                 self.optimizer.step()
+                #print(f"DEBUG OHE parameter after step(): {self.parameters_all["num_blocks"].logits}")
+                #print(f"DEBUG float parameter after step(): {self.parameters_all["thickness_scintillator"].current_value}")    
+            
                 epoch_loss += loss.item()
 
                 if not self.check_parameter_are_local(self.module_dict_to_tensor(self.parameters_continuous)):
@@ -286,18 +291,18 @@ class Optimizer(torch.nn.Module):
 
             print(
                 f"Optimizer Epoch: {epoch} \tLoss: {(self.loss(reco_surrogate, targets)):.5f} (reco)\t"
-                f"+ {(self.other_constraints()):.5f} (constraints)\t = {loss.item():.5f} (total)"
-                f"   |    Parameter Dict {[parameter.current_value.item() for parameter in self.parameters_all.values()]}\t"
+                #f"+ {(self.other_constraints()):.5f} (constraints)\t = {loss.item():.5f} (total)"
+                f"   |    Parameter Dict {self.module_dict_to_tensor(self.parameters_all)}\t"
             )
             epoch_loss /= batch_idx + 1
             self.optimizer_loss.append(epoch_loss)
-            self.constraints_loss.append(self.other_constraints().detach().cpu().numpy())
+            #self.constraints_loss.append(self.other_constraints().detach().cpu().numpy())
 
             if stop_epoch:
                 break
 
         self.covariance = self.adjust_covariance(
-            self.module_dict_to_tensor(self.parameters_continuous) - self.starting_parameters_continuous.to(self.device)
+            self.module_dict_to_tensor(self.parameters_continuous).to(self.device) - self.starting_parameters_continuous.to(self.device)
             )
         return self.parameter_dict, True
 

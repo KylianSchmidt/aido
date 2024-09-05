@@ -85,7 +85,7 @@ if __name__ == "__main__":
     surrogate_df = pd.DataFrame(surr_out, columns=surrogate_dataset.df["Targets"].columns)
     surrogate_df = pd.concat({"Surrogate": surrogate_df}, axis=1)
     output_df: pd.DataFrame = pd.concat([surrogate_dataset.df, surrogate_df], axis=1)
-    output_df.to_parquet(output_df_path, index=range(len(output_df)))
+    # output_df.to_parquet(output_df_path, index=range(len(output_df)))
 
     # Optimization
     if os.path.isfile(optimizer_model_previous_path):
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         batch_size=512,
         n_epochs=40,
         lr=0.02,
-        add_constraints=True,
+        add_constraints=False,
     )
     if not is_optimal:
         raise RuntimeError
@@ -106,8 +106,8 @@ if __name__ == "__main__":
     with open(parameter_dict_output_path, "w") as file:
         json.dump(updated_parameter_dict, file)
 
-    pd.DataFrame(np.array(optimizer.optimizer_loss)).to_csv(optimizer_loss_save_path)
-    pd.DataFrame(np.array(optimizer.constraints_loss)).to_csv(constraints_loss_save_path)
+    # pd.DataFrame(np.array(optimizer.optimizer_loss)).to_csv(optimizer_loss_save_path)
+    # pd.DataFrame(np.array(optimizer.constraints_loss)).to_csv(constraints_loss_save_path)
 
-    torch.save(surrogate_model, surrogate_save_path)
-    torch.save(optimizer, optimizer_save_path)
+    # torch.save(surrogate_model, surrogate_save_path)
+    # torch.save(optimizer, optimizer_save_path)
