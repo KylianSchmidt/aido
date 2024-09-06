@@ -1,0 +1,170 @@
+import torch
+import numpy as np
+from typing import Literal
+
+
+class OneHotEncoder(torch.nn.Module):
+    """
+    OneHotEncoder is a module that performs one-hot encoding on discrete values.
+
+    Attributes:
+        logits (torch.Tensor): A set of unnormalized, real-valued scores for each category. These logits
+            represent the model's confidence in each category prior to normalization. They can take any
+            real value, including negatives, and are not probabilities themselves. Use the to_probabilities()
+            method to convert the logits to probabilities.
+    """
+    def __init__(self, parameter: dict, temperature: float = 1.0):
+        """
+        Args:
+            parameter (dict): A dictionary containing the parameter information.
+            temperature (float, optional): The temperature parameter for gumbel softmax. Defaults to 1.0.
+        """
+        super().__init__()
+        self.discrete_values: list = parameter["discrete_values"]
+        self.starting_value = torch.tensor(self.discrete_values.index(parameter["current_value"]))
+        self.logits = torch.nn.Parameter(
+            torch.nn.functional.one_hot(self.starting_value, len(self.discrete_values)).float(),
+            requires_grad=True
+        )
+        self.temperature = temperature
+
+    def forward(self):
+        res = torch.nn.functional.gumbel_softmax(self.logits, tau=self.temperature, hard=True)
+        print(f"DEBUG Called forward with parameters {torch.argmax(res)}")
+        return res
+
+    @property
+    def current_value(self):
+        return torch.argmax(self.logits)
+    
+    @property
+    def parameter(self):
+        return self.logits
+    
+    @parameter.setter
+    def parameter(self, value):
+        self.logits = value
+
+    @property
+    def physical_value(self):
+        return torch.tensor(self.discrete_values[self.current_value.item()])
+
+    @property
+    def probabilities(self):
+        return torch.nn.functional.softmax(self.logits, dim=0)
+
+
+class ContinuousParameter(torch.nn.Module):
+    def __init__(self, parameter: dict):
+        super().__init__()
+        self.starting_value = torch.tensor(parameter["current_value"])
+        self.parameter = torch.nn.Parameter(self.starting_value.clone(), requires_grad=True)
+        self.min_value = np.nan_to_num(parameter["min_value"], nan=-10E10)
+        self.max_value = np.nan_to_num(parameter["max_value"], nan=10E10)
+        self.boundaries = torch.tensor(np.array([self.min_value, self.max_value], dtype="float32"))
+        self.sigma = torch.tensor(parameter["sigma"])
+
+    def forward(self):
+        return self.parameter
+
+    @property
+    def current_value(self):  # TODO Normalization
+        return self.parameter
+    
+    @property
+    def physical_value(self):
+        return self.current_value  # TODO Keep without normalization
+    
+
+class ParameterModule(torch.nn.ModuleDict):
+    def __init__(self, parameter_dict: dict[str, dict]):
+        self.parameter_dict = parameter_dict
+        self.parameters_discrete = {}
+        self.parameters_continuous = {}
+
+        for name, parameter in self.parameter_dict.items():
+            if parameter.get("discrete_values"):
+                self.parameters_discrete[name] = OneHotEncoder(parameter)
+            else:
+                self.parameters_continuous[name] = ContinuousParameter(parameter)
+
+        super().__init__()
+        self.update(self.parameters_discrete)
+        self.update(self.parameters_continuous)
+
+        self._covariance_matrix = np.diag(np.array(
+            [parameter.sigma.item() for parameter in self.parameters_continuous.values()],
+            dtype="float32"
+        ))
+
+    def forward(self):
+        for parameter in self.values():
+            parameter.parameter = parameter()
+
+    @property
+    def discrete(self):
+        return super().__init__(self.parameters_discrete)
+    
+    @property
+    def continuous(self):
+        return super().__init__(self.parameters_continuous)
+
+    def to(self, device: str):
+        self.to(device)
+        self.parameters_continuous.to(device)
+        self.parameters_discrete.to(device)
+
+    def tensor(self, parameter_types: Literal["all", "discrete", "continuous"] = "all"):
+        types = {
+            "all": self,
+            "discrete": self.parameters_discrete,
+            "continuous": self.parameters_continuous
+        }
+        tensor_list = [parameter.current_value for parameter in types[parameter_types].values()]
+        if tensor_list == []:
+            return torch.tensor([])
+        else:
+            return torch.stack(tensor_list)
+
+    @property
+    def constraints(self):
+        tensor_list = [parameter.boundaries for parameter in self.parameters_continuous.values()]
+        if tensor_list == []:
+            return torch.tensor([])
+        else:
+            return torch.stack(tensor_list)
+    
+    @property
+    def covariance(self):
+        return self._covariance_matrix
+
+    @covariance.setter
+    def covariance(self, value: np.ndarray):
+        self._covariance_matrix = value
+    
+    def adjust_covariance(self, direction: torch.Tensor, min_scale=2.0):
+        """ Stretches the box_covariance of the generator in the directon specified as input.
+        Direction is a vector in parameter space
+        """
+        parameter_direction_vector = direction.detach().cpu().numpy()
+        parameter_direction_length = np.linalg.norm(parameter_direction_vector)
+
+        scaling_factor = min_scale * np.max([1., 4. * parameter_direction_length])
+        # Create the scaling adjustment matrix
+        parameter_direction_normed = parameter_direction_vector / parameter_direction_length
+        M_scaled = (scaling_factor - 1) * np.outer(parameter_direction_normed, parameter_direction_normed)
+        # Adjust the original covariance matrix
+        self.covariance = np.diag(self.covariance**2) + M_scaled
+        return np.diag(self.covariance)
+    
+    def check_parameters_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:
+        """ Assure that the predicted parameters by the optimizer are within the bounds of the covariance
+        matrix spanned by the 'sigma' of each parameter.
+        """
+        diff = updated_parameters - self.tensor("continuous")
+        diff = diff.detach().cpu().numpy()
+
+        if self.covariance.ndim == 1:
+            self.covariance = np.diag(self.covariance)
+
+        return np.dot(diff, np.dot(np.linalg.inv(self.covariance), diff)) < scale
