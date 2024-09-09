@@ -321,7 +321,7 @@ class Surrogate(torch.nn.Module):
         for i_o in range(oversample):
 
             for batch_idx, (parameters, targets, context, reconstructed) in enumerate(data_loader):
-                
+
                 print(f'Surrogate batch: {batch_idx} / {len(data_loader)}', end='\r')
                 parameters = parameters.to(self.device)
                 targets = targets.to(self.device)

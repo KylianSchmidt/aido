@@ -23,27 +23,17 @@ class OneHotEncoder(torch.nn.Module):
         self.discrete_values: list = parameter["discrete_values"]
         self.starting_value = torch.tensor(self.discrete_values.index(parameter["current_value"]))
         self.logits = torch.nn.Parameter(
-            torch.nn.functional.one_hot(self.starting_value, len(self.discrete_values)).float(),
+            torch.tensor(np.repeat(1 / len(self.discrete_values), len(self.discrete_values)), dtype=torch.float32),
             requires_grad=True
         )
         self.temperature = temperature
 
     def forward(self):
-        res = torch.nn.functional.gumbel_softmax(self.logits, tau=self.temperature, hard=True)
-        print(f"DEBUG Called forward with parameters {torch.argmax(res)}")
-        return res
+        return torch.nn.functional.gumbel_softmax(self.logits, tau=self.temperature, hard=True)
 
     @property
     def current_value(self):
-        return torch.argmax(self.logits)
-    
-    @property
-    def parameter(self):
-        return self.logits
-    
-    @parameter.setter
-    def parameter(self, value):
-        self.logits = value
+        return torch.argmax(self.logits.clone().detach())
 
     @property
     def physical_value(self):
@@ -62,10 +52,10 @@ class ContinuousParameter(torch.nn.Module):
         self.min_value = np.nan_to_num(parameter["min_value"], nan=-10E10)
         self.max_value = np.nan_to_num(parameter["max_value"], nan=10E10)
         self.boundaries = torch.tensor(np.array([self.min_value, self.max_value], dtype="float32"))
-        self.sigma = torch.tensor(parameter["sigma"])
+        self.sigma = np.array(parameter["sigma"])
 
     def forward(self):
-        return self.parameter
+        return self()
 
     @property
     def current_value(self):  # TODO Normalization
@@ -79,12 +69,12 @@ class ContinuousParameter(torch.nn.Module):
 class ParameterModule(torch.nn.ModuleDict):
     def __init__(self, parameter_dict: dict[str, dict]):
         self.parameter_dict = parameter_dict
-        self.parameters_discrete = {}
-        self.parameters_continuous = {}
+        self.parameters_discrete: dict[str, OneHotEncoder] = {}
+        self.parameters_continuous: dict[str, ContinuousParameter] = {}
 
         for name, parameter in self.parameter_dict.items():
             if parameter.get("discrete_values"):
-                self.parameters_discrete[name] = OneHotEncoder(parameter)
+                self.parameters_discrete[name] = OneHotEncoder(parameter, temperature=0.2)
             else:
                 self.parameters_continuous[name] = ContinuousParameter(parameter)
 
@@ -98,8 +88,8 @@ class ParameterModule(torch.nn.ModuleDict):
         ))
 
     def forward(self):
-        for parameter in self.values():
-            parameter.parameter = parameter()
+        tensor_list = [parameter() for parameter in self.values()]
+        return torch.cat(tensor_list)
 
     @property
     def discrete(self):

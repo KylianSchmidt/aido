@@ -107,11 +107,9 @@ class Optimizer(torch.nn.Module):
                 true_context = true_context.to(self.device)
                 reco_result = reco_result.to(self.device)
 
-                print(f"DEBUG Before forward() {self.parameter_module.tensor()}")
-                self.parameter_module.forward()
-                print(f"DEBUG After forward() {self.parameter_module.tensor()}")
+                parameters_batch = self.parameter_module.forward()
                 reco_surrogate = self.surrogate_model.sample_forward(
-                    self.parameter_module.tensor(),
+                    parameters_batch,
                     targets,
                     true_context
                 )  # TODO module dict, normalize parameters??
@@ -128,7 +126,7 @@ class Optimizer(torch.nn.Module):
                 if np.isnan(loss.item()):
                     # Save parameters, reset the optimizer as if it made a step but without updating the parameters
                     print("Optimizer: NaN loss, exiting.")
-                    prev_parameters = self.parameter_module.tensor()
+                    prev_parameters = parameters_batch
                     self.optimizer.step()
 
                     for i, parameter in enumerate(self.parameter_module):
@@ -156,7 +154,7 @@ class Optimizer(torch.nn.Module):
             print(
                 f"Optimizer Epoch: {epoch} \tLoss: {(self.loss(reco_surrogate, targets)):.5f} (reco)\t"
                 #f"+ {(self.other_constraints()):.5f} (constraints)\t = {loss.item():.5f} (total)"
-                f"Parameters: {dict(self.parameter_module.named_parameters())["num_blocks.logits"].grad}"
+                f"Parameters: {self.parameter_module.tensor()}, Probabilities = {self.parameter_module["num_blocks"].probabilities}"
             )
             epoch_loss /= batch_idx + 1
             self.optimizer_loss.append(epoch_loss)

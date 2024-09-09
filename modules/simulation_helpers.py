@@ -36,7 +36,8 @@ class SimulationParameter:
             ):
         """ Create a new Simulation Parameter
 
-        Args:
+        Args
+        ----
                 name (str): The name of the parameter.
                 starting_value (Any): The starting value of the parameter.
                 current_value (Any, optional): The current value of the parameter. Defaults to None.
@@ -200,20 +201,37 @@ class SimulationParameterDictionary:
         with open(file_path, "w") as file:
             json.dump(self.to_dict(), file)
 
-    def to_df(self, df_length: int | None = None, **kwargs) -> pd.DataFrame:
-        """ Create parameter dict from file if path given. Remove all parameters that are not
-        optimizable and also only keep current values. Output is a df of length 'df_length', so
-        that it can be concatenated with the other df's.
+    def to_df(
+            self,
+            df_length: int | None = 1,
+            include_non_optimizables=False,
+            one_hot=False,
+            **kwargs
+            ) -> pd.DataFrame:
+        """ Convert parameter dictionary to a pd.DataFrame
+
+        Args
+        ----
+            df_length (int): The length of the DataFrame to be created. Default is None.
+            include_non_optimizables (bool): Whether to include non-optimizable parameters in the
+                df. Defaults to False.
+            one_hot (bool): Format discrete parameters as one-hot encoded categoricals. Relevant for
+                training with discrete parameters. Defaults to False
+            kwargs: Additional keyword arguments to be passed to the pd.DataFrame constructor.
+        Return
+        ------
+            A pandas DataFrame containing the current parameter values.
         """
         if df_length is not None:
             kwargs["index"] = range(df_length)
 
-        return pd.DataFrame(self.get_current_values("dict"), **kwargs)
+        return pd.DataFrame(self.get_current_values("dict", include_non_optimizables, one_hot=one_hot), **kwargs)
 
     def get_current_values(
             self,
             format: Literal["list", "dict"] = "dict",
-            include_non_optimizables=False
+            include_non_optimizables=False,
+            one_hot=False
             ):
         if format == "list":
             current_values = []
@@ -226,7 +244,14 @@ class SimulationParameterDictionary:
             current_values = {}
 
             for parameter in self.parameter_list:
-                if parameter.optimizable is True or include_non_optimizables is True:
+                if parameter.optimizable is False and include_non_optimizables is False:
+                    continue
+                if parameter.discrete_values and one_hot is True:
+
+                    for index, val in enumerate(parameter.discrete_values):
+                        bit = 1 if val == parameter.current_value else 0
+                        current_values[f"{parameter.name}_{index}"] = bit
+                else:
                     current_values[parameter.name] = parameter.current_value
 
         return current_values

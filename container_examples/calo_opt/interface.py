@@ -1,9 +1,9 @@
 import os
-import json
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Iterable
 from interface import AIDOUserInterface
+from modules.simulation_helpers import SimulationParameterDictionary
 
 
 class AIDOUserInterfaceExample(AIDOUserInterface):
@@ -20,7 +20,7 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
         return None
     
     def convert_sim_to_reco(
-            parameter_dict: Dict | str,
+            parameter_dict_path: Dict | str,
             simulation_output_df: pd.DataFrame | str,
             input_keys: List[str],
             target_keys: List[str],
@@ -41,23 +41,6 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
             target features, context features.
         """
 
-        def to_df(parameter_dict: Dict | str, df_length: int) -> pd.DataFrame:
-            """ Create parameter dict from file if path given. Remove all parameters that are not
-            optimizable and also only keep current values. Output is a df of length 'df_length', so
-            that it can be concatenated with the other df's.
-            """
-            if isinstance(parameter_dict, str):
-                with open(parameter_dict, "r") as file:
-                    parameter_dict: Dict = json.load(file)
-
-            parameter_dict_only_optimizables = {}
-
-            for parameter in parameter_dict.values():
-                if parameter["optimizable"] is True:
-                    parameter_dict_only_optimizables[parameter["name"]] = parameter["current_value"]
-
-            return pd.DataFrame(parameter_dict_only_optimizables, index=range(df_length))
-
         def expand_columns(df: pd.DataFrame, padding: int | None = None) -> pd.DataFrame:
             """ Check if columns in df are lists and flatten them by replacing those
             columns with <column_name>_{i} for i in index of the list.
@@ -67,10 +50,6 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
 
                 if isinstance(item, Iterable):
                     column_list = df[column].tolist()
-
-                    if isinstance(padding, int):
-                        column_list = np.pad(np.array(column_list), padding)
-
                     expanded_df = pd.DataFrame(column_list, index=df.index)
                     expanded_df.columns = [f'{column}_{i}' for i in expanded_df.columns]
                     df = pd.concat([df.drop(columns=column), expanded_df], axis=1)
@@ -80,17 +59,14 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
         if isinstance(simulation_output_df, str):
             input_df: pd.DataFrame = pd.read_parquet(simulation_output_df)
 
-        if "num_blocks" in parameter_dict:
-            padding = parameter_dict["num_blocks"]["current_value"]
-        else:
-            padding = None
+        parameter_dict = SimulationParameterDictionary.from_json(parameter_dict_path)
+        print("DEBUG DF: \n", parameter_dict.to_df(len(input_df), one_hot=True))
 
-        parameter_df = to_df(parameter_dict, len(input_df))
         df_combined_dict = {
-            "Parameters": parameter_df,
-            "Inputs": expand_columns(input_df[input_keys], padding),
-            "Targets": expand_columns(input_df[target_keys], padding),
-            "Context": expand_columns(input_df[context_keys], padding)
+            "Parameters": parameter_dict.to_df(len(input_df), one_hot=True),
+            "Inputs": expand_columns(input_df[input_keys]),
+            "Targets": expand_columns(input_df[target_keys]),
+            "Context": expand_columns(input_df[context_keys])
         }
         df: pd.DataFrame = pd.concat(
             df_combined_dict.values(),

@@ -271,7 +271,8 @@ class AIDO:
     def parameter(*args, **kwargs):
         """ Create a new Simulation Parameter
 
-        Args:
+        Args
+        ----
                 name (str): The name of the parameter.
                 starting_value (Any): The starting value of the parameter.
                 current_value (Any, optional): The current value of the parameter. Defaults to None.
@@ -286,5 +287,13 @@ class AIDO:
         @wraps(SimulationParameter.__init__)
         def wrapper(*args, **kwargs):
             return SimulationParameter(*args, **kwargs)
+
+        return wrapper(*args, **kwargs)
+    
+    def parameter_dict(*args, **kwargs):
+
+        @wraps(SimulationParameterDictionary.__init__)
+        def wrapper(*args, **kwargs):
+            return SimulationParameterDictionary(*args, **kwargs)
 
         return wrapper(*args, **kwargs)
