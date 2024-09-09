@@ -57,19 +57,22 @@ class Optimizer(torch.nn.Module):
         added in the UserInterface class later on.
         TODO Fix module dict for continuous parameters!
         """
+        loss = torch.tensor([0.0])
         self.constraints = {key: torch.tensor(value) for key, value in constraints.items()}
-        parameters_continuous_tensor = self.parameter_module.tensor("continuous")
 
-        loss = (
-            torch.mean(100. * torch.nn.ReLU()(self.parameter_box[:, 0] - parameters_continuous_tensor)) +
-            torch.mean(100. * torch.nn.ReLU()(- self.parameter_box[:, 1] + parameters_continuous_tensor))
-        )
+        if len(self.parameter_box) != 0:
+            parameters_continuous_tensor = self.parameter_module.tensor("continuous")
+
+            loss = (
+                torch.mean(100. * torch.nn.ReLU()(self.parameter_box[:, 0] - parameters_continuous_tensor)) +
+                torch.mean(100. * torch.nn.ReLU()(- self.parameter_box[:, 1] + parameters_continuous_tensor))
+            )
 
         if "length" in self.constraints.keys():
             detector_length = torch.sum(parameters_continuous_tensor)
             loss += torch.mean(100. * torch.nn.ReLU()(detector_length - self.constraints["length"])**2)
 
-        return loss
+        return loss.item()
 
     def loss(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
         """ Loss function for the optimizer. TODO Should be the same loss as the Reconstruction model
@@ -126,14 +129,14 @@ class Optimizer(torch.nn.Module):
                 if np.isnan(loss.item()):
                     # Save parameters, reset the optimizer as if it made a step but without updating the parameters
                     print("Optimizer: NaN loss, exiting.")
-                    prev_parameters = parameters_batch
+                    prev_parameters = parameters_batch  # TODO Errors might arise from wrong dtype
                     self.optimizer.step()
 
                     for i, parameter in enumerate(self.parameter_module):
                         parameter.data = prev_parameters[i].to(self.device)
 
                     for index, key in enumerate(self.parameter_dict):
-                        self.parameter_dict[key] = float(prev_parameters[index])
+                        self.parameter_dict[key] = prev_parameters[index]
 
                     return self.parameter_dict, False, epoch_loss / (batch_idx + 1)
 
@@ -145,20 +148,17 @@ class Optimizer(torch.nn.Module):
                     break
 
                 if batch_idx % 20 == 0:
-                    
-                    parameter_array = self.parameter_module.tensor("all").cpu().detach().numpy()
 
                     for index, key in enumerate(self.parameter_dict):
-                        self.parameter_dict[key] = float(parameter_array[index])  # TODO correct dtype
+                        self.parameter_dict[key] = self.parameter_module.physical_values[index]
 
             print(
                 f"Optimizer Epoch: {epoch} \tLoss: {(self.loss(reco_surrogate, targets)):.5f} (reco)\t"
-                #f"+ {(self.other_constraints()):.5f} (constraints)\t = {loss.item():.5f} (total)"
-                f"Parameters: {self.parameter_module.tensor()}, Probabilities = {self.parameter_module["num_blocks"].probabilities}"
+                f"+ {(self.other_constraints()):.5f} (constraints)\t = {loss.item():.5f} (total)"
             )
             epoch_loss /= batch_idx + 1
             self.optimizer_loss.append(epoch_loss)
-            #self.constraints_loss.append(self.other_constraints().detach().cpu().numpy())
+            self.constraints_loss.append(self.other_constraints())
 
             if stop_epoch:
                 break

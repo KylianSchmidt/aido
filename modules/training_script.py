@@ -106,8 +106,8 @@ if __name__ == "__main__":
     with open(parameter_dict_output_path, "w") as file:
         json.dump(updated_parameter_dict, file)
 
-    # pd.DataFrame(np.array(optimizer.optimizer_loss)).to_csv(optimizer_loss_save_path)
-    # pd.DataFrame(np.array(optimizer.constraints_loss)).to_csv(constraints_loss_save_path)
+    pd.DataFrame(np.array(optimizer.optimizer_loss)).to_csv(optimizer_loss_save_path)
+    pd.DataFrame(np.array(optimizer.constraints_loss)).to_csv(constraints_loss_save_path)
 
-    # torch.save(surrogate_model, surrogate_save_path)
-    # torch.save(optimizer, optimizer_save_path)
+    torch.save(surrogate_model, surrogate_save_path)
+    torch.save(optimizer, optimizer_save_path)

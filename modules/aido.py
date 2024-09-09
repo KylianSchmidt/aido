@@ -130,7 +130,7 @@ class IteratorTask(b2luigi.Task):
 
         # Plot the evolution
         # TODO Make it accessible to the end user to add plotting scripts
-        AIDOPlotting.plot()
+        #AIDOPlotting.plot(results_dir=self.results_dir)
 
 
 class AIDOMainWrapperTask(b2luigi.WrapperTask):

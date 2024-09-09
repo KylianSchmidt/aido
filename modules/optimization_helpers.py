@@ -37,7 +37,7 @@ class OneHotEncoder(torch.nn.Module):
 
     @property
     def physical_value(self):
-        return torch.tensor(self.discrete_values[self.current_value.item()])
+        return self.discrete_values[self.current_value.item()]
 
     @property
     def probabilities(self):
@@ -63,7 +63,7 @@ class ContinuousParameter(torch.nn.Module):
     
     @property
     def physical_value(self):
-        return self.current_value  # TODO Keep without normalization
+        return self.current_value.item()  # TODO Keep without normalization
     
 
 class ParameterModule(torch.nn.ModuleDict):
@@ -115,15 +115,19 @@ class ParameterModule(torch.nn.ModuleDict):
             return torch.tensor([])
         else:
             return torch.stack(tensor_list)
+        
+    @property
+    def physical_values(self) -> list:
+        return [parameter.physical_value for parameter in self.values()]
 
     @property
-    def constraints(self):
+    def constraints(self) -> torch.Tensor:
         tensor_list = [parameter.boundaries for parameter in self.parameters_continuous.values()]
         if tensor_list == []:
             return torch.tensor([])
         else:
             return torch.stack(tensor_list)
-    
+
     @property
     def covariance(self):
         return self._covariance_matrix
