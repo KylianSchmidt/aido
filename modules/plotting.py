@@ -63,7 +63,7 @@ class AIDOPlotting:
 
             df_list.append(pd.DataFrame(param_dict.get_current_values(format="dict"), index=[index]))
 
-            sigma_df_list.append([np.diag(param_dict.covariance)])
+            sigma_df_list.append(np.diag(param_dict.covariance))
 
         df: pd.DataFrame = pd.concat(df_list, axis=0).sort_index()
         sigma = np.concatenate(sigma_df_list, axis=0)
@@ -73,7 +73,8 @@ class AIDOPlotting:
             plt.plot(df, label=df.columns)
 
             for i, col in enumerate(df.columns):
-                plt.fill_between(df[col].index, df[col] - sigma[:, i], df[col] + sigma[:, i], alpha=0.5)
+                if np.any(sigma[i]):
+                    plt.fill_between(df[col].index, df[col] - sigma[i], df[col] + sigma[i], alpha=0.5)
 
             plt.legend()
             plt.xlabel("Iteration", loc="right")
@@ -167,12 +168,13 @@ class AIDOPlotting:
             plt.plot(df_optim, label=df_optim.columns)
 
             for i, col in enumerate(df_optim.columns):
-                plt.fill_between(
-                    df_optim[col].index,
-                    df_optim[col] - sigma[:, i],
-                    df_optim[col] + sigma[:, i],
-                    alpha=0.5
-                )
+                if np.any(sigma[i]):
+                    plt.fill_between(
+                        df_optim[col].index,
+                        df_optim[col] - sigma[i],
+                        df_optim[col] + sigma[i],
+                        alpha=0.5
+                    )
 
             plt.gca().set_prop_cycle(None)
 
@@ -186,3 +188,6 @@ class AIDOPlotting:
 
         return df_params, sigma
 
+
+if __name__ == "__main__":
+    AIDOPlotting.plot(results_dir="./results_discrete/")

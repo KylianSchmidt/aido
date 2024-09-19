@@ -130,7 +130,8 @@ class IteratorTask(b2luigi.Task):
 
         # Plot the evolution
         # TODO Make it accessible to the end user to add plotting scripts
-        #AIDOPlotting.plot(results_dir=self.results_dir)
+        if True:
+            AIDOPlotting.plot(results_dir=self.results_dir)
 
 
 class AIDOMainWrapperTask(b2luigi.WrapperTask):
@@ -227,7 +228,7 @@ class AIDO:
                 AIDO workflow manager.
             simulation_tasks (int): Number of simulations started during each iteration.
             max_iterations (int): Maximum amount of iterations of the optimization loop
-            threads (int): Allowed number of threads to allocate the simulation tasks. 
+            threads (int): Allowed number of threads to allocate the simulation tasks.
                 NOTE There is no benefit in having 'threads' > 'simulation_tasks' per se, but in some cases,
                 errors involving missing dependencies after the simulation step can be fixed by setting:
 
@@ -282,6 +283,7 @@ class AIDO:
                 max_value (float, optional): The maximum value of the parameter. Defaults to None.
                 sigma (float, optional): The standard deviation of the parameter. Defaults to None.
                 discrete_values (Iterable, optional): The allowed discrete values of the parameter. Defaults to None.
+                cost (float, optional): A float that quantifies the cost per unit of this Parameter. Defaults to None.
         """
 
         @wraps(SimulationParameter.__init__)

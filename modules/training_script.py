@@ -98,7 +98,7 @@ if __name__ == "__main__":
         batch_size=512,
         n_epochs=40,
         lr=0.02,
-        add_constraints=False,
+        add_constraints=True,
     )
     if not is_optimal:
         raise RuntimeError

@@ -27,12 +27,15 @@ class OneHotEncoder(torch.nn.Module):
             requires_grad=True
         )
         self.temperature = temperature
+        self._cost: list = parameter["cost"]
 
     def forward(self):
         return torch.nn.functional.gumbel_softmax(self.logits, tau=self.temperature, hard=True)
 
     @property
     def current_value(self):
+        """ Returns the index corresponding to an entry in 'discrete_values'
+        """
         return torch.argmax(self.logits.clone().detach())
 
     @property
@@ -42,6 +45,10 @@ class OneHotEncoder(torch.nn.Module):
     @property
     def probabilities(self):
         return torch.nn.functional.softmax(self.logits, dim=0)
+
+    @property
+    def cost(self):
+        return self._cost[self.current_value.item()]
 
 
 class ContinuousParameter(torch.nn.Module):
@@ -53,9 +60,10 @@ class ContinuousParameter(torch.nn.Module):
         self.max_value = np.nan_to_num(parameter["max_value"], nan=10E10)
         self.boundaries = torch.tensor(np.array([self.min_value, self.max_value], dtype="float32"))
         self.sigma = np.array(parameter["sigma"])
+        self._cost = parameter["cost"]
 
     def forward(self):
-        return self()
+        return torch.unsqueeze(self.parameter, 0)
 
     @property
     def current_value(self):  # TODO Normalization
@@ -65,31 +73,36 @@ class ContinuousParameter(torch.nn.Module):
     def physical_value(self):
         return self.current_value.item()  # TODO Keep without normalization
     
+    @property
+    def cost(self):
+        return self.physical_value * self._cost
+    
 
 class ParameterModule(torch.nn.ModuleDict):
     def __init__(self, parameter_dict: dict[str, dict]):
         self.parameter_dict = parameter_dict
         self.parameters_discrete: dict[str, OneHotEncoder] = {}
         self.parameters_continuous: dict[str, ContinuousParameter] = {}
+        self.covariance = self.reset_covariance()
+        super().__init__()
 
         for name, parameter in self.parameter_dict.items():
             if parameter.get("discrete_values"):
                 self.parameters_discrete[name] = OneHotEncoder(parameter, temperature=0.2)
+                self[name] = self.parameters_discrete[name]
             else:
                 self.parameters_continuous[name] = ContinuousParameter(parameter)
+                self[name] = self.parameters_continuous[name]
 
-        super().__init__()
-        self.update(self.parameters_discrete)
-        self.update(self.parameters_continuous)
-
-        self._covariance_matrix = np.diag(np.array(
+    def reset_covariance(self):
+        return np.diag(np.array(
             [parameter.sigma.item() for parameter in self.parameters_continuous.values()],
             dtype="float32"
         ))
 
     def forward(self):
         tensor_list = [parameter() for parameter in self.values()]
-        return torch.cat(tensor_list)
+        return torch.concat(tensor_list)
 
     @property
     def discrete(self):
@@ -98,11 +111,6 @@ class ParameterModule(torch.nn.ModuleDict):
     @property
     def continuous(self):
         return super().__init__(self.parameters_continuous)
-
-    def to(self, device: str):
-        self.to(device)
-        self.parameters_continuous.to(device)
-        self.parameters_discrete.to(device)
 
     def tensor(self, parameter_types: Literal["all", "discrete", "continuous"] = "all"):
         types = {
@@ -129,12 +137,8 @@ class ParameterModule(torch.nn.ModuleDict):
             return torch.stack(tensor_list)
 
     @property
-    def covariance(self):
-        return self._covariance_matrix
-
-    @covariance.setter
-    def covariance(self, value: np.ndarray):
-        self._covariance_matrix = value
+    def cost_loss(self) -> torch.Tensor:
+        return sum(parameter.cost for parameter in self.values())
     
     def adjust_covariance(self, direction: torch.Tensor, min_scale=2.0):
         """ Stretches the box_covariance of the generator in the directon specified as input.
@@ -150,13 +154,16 @@ class ParameterModule(torch.nn.ModuleDict):
         # Adjust the original covariance matrix
         self.covariance = np.diag(self.covariance**2) + M_scaled
         return np.diag(self.covariance)
-    
+
     def check_parameters_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:
         """ Assure that the predicted parameters by the optimizer are within the bounds of the covariance
         matrix spanned by the 'sigma' of each parameter.
         """
         diff = updated_parameters - self.tensor("continuous")
         diff = diff.detach().cpu().numpy()
+
+        if np.any(self.covariance >= 10E3) or not np.any(self.covariance):
+            self.covariance = self.reset_covariance()
 
         if self.covariance.ndim == 1:
             self.covariance = np.diag(self.covariance)

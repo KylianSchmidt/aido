@@ -32,7 +32,8 @@ class SimulationParameter:
             min_value: float | None = None,
             max_value: float | None = None,
             sigma: float | None = None,
-            discrete_values: Iterable | None = None
+            discrete_values: Iterable | None = None,
+            cost: float | Iterable | None = None
             ):
         """ Create a new Simulation Parameter
 
@@ -47,6 +48,9 @@ class SimulationParameter:
                 max_value (float, optional): The maximum value of the parameter. Defaults to None.
                 sigma (float, optional): The standard deviation of the parameter. Defaults to None.
                 discrete_values (Iterable, optional): The allowed discrete values of the parameter. Defaults to None.
+                cost (float, Iterable, optional): A float that quantifies the cost per unit of this Parameter. Defaults to None.
+                    For discrete parameters, this parameter must be an Iterable (e.g. list) of the same length as
+                    'discrete_values'.
         """
         assert isinstance(name, str), "Name must be a string"
 
@@ -102,6 +106,19 @@ class SimulationParameter:
                 isinstance(sigma, float) and discrete_values is None and optimizable is True
             ), "Unable to asign standard deviation to discrete or non-optimizable parameter."
 
+        if isinstance(cost, float):
+            self.cost = cost
+
+        if self.discrete_values and cost is not None:
+            assert (
+                isinstance(cost, Iterable)
+            ), "Parameter 'cost' must be an iterable of the same length as 'discrete_values'"
+            assert (
+                len(cost) == len(self.discrete_values)
+            ), f"Length of 'cost' ({len(cost)}) is different"
+            f"from that of 'discrete_values' ({len(self.discrete_values)})"
+            self.cost = cost
+
     def __str__(self):
         """Return the dict representation of the class, with human-readable indentation
         TODO Do not indent lists e.g. in discrete_values=[]
@@ -126,6 +143,8 @@ class SimulationParameter:
 
     @current_value.setter
     def current_value(self, value):
+        if isinstance(self._starting_value, int) and isinstance(value, float) and abs(value - round(value)) < 10E-15:
+            value = round(value)
         assert (
             isinstance(value, type(self._starting_value))
         ), f"The updated value is of another type ({type(value)}) than before ({type(self._starting_value)})"

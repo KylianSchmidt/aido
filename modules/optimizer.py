@@ -31,21 +31,21 @@ class Optimizer(torch.nn.Module):
         self.n_time_steps = surrogate_model.n_time_steps
         self.lr = lr
         self.batch_size = batch_size
-        self.device = "cuda"
+        self.device = torch.device("cuda")
 
         self.parameter_module = ParameterModule(self.parameter_dict)
         self.starting_parameters_continuous = self.parameter_module.tensor("continuous")
         self.parameter_box = self.parameter_module.constraints
         self.covariance = self.parameter_module.covariance
-
         self.to(self.device)
         self.optimizer = torch.optim.Adam(self.parameter_module.parameters(), lr=self.lr)
 
     def to(self, device: str):
         self.device = device
         self.surrogate_model.to(device)
-        self.starting_parameters_continuous.to(device)
-        self.parameter_box.to(device)
+        self.starting_parameters_continuous = self.starting_parameters_continuous.to(device)
+        self.parameter_box = self.parameter_box.to(device)
+        self.parameter_module = self.parameter_module.to(device)
         super().to(device)
         return self
 
@@ -62,11 +62,12 @@ class Optimizer(torch.nn.Module):
 
         if len(self.parameter_box) != 0:
             parameters_continuous_tensor = self.parameter_module.tensor("continuous")
-
             loss = (
                 torch.mean(100. * torch.nn.ReLU()(self.parameter_box[:, 0] - parameters_continuous_tensor)) +
                 torch.mean(100. * torch.nn.ReLU()(- self.parameter_box[:, 1] + parameters_continuous_tensor))
             )
+
+        loss += self.parameter_module.cost_loss
 
         if "length" in self.constraints.keys():
             detector_length = torch.sum(parameters_continuous_tensor)
@@ -110,7 +111,7 @@ class Optimizer(torch.nn.Module):
                 true_context = true_context.to(self.device)
                 reco_result = reco_result.to(self.device)
 
-                parameters_batch = self.parameter_module.forward()
+                parameters_batch = self.parameter_module()
                 reco_surrogate = self.surrogate_model.sample_forward(
                     parameters_batch,
                     targets,
@@ -152,10 +153,10 @@ class Optimizer(torch.nn.Module):
                     for index, key in enumerate(self.parameter_dict):
                         self.parameter_dict[key] = self.parameter_module.physical_values[index]
 
-            print(
-                f"Optimizer Epoch: {epoch} \tLoss: {(self.loss(reco_surrogate, targets)):.5f} (reco)\t"
-                f"+ {(self.other_constraints()):.5f} (constraints)\t = {loss.item():.5f} (total)"
-            )
+            print(f"Optimizer Epoch: {epoch} \tLoss: {(self.loss(reco_surrogate, targets)):.5f} (reco)", end="\t")
+            if add_constraints:
+                print(f"+ {(self.other_constraints()):.5f} (constraints)", end="\t")
+            print(f"= {loss.item():.5f} (total)")
             epoch_loss /= batch_idx + 1
             self.optimizer_loss.append(epoch_loss)
             self.constraints_loss.append(self.other_constraints())

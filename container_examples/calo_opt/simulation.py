@@ -18,7 +18,7 @@ class Simulation():
         else:
             self.n_events_per_var = 100
 
-        if "num_blocks" in parameter_dict:  # Case for discrete number of parameters
+        if "num_blocks" in parameter_dict:  # Case for discrete number of absorber/scintillator blocks
             self.cw = GeometryDescriptor()
 
             for _ in range(parameter_dict["num_blocks"]["current_value"]):
@@ -38,10 +38,10 @@ class Simulation():
         G4System.applyUICommand("/run/quiet true")
         
         dfs = []
-        particles = [['gamma', 0.22], ['pi+', 0.211]]
+        particles = [['pi+', 0.211]]
 
         for p in particles:
-            df: pd.DataFrame = G4System.run_batch(self.n_events_per_var, p[0], 1., 20)
+            df: pd.DataFrame = G4System.run_batch(self.n_events_per_var, p[0], 1., 50.)
             df = df.assign(true_pid=np.array(len(df) * [p[1]], dtype='float32'))
             dfs.append(df)
             

@@ -60,7 +60,6 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
             input_df: pd.DataFrame = pd.read_parquet(simulation_output_df)
 
         parameter_dict = SimulationParameterDictionary.from_json(parameter_dict_path)
-        print("DEBUG DF: \n", parameter_dict.to_df(len(input_df), one_hot=True))
 
         df_combined_dict = {
             "Parameters": parameter_dict.to_df(len(input_df), one_hot=True),
