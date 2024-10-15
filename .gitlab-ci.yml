@@ -1,0 +1,33 @@
+stages:
+  - lint
+  - test
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"  # Cache pip dependencies
+
+cache:
+  paths:
+    - .cache/pip  # Cache directory for pip
+
+before_script:
+  # Update pip and install dependencies
+  - python -m pip install --upgrade pip
+  - pip install pytest flake8 isort pre-commit
+
+linting:
+  stage: lint
+  script:
+    - isort . --line-length=120
+    - flake8 . --max-line-length=120 --ignore=W293,E123,W503
+  only:
+    - merge_requests
+    - branches
+
+testing:
+  stage: test
+  script:
+    # Run pytest from the 'tests' directory
+    - pytest tests/
+  only:
+    - merge_requests
+    - branches
