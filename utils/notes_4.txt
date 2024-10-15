@@ -1,0 +1,6 @@
+softmax in surrogate instead of one-hot encoded
+gumbel-softmax when generating new parameters in simulatino task, not in surr or optimizer. Save in param_dict.
+costs also weighted by the softmax of the discrete parameter
+dont make the costs too far appart
+
+compare with Nikhils code!

@@ -76,7 +76,7 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
     - [x] Write to file the output of the reconstruction (same location as simulation)
     - [x] Merge the output of the simulation into pd.DataFrame 
     - [x] API using pd.DataFrame (user has to provide individual keys)
-    - [ ] Normalize once at the first iteration and continue using those normalizations later (for better convergence of the Surrogate model)
+    - [x] Normalize once at the first iteration and continue using those normalizations later (for better convergence of the Surrogate model)
 
  - Optimization
     - [x] Read the outputs of the reconstruction and build an array for the training
@@ -84,6 +84,22 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
     - [x] Use Gradient descent to find local minimum
     - [x] Write optimal parameters to file for this iteration
     - [x] Call the class responsable for generating new parameter sets. Now in SimulationParameterDictionary
+
+ - Others
+    - [x] Pip package or venv list of all packages used in the main b2luigi scheduler file
+    - [x] Read the outputs of the reconstruction and build an array for the training
+    - [x] Start a GPU training Task that produces the surrogate model
+    - [x] Use Gradient descent to find local minimum
+    - [x] Write optimal parameters to file for this iteration
+    - [x] Call the class responsable for generating new parameter sets
+
+ - Others
+    - [x] Pip package or venv list of all packages used in the main b2luigi scheduler file
+    - [x] Read the outputs of the reconstruction and build an array for the training
+    - [x] Start a GPU training Task that produces the surrogate model
+    - [x] Use Gradient descent to find local minimum
+    - [x] Write optimal parameters to file for this iteration
+    - [x] Call the class responsable for generating new parameter sets
 
  - Others
     - [x] Pip package or venv list of all packages used in the main b2luigi scheduler file

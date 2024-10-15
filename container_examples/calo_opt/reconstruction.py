@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 import pandas as pd
 import torch
@@ -110,9 +112,9 @@ class Reconstruction(torch.nn.Module):
         self.n_context_features = num_context_features
 
         self.layers = torch.nn.Sequential(
-            torch.nn.Linear(num_parameters + num_input_features, 100),
+            torch.nn.Linear(num_parameters + num_input_features, 200),
             torch.nn.ELU(),
-            torch.nn.Linear(100, 100),
+            torch.nn.Linear(200, 100),
             torch.nn.ELU(),
             torch.nn.Linear(100, 100),
             torch.nn.ELU(),
@@ -123,12 +125,12 @@ class Reconstruction(torch.nn.Module):
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
         self.device = torch.device('cuda')
 
-    def forward(self, detector_parameters, x):
-        """ Concatenate the detector parameters and the input 
+    def forward(self, detector_parameters, x) -> torch.Tensor:
+        """ Concatenate the detector parameters and the input
         """
         x = torch.cat([detector_parameters, x], dim=1)
         return self.layers(x)
-    
+
     def loss(self, y_pred, y):
         """ Remark: filters nans and in order to make it more stable.
         Uses an L2 loss with with 1/sqrt(E) weighting
@@ -142,9 +144,10 @@ class Reconstruction(torch.nn.Module):
 
         return ((y_pred - y)**2 / (torch.abs(y) + 1.)).mean()
     
-    def train_model(self, dataset: ReconstructionDataset, batch_size, n_epochs, lr):
+    def train_model(self, dataset: ReconstructionDataset, batch_size: int, n_epochs: int, lr: float):
         train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         self.optimizer.lr = lr
+
         self.to(self.device)
         self.train()
 
@@ -159,37 +162,51 @@ class Reconstruction(torch.nn.Module):
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-    
-            print(f'Reco Epoch: {epoch} \tLoss: {loss.item():.8f}')
+
+            print(f"Reco Epoch: {epoch} \tLoss: {loss.item():.8f}")
 
         self.eval()
 
-    def apply_model_in_batches(self, dataset: ReconstructionDataset, batch_size):
+    def apply_model_in_batches(
+            self,
+            dataset: ReconstructionDataset,
+            batch_size: int,
+            normalize_outputs: bool = False
+            ) -> Tuple[np.ndarray, np.ndarray, float]:
         """ Apply the model in batches
         this is necessary because the model is too large to apply it to the whole dataset at once.
         The model is applied to the dataset in batches and the results are concatenated.
         (the batch size is a hyperparameter).
         """
-        self.to(self.device)
-        self.eval()
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         results = None
+        loss_array = None
         mean_loss = 0.
+
+        self.to(self.device)
+        self.eval()
 
         for batch_idx, (detector_parameters, x, y) in enumerate(data_loader):
             detector_parameters = detector_parameters.to(self.device)
-            x = x.to(self.device)
-            y = y.to(self.device)
-            y_pred = self(detector_parameters, x)
+            x: torch.Tensor = x.to(self.device)
+            y: torch.Tensor = y.to(self.device)
+            y_pred: torch.Tensor = self(detector_parameters, x)
 
             loss = self.loss(dataset.unnormalise_target(y_pred), dataset.unnormalise_target(y))
             mean_loss += loss.item()
 
             if results is None:
                 results = torch.zeros(len(dataset), y_pred.shape[1])
-            
+                loss_array = torch.zeros(len(dataset), y_pred.shape[1])
+
             results[batch_idx * batch_size: (batch_idx + 1) * batch_size] = y_pred
+            loss_array[batch_idx * batch_size: (batch_idx + 1) * batch_size] = torch.fill(y_pred, loss)
 
         mean_loss /= len(data_loader)
+        results = results.detach().cpu().numpy()
+        loss_array = loss_array.flatten().detach().cpu().numpy()
 
-        return results, mean_loss
+        if normalize_outputs is False:
+            results = results * dataset.stds[2] + dataset.means[2]
+
+        return results, loss_array, mean_loss
