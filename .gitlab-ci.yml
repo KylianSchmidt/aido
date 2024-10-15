@@ -1,18 +1,30 @@
 stages:
+  - setup
   - lint
   - test
 
 variables:
+  VENV_DIR: "$CI_PROJECT_DIR/venv"  # Path to the virtual environment
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"  # Cache pip dependencies
 
+before_script:
+  - python -m venv $VENV_DIR
+  - source $VENV_DIR/bin/activate
+  - python -m pip install --upgrade pip
+  - pip install -r requirements.txt
+
 cache:
+  key: ${CI_COMMIT_REF_SLUG}
   paths:
-    - .cache/pip  # Cache directory for pip
+    - venv/  # Cache the virtual environment
+    - .cache/pip/  # Cache pip downloads
 
 linting:
   stage: lint
-  script: 
-    - pre-commit run --all-files
+  script:
+    - source $VENV_DIR/bin/activate
+    - isort . --line-length=120
+    - flake8 . --max-line-length=120 --ignore=W293,E123,W503
   only:
     - merge_requests
     - branches
@@ -20,8 +32,17 @@ linting:
 testing:
   stage: test
   script:
-    # Run pytest from the 'tests' directory
+    - source $VENV_DIR/bin/activate
     - pytest tests/
   only:
     - merge_requests
     - branches
+
+pre_push_hook:
+  stage: test
+  script:
+    - source $VENV_DIR/bin/activate
+    - pytest tests/
+    - flake8 . --max-line-length=120 --ignore=W293,E123,W503
+  only:
+    - pushes
