@@ -9,16 +9,10 @@ cache:
   paths:
     - .cache/pip  # Cache directory for pip
 
-before_script:
-  # Update pip and install dependencies
-  - python3 -m pip install --upgrade pip
-  - python3 -m pip install pytest flake8 isort pre-commit
-
 linting:
   stage: lint
-  script:
-    - isort . --line-length=120
-    - flake8 . --max-line-length=120 --ignore=W293,E123,W503
+  script: 
+    - pre-commit run --all-files
   only:
     - merge_requests
     - branches
