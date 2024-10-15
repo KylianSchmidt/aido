@@ -36,7 +36,7 @@ testing:
   stage: test
   script:
     - source $VENV_DIR/bin/activate
-    - pytest tests/
+    - pytest .
   only:
     - merge_requests
     - pushes
