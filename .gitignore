@@ -3,5 +3,8 @@ results*
 *.pyc
 logs
 *__pycache__
+build
+*.egg-info
 *.root
 *.aido*
+*.json
