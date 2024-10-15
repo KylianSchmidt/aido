@@ -1,3 +1,5 @@
+image: python:3.12.3
+
 stages:
   - setup
   - lint
@@ -27,6 +29,7 @@ linting:
     - flake8 . --max-line-length=120 --ignore=W293,E123,W503
   only:
     - merge_requests
+    - pushes
     - branches
 
 testing:
@@ -36,13 +39,5 @@ testing:
     - pytest tests/
   only:
     - merge_requests
-    - branches
-
-pre_push_hook:
-  stage: test
-  script:
-    - source $VENV_DIR/bin/activate
-    - pytest tests/
-    - flake8 . --max-line-length=120 --ignore=W293,E123,W503
-  only:
     - pushes
+    - branches
