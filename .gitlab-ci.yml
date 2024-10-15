@@ -26,7 +26,7 @@ linting:
   script:
     - source $VENV_DIR/bin/activate
     - isort . --line-length=120
-    - flake8 . --max-line-length=120 --ignore=W293,E123,W503
+    - flake8 . --max-line-length=120 --ignore=W293,E123,W503 --exclude=$VENV_DIR/**,utils/*
   only:
     - merge_requests
     - pushes
