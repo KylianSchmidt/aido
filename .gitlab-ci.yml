@@ -31,11 +31,16 @@ linting:
     - merge_requests
     - pushes
     - branches
+  rules:
+    - changes:
+      - "*.py"
+    - when: never
 
 testing:
   stage: test
   script:
     - source $VENV_DIR/bin/activate
+    - export PYTHONPATH=$PYTHONPATH:$(pwd)
     - pytest .
   only:
     - merge_requests
