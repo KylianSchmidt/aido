@@ -169,11 +169,11 @@ class SimulationParameter:
         self._current_value = value
 
     @property
-    def optimizable(self):
+    def optimizable(self) -> bool:
         return self._optimizable
 
     @property
-    def probabilities(self):
+    def probabilities(self) -> List[float]:
         return self._probabilities
 
     @probabilities.setter
@@ -191,6 +191,15 @@ class SimulationParameter:
         ), f"Probabilities are not normed, their sum is {np.sum(prob_array)} but must equal 1"
         prob_array: np.ndarray = prob_array / np.sum(prob_array)
         self._probabilities: List[float] = prob_array.tolist()
+
+    @property
+    def weighted_cost(self) -> None | float:
+        if self.cost is None:
+            return None
+        if self.discrete_values is None:
+            return self.current_value * self.cost
+        else:
+            return float(np.dot(np.array(self.probabilities), np.array(self.cost)))
 
 
 class SimulationParameterDictionary:

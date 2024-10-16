@@ -41,3 +41,14 @@ def test_cost():
         SimulationParameter("foo", 1.0, cost=-10)
         SimulationParameter("foo", 1.0, cost=[0.1, 2.0])
         SimulationParameter("foo", 1, discrete_values=[1, 2, 3], cost=1.7)
+
+
+def test_weighted_cost():
+    assert (
+        SimulationParameter("foo", 2.3, cost=7.2).weighted_cost == 2.3 * 7.2
+    )
+    assert (
+        SimulationParameter(
+            "foo", "a", discrete_values=["a", "b"], cost=[1.8, 0.5]
+        ).weighted_cost == 0.5 * 1.8 + 0.5 * 0.5
+    )
