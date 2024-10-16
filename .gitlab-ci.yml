@@ -24,13 +24,13 @@ cache:
 linting:
   stage: lint
   before_script:
-    - source $VENV_DIR/bin/activate
     - |  # Check if is merge or branch and if .py files were changed
       if [[ -z $(git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA | grep -E '\.py$') ]]; then
         echo "No Python files changed, skipping linting stage."
         exit 0
       fi
   script:
+    - source $VENV_DIR/bin/activate
     - isort . --line-length=120
     - flake8 . --max-line-length=120 --ignore=W293,E123,W503 --exclude=$VENV_DIR/**,utils/*
   rules:
