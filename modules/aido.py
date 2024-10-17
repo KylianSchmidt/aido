@@ -17,23 +17,6 @@ class StartSimulationTask(b2luigi.Task):
     simulation_task_id = b2luigi.IntParameter()
     iter_start_param_dict_file_path = b2luigi.PathParameter(hashed=True, significant=False)
 
-    @property
-    def batch_system(self):
-        return "htcondor"
-
-    htcondor_settings = {
-        "request_cpus": 1,
-        "requirements": "(TARGET.ProvidesCPU == True) && (TARGET.ProvidesEKPResources == True)",
-        "request_memory": "1000 MB",
-        "request_disk": "1000 MB",
-        "universe": "docker",
-        "docker_image": "jkiesele/ml_base",
-        "stream_output": "true",
-        "stream_error": "true"
-    }
-
-    env_script = "./container_examples/calo_opt/env_script.sh"
-
     def output(self):
         yield self.add_to_output("simulation_output")
         yield self.add_to_output("param_dict.json")
@@ -275,7 +258,6 @@ class AIDO:
                 results_dir=results_dir
             ),
             workers=threads,
-            batch=True
         )
 
     def parameter(*args, **kwargs):
