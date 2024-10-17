@@ -14,6 +14,6 @@ if __name__ == "__main__":
         simulation_tasks=10,
         max_iterations=55,
         threads=11,
-        results_dir="/results_nikhil/results_20241017"
+        results_dir="./results_nikhil/results_20241017"
     )
     os.system("rm *.root")
