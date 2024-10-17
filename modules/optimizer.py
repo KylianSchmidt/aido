@@ -1,11 +1,12 @@
-from typing import Dict
+from typing import Callable
 
 import numpy as np
 import torch
-from optimization_helpers import ParameterModule
-from simulation_helpers import SimulationParameterDictionary
-from surrogate import Surrogate, SurrogateDataset
 from torch.utils.data import DataLoader
+
+from modules.optimization_helpers import ParameterModule
+from modules.simulation_helpers import SimulationParameterDictionary
+from modules.surrogate import Surrogate, SurrogateDataset
 
 
 class Optimizer(torch.nn.Module):
@@ -51,6 +52,8 @@ class Optimizer(torch.nn.Module):
         self.optimizer = torch.optim.Adam(self.parameter_module.parameters(), lr=self.lr)
 
     def to(self, device: str):
+        """ Move all Tensors and modules to 'device'.
+        """
         self.device = device
         self.surrogate_model.to(device)
         self.starting_parameters_continuous = self.starting_parameters_continuous.to(device)
@@ -58,32 +61,35 @@ class Optimizer(torch.nn.Module):
         self.parameter_module = self.parameter_module.to(device)
         super().to(device)
         return self
-
-    def other_constraints(self, constraints: Dict = {}) -> float:
-        """ Keep parameters such that within the box size of the generator, there are always some positive values even
-        if the central parameters are negative.
-        TODO Improve doc string
-        TODO Total detector length is an example of possible additional constraints. Very specific use now, must be
-        added in the UserInterface class later on.
-        TODO Fix module dict for continuous parameters!
+    
+    def loss_box_constraints(self) -> torch.Tensor:
+        """ Adds penalties for parameters that are outside of the boundaries spaned by 'self.parameter_box'. This
+        ensures that the optimizer does not propose new values that are outside of the scope of the Surrogate and
+        therefore largely unknown to the current iteration.
+        Returns:
+        -------
+            float
         """
-        loss = torch.tensor([0.0])
-        self.constraints = {key: torch.tensor(value) for key, value in constraints.items()}
-
         if len(self.parameter_box) != 0:
             parameters_continuous_tensor = self.parameter_module.tensor("continuous")
-            loss = (
+            return (
                 torch.mean(10. * torch.nn.Softmax()(self.parameter_box[:, 0] - parameters_continuous_tensor))
                 + torch.mean(10. * torch.nn.Softmax()(- self.parameter_box[:, 1] + parameters_continuous_tensor))
             )
 
-        loss += self.parameter_module.cost_loss
-
-        if "length" in self.constraints.keys():
-            detector_length = torch.sum(parameters_continuous_tensor)
-            loss += torch.mean(100. * torch.nn.ReLU()(detector_length - self.constraints["length"])**2)
-
-        return loss.item()
+    def other_constraints(
+            self,
+            constraints_func: None | Callable[[SimulationParameterDictionary], float | torch.Tensor]
+            ) -> float:
+        """ Adds user-defined constraints defined in 'interface.py:AIDOUserInterface.constraints()'. If no constraints
+        were added manually, this method defaults to calculating constraints based on the cost per parameter specified
+        in ParameterDict. Returns a float or torch.Tensor which can be considered as a penalty loss.
+        """
+        if constraints_func is None:
+            loss = self.parameter_module.cost_loss
+        else:
+            loss = constraints_func(self.parameter_dict)
+        return loss
 
     def optimize(
             self,
@@ -91,10 +97,13 @@ class Optimizer(torch.nn.Module):
             batch_size: int,
             n_epochs: int,
             lr: float,
-            add_constraints=True,
+            additional_constraints: None | Callable[[SimulationParameterDictionary], float | torch.Tensor] = None,
             ):
-        """ Keep Surrogate model fixed, train only the detector parameters (self.detector_start_parameters)
-        TODO Improve documentation of this method.
+        """ Perform the optimization step. First, the ParameterModules forward() method generates new parameters.
+        Second, the Surrogate Model computes the corresponding Reconstruction Loss (based on its interpolation).
+        The Optimizer Loss is the Sum of the Reconstruction Loss, user-defined Parameter Loss (e.g. cost constraints)
+        and the Parameter Box Loss (which ensures that the Parameters stay within acceptable boundaries during
+        training). Fourth, the optimizer applies backprogation and updates the current ParameterDict
         """
         self.optimizer.lr = lr
         self.surrogate_model.eval()
@@ -110,13 +119,16 @@ class Optimizer(torch.nn.Module):
                 context = context.to(self.device)
 
                 parameters_batch = self.parameter_module()
+                self.parameter_dict.update_current_values(self.parameter_module.physical_values(format="dict"))
+                self.parameter_dict.update_probabilities(self.parameter_module.get_probabilities())
+
                 surrogate_output = self.surrogate_model.sample_forward(
                     parameters_batch,
                     torch.unsqueeze(context[batch_idx], 0)
                 )
                 loss = surrogate_output.clone()
-                if add_constraints:
-                    loss += self.other_constraints()
+                loss += self.other_constraints(additional_constraints)
+                loss += self.loss_box_constraints()
 
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -124,7 +136,7 @@ class Optimizer(torch.nn.Module):
                 if np.isnan(loss.item()):
                     # Save parameters, reset the optimizer as if it made a step but without updating the parameters
                     print("Optimizer: NaN loss, exiting.")
-                    prev_parameters = parameters_batch.clone()  # TODO Errors might arise from wrong dtype
+                    prev_parameters = parameters_batch.clone()
                     self.optimizer.step()
 
                     for i, parameter in enumerate(self.parameter_module):
@@ -139,17 +151,12 @@ class Optimizer(torch.nn.Module):
                     stop_epoch = True
                     break
 
-                if batch_idx % 20 == 0:
-                    self.parameter_dict.update_current_values(self.parameter_module.physical_values(format="dict"))
-                    self.parameter_dict.update_probabilities(self.parameter_module.get_probabilities())
-
             print(f"Optimizer Epoch: {epoch} \tLoss: {surrogate_output.item():.5f} (reco)", end="\t")
-            if add_constraints:
-                print(f"+ {(self.other_constraints()):.5f} (constraints)", end="\t")
+            print(f"+ {(self.other_constraints(additional_constraints)):.5f} (constraints)", end="\t")
             print(f"= {loss.item():.5f} (total)")
             epoch_loss /= batch_idx + 1
             self.optimizer_loss.append(epoch_loss)
-            self.constraints_loss.append(self.other_constraints())
+            self.constraints_loss.append(self.other_constraints(additional_constraints))
 
             if stop_epoch:
                 break

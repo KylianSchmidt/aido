@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 
-from container_examples.calo_opt.interface import AIDOUserInterfaceExample
+from container_examples.calo_opt.interface_calo_opt import AIDOUserInterfaceExample
 from modules.aido import AIDO
 
 if __name__ == "__main__":

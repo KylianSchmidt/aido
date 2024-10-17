@@ -2,8 +2,10 @@ import os
 from typing import Dict, Iterable, List
 
 import pandas as pd
+import torch
 
-from interface import AIDOUserInterface
+from modules.aido import AIDO
+from modules.interface import AIDOUserInterface
 from modules.simulation_helpers import SimulationParameterDictionary
 
 
@@ -110,3 +112,38 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
         )
         os.system("rm *.pkl")
         return None
+    
+    def constraints(self, parameter_dict: SimulationParameterDictionary) -> float:
+        num_blocks = parameter_dict["num_blocks"].current_value
+        absorber_cost = (
+            parameter_dict["absorber_material"].weighted_cost
+            * parameter_dict["thickness_absorber"].current_value
+        )
+        scintillator_cost = (
+            parameter_dict["scintillator_material"].weighted_cost
+            * parameter_dict["thickness_scintillator"].current_value
+        )
+        material_costs = num_blocks * (absorber_cost + scintillator_cost)
+
+        detector_length = num_blocks * (
+            parameter_dict["thickness_absorber"].current_value
+            + parameter_dict["thickness_scintillator"].current_value
+        )
+        detector_length_loss = torch.mean(0.5 * torch.nn.ReLU()(torch.tensor(detector_length - 100.0)))
+        return material_costs + detector_length_loss
+
+
+if __name__ == "__main__":
+    sim_param_cheap = SimulationParameterDictionary([
+        AIDO.parameter("thickness_absorber", 1.0, units="cm", max_value=50.0, min_value=0.1, sigma=0.5),
+        AIDO.parameter("thickness_scintillator", 0.5, units="cm", max_value=10.0, min_value=0.01, sigma=0.5),
+        AIDO.parameter("absorber_material", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[1.3, 0.092]),
+        AIDO.parameter("scintillator_material", "G4_PbWO4", discrete_values=["G4_PbWO4", "G4_Fe"], cost=[1.5, 1.0]),
+        AIDO.parameter("num_blocks", 10, optimizable=False),
+        AIDO.parameter("num_events", 400, optimizable=False)
+    ])
+    print(f"{AIDOUserInterfaceExample().constraints(sim_param_cheap)=}")
+    sim_param_expensive = SimulationParameterDictionary.from_json(
+        "results_comparison/results_20241017_2/parameters/param_dict_iter_38.json"
+    )
+    print(f"{AIDOUserInterfaceExample().constraints(sim_param_expensive)=}")

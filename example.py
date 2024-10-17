@@ -1,6 +1,6 @@
 import os
 
-from container_examples.calo_opt.interface import AIDOUserInterfaceExample  # Import your derived class
+from container_examples.calo_opt.interface_calo_opt import AIDOUserInterfaceExample  # Import your derived class
 from modules.aido import AIDO  # required
 
 global_htcondor_settings = {

@@ -1,13 +1,15 @@
 import json
 import os
 import sys
+from typing import Callable
 
 import numpy as np
 import pandas as pd
 import torch
-from optimizer import Optimizer
-from simulation_helpers import SimulationParameterDictionary
-from surrogate import Surrogate, SurrogateDataset
+
+from modules.optimizer import Optimizer
+from modules.simulation_helpers import SimulationParameterDictionary
+from modules.surrogate import Surrogate, SurrogateDataset
 
 
 def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
@@ -34,10 +36,13 @@ def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     model.to('cpu')
 
 
-if __name__ == "__main__":
-
-    with open(sys.argv[1], "r") as file:
-        reco_file_paths_dict = json.load(file)
+def training_loop(
+        reco_file_paths_dict: dict | str | os.PathLike,
+        constraints: None | Callable[[SimulationParameterDictionary], float | torch.Tensor] = None
+        ):
+    if isinstance(reco_file_paths_dict, (str, os.PathLike)):
+        with open(reco_file_paths_dict, "r") as file:
+            reco_file_paths_dict = json.load(file)
 
     output_df_path = reco_file_paths_dict["reco_output_df"]
     parameter_dict_input_path = reco_file_paths_dict["current_parameter_dict"]
@@ -56,9 +61,7 @@ if __name__ == "__main__":
 
     # Surrogate:
     print("Surrogate Training")
-    surrogate_dataset = SurrogateDataset(
-        pd.read_parquet(output_df_path),
-        )
+    surrogate_dataset = SurrogateDataset(pd.read_parquet(output_df_path))
 
     if os.path.isfile(surrogate_model_previous_path):
         surrogate_model = torch.load(surrogate_model_previous_path)
@@ -74,14 +77,13 @@ if __name__ == "__main__":
 
         if surrogate_loss < best_surrogate_loss:
             break
-
         else:
             print("Surrogate Re-Training")
             pre_train(surrogate_model, surrogate_dataset, n_epochs_pre)
             surrogate_model.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 5, lr=0.005)
             surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
             surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
-            sl = surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0001)
+            surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0001)
 
     surrogate_model.apply_model_in_batches(surrogate_dataset, batch_size=512)
 
@@ -96,7 +98,7 @@ if __name__ == "__main__":
         batch_size=512,
         n_epochs=40,
         lr=0.02,
-        add_constraints=True,
+        additional_constraints=constraints
     )
     if not is_optimal:
         raise RuntimeError
@@ -108,3 +110,11 @@ if __name__ == "__main__":
 
     torch.save(surrogate_model, surrogate_save_path)
     torch.save(optimizer, optimizer_save_path)
+
+
+if __name__ == "__main__":
+
+    with open(sys.argv[1], "r") as file:
+        reco_file_paths_dict = json.load(file)
+
+    training_loop(reco_file_paths_dict, constraints=None)

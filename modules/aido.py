@@ -6,9 +6,10 @@ from typing import List
 
 import b2luigi
 
-from interface import AIDOUserInterface
+from modules.interface import AIDOUserInterface
 from modules.plotting import AIDOPlotting
 from modules.simulation_helpers import SimulationParameter, SimulationParameterDictionary
+from modules.training_script import training_loop
 
 
 class StartSimulationTask(b2luigi.Task):
@@ -120,7 +121,7 @@ class IteratorTask(b2luigi.Task):
         interface.reconstruct(self.reco_paths_dict["reco_input_df"], self.reco_paths_dict["reco_output_df"])
 
         # Run surrogate and optimizer model
-        os.system(f"python3 modules/training_script.py {self.reco_paths_dict["own_path"]}")
+        training_loop(self.reco_paths_dict["own_path"], interface.constraints)
 
         new_param_dict = SimulationParameterDictionary.from_json(self.reco_paths_dict["updated_parameter_dict"])
         new_param_dict.iteration = self.iteration + 1
