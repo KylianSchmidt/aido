@@ -112,7 +112,6 @@ class SurrogateDataset(Dataset):
 
         self.parameters = (self.parameters - self.means[0]) / self.stds[0]
         self.context = (self.context - self.means[1]) / self.stds[1]
-        self.reconstructed = (self.reconstructed - self.means[2]) / self.stds[2]
 
         self.c_means = [torch.tensor(a).to('cuda') for a in self.means]
         self.c_stds = [torch.tensor(a).to('cuda') for a in self.stds]
@@ -160,12 +159,8 @@ class Surrogate(torch.nn.Module):
     """ Surrogate model class and the surrogate model training function, given a dataset consisting of events.
     The surrogate model itself can be very simple. It is just a feed-forward model but used as a diffusion model.
 
-    Attributes:
-        num_parameters (int): Number of parameters.
-        num_context (int): Number of context features.
-        num_reconstructed (int): Number of reconstructed features.
-
-        n_time_steps (int): Number of time steps for the diffusion process.
+    Attributes:        if normalized_outputs is False:
+            self.surrpredicted_recoteps for the diffusion process.
         betas (Tuple[float]): Tuple containing the start and end beta values for the diffusion process.
         t_is (torch.Tensor): Tensor containing time steps normalized by the number of time steps.
 
@@ -282,7 +277,6 @@ class Surrogate(torch.nn.Module):
             predicted_reco = (
                 self.oneover_sqrta[i] * (predicted_reco - eps * self.mab_over_sqrtmab[i]) + self.sqrt_beta_t[i] * z
             )
-
         return predicted_reco
 
     def train_model(

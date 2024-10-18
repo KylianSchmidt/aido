@@ -2,7 +2,6 @@ import os
 from typing import Dict, Iterable, List
 
 import pandas as pd
-import torch
 
 from modules.interface import AIDOUserInterface
 from modules.simulation_helpers import SimulationParameterDictionary
@@ -111,11 +110,3 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
         )
         os.system("rm *.pkl")
         return None
-    
-    def constraints(self, parameter_dict: SimulationParameterDictionary) -> float:
-        detector_length = (
-            parameter_dict["thickness_absorber_0"].current_value
-            + parameter_dict["thickness_scintillator_0"].current_value
-        )
-        detector_length_loss = torch.mean(0.5 * torch.nn.ReLU()(torch.tensor(detector_length - 100.0)))
-        return detector_length_loss

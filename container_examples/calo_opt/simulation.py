@@ -34,20 +34,29 @@ class Simulation():
 
             for _ in range(parameter_dict["num_blocks"]["current_value"]):
                 self.cw.addLayer(
-                    parameter_dict["thickness_absorber"]["current_value"],
-                    absorber_material,
+                    parameter_dict["thickness_absorber"]["current_value"], absorber_material, False, 1
+                )
+                self.cw.addLayer(
+                    parameter_dict["thickness_scintillator"]["current_value"], scintillator_material, True, 1
+                )
+        elif "simple_setup" in parameter_dict:
+            self.cw = self.produce_descriptor(parameter_dict)
+        elif "full_calorimeter" in parameter_dict:
+            self.cw = GeometryDescriptor()
+
+            for i in range(3):
+                self.cw.addLayer(
+                    parameter_dict[f"thickness_absorber_{i}"]["current_value"],
+                    parameter_dict[f"material_absorber_{i}"]["current_value"],
                     False,
                     1
                 )
                 self.cw.addLayer(
-                    parameter_dict["thickness_scintillator"]["current_value"],
-                    scintillator_material,
+                    parameter_dict[f"thickness_scintillator_{i}"]["current_value"],
+                    parameter_dict[f"material_scintillator_{i}"]["current_value"],
                     True,
                     1
                 )
-
-        else:  # Case optimization of layer thickness
-            self.cw = Simulation.produce_descriptor(self.parameter_dict)
 
     def run_simulation(self) -> pd.DataFrame:
         G4System.init(self.cw)
@@ -59,16 +68,18 @@ class Simulation():
         G4System.applyUICommand("/run/quiet true")
 
         dfs = []
-        particles = {'pi+': 0.211}
+        particles = {'pi+': 0.211, 'gamma': 0.22}
 
-        for name, pid in particles.items():
-            df: pd.DataFrame = G4System.run_batch(self.n_events_per_var, name, 1., 50.)
+        for particle in particles.items():
+            name, pid = particle
+            df: pd.DataFrame = G4System.run_batch(int(self.n_events_per_var / len(particles)), name, 1., 20.)
             df = df.assign(true_pid=np.full(len(df), pid, dtype='float32'))
             dfs.append(df)
 
         return pd.concat(dfs, axis=0, ignore_index=True)
 
-    def produce_descriptor(parameter_dict: dict):
+    @classmethod
+    def produce_descriptor(cls, parameter_dict: dict):
         ''' Returns a GeometryDescriptor from the given parameters.
         Strictly takes a dict as input to ensure that the parameter names are consistent.
         Current parameters:

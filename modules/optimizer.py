@@ -89,6 +89,8 @@ class Optimizer(torch.nn.Module):
             loss = self.parameter_module.cost_loss
         else:
             loss = constraints_func(self.parameter_dict)
+        if isinstance(loss, torch.Tensor):
+            loss = loss.item()
         return loss
 
     def optimize(
@@ -115,8 +117,9 @@ class Optimizer(torch.nn.Module):
             epoch_loss = 0
             stop_epoch = False
 
-            for batch_idx, (_parameters, context, _reconstructed) in enumerate(data_loader):
+            for batch_idx, (_parameters, context, reconstructed) in enumerate(data_loader):
                 context = context.to(self.device)
+                reconstructed = reconstructed.to(self.device)
 
                 parameters_batch = self.parameter_module()
                 self.parameter_dict.update_current_values(self.parameter_module.physical_values(format="dict"))
@@ -153,6 +156,7 @@ class Optimizer(torch.nn.Module):
 
             print(f"Optimizer Epoch: {epoch} \tLoss: {surrogate_output.item():.5f} (reco)", end="\t")
             print(f"+ {(self.other_constraints(additional_constraints)):.5f} (constraints)", end="\t")
+            print(f"+ {(self.loss_box_constraints()):.5f} (boundaries)", end="\t")
             print(f"= {loss.item():.5f} (total)")
             epoch_loss /= batch_idx + 1
             self.optimizer_loss.append(epoch_loss)
