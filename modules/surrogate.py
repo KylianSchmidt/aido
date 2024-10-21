@@ -10,7 +10,7 @@ def ddpm_schedules(beta1: float, beta2: float, n_time_steps: int) -> dict[str, t
     """
     Returns pre-computed schedules for DDPM sampling, training process.
     """
-    assert beta1 < beta2 < 1.0, "beta1 and beta2 must be in ]0, 1["
+    assert 0.0 < beta1 < beta2 < 1.0, "Condition 0.0 < 'beta 1' < 'beta 2' < 1.0 not fulfilled"
 
     beta_t = (beta2 - beta1) * torch.arange(0, n_time_steps + 1, dtype=torch.float32) / n_time_steps + beta1
     sqrt_beta_t = torch.sqrt(beta_t)
@@ -203,9 +203,9 @@ class Surrogate(torch.nn.Module):
         self.num_context = num_context
         self.num_reconstructed = num_reconstructed
         self.layers = torch.nn.Sequential(
-            torch.nn.Linear(self.num_parameters + self.num_context + self.num_reconstructed + 1, 100),
+            torch.nn.Linear(self.num_parameters + self.num_context + self.num_reconstructed + 1, 200),
             torch.nn.ELU(),
-            torch.nn.Linear(100, 100),
+            torch.nn.Linear(200, 100),
             torch.nn.ELU(),
             torch.nn.Linear(100, 100),
             torch.nn.ELU(),
@@ -350,7 +350,6 @@ class Surrogate(torch.nn.Module):
                 context = context.to(self.device)
 
                 reco_surrogate = self.sample_forward(parameters, context)
-                reco_surrogate = dataset.unnormalise_target(reco_surrogate)
 
                 start_inject_index = i_o * len(dataset) + batch_idx * batch_size
                 end_inject_index = i_o * len(dataset) + (batch_idx + 1) * batch_size
