@@ -88,6 +88,7 @@ class AIDOPlotting:
             plt.xlabel("Iteration", loc="right")
             plt.ylabel("Parameter Value", loc="top")
             plt.savefig(fig_savepath)
+            plt.close()
 
         return df, sigma
 
@@ -131,6 +132,7 @@ class AIDOPlotting:
             plt.yscale("linear")
             plt.legend()
             plt.savefig(fig_savepath)
+            plt.close()
 
         return df_loss
 
@@ -195,6 +197,7 @@ class AIDOPlotting:
             plt.ylabel("Parameter Value", loc="top")
             plt.legend()
             plt.savefig(fig_savepath)
+            plt.close()
 
         return df_params, sigma
 
@@ -240,6 +243,7 @@ class AIDOPlotting:
             plt.ylim(0, 1)
             plt.tight_layout()
             plt.savefig(f"{fig_savepath_absolute}_{name}")
+            plt.close()
             return None
 
         fig_savepath_absolute = f"{results_dir}/{fig_savepath}"

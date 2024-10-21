@@ -23,17 +23,17 @@ if __name__ == "__main__":
             ) ** 2
             return detector_length_loss
 
-    sigma = 2.0
+    sigma = 3.0
     parameters = [
-        AIDO.parameter("thickness_absorber_0", 35.0, min_value=0.0, max_value=50.0, sigma=sigma),
+        AIDO.parameter("thickness_absorber_0", 15.0, min_value=0.1, max_value=50.0, sigma=sigma),
         AIDO.parameter("thickness_scintillator_0", 5.0, min_value=1.0, max_value=25.0, sigma=sigma),
         AIDO.parameter("material_absorber_0", "G4_Fe", discrete_values=["G4_Pb", "G4_Fe"]),
         AIDO.parameter("material_scintillator_0", "G4_Si", discrete_values=["G4_PbWO4", "G4_Si"]),
-        AIDO.parameter("thickness_absorber_1", 20.0, min_value=0.0, max_value=50.0, sigma=sigma),
+        AIDO.parameter("thickness_absorber_1", 10.0, min_value=0.0, max_value=50.0, sigma=sigma),
         AIDO.parameter("thickness_scintillator_1", 10.0, min_value=1.0, max_value=25.0, sigma=sigma),
         AIDO.parameter("material_absorber_1", "G4_Fe", discrete_values=["G4_Pb", "G4_Fe"]),
         AIDO.parameter("material_scintillator_1", "G4_PbWO4", discrete_values=["G4_PbWO4", "G4_Si"]),
-        AIDO.parameter("thickness_absorber_2", 25.0, min_value=0.0, max_value=50.0, sigma=sigma),
+        AIDO.parameter("thickness_absorber_2", 10.0, min_value=0.0, max_value=50.0, sigma=sigma),
         AIDO.parameter("thickness_scintillator_2", 5.0, min_value=1.0, max_value=25.0, sigma=sigma),
         AIDO.parameter("material_absorber_2", "G4_Fe", discrete_values=["G4_Pb", "G4_Fe"]),
         AIDO.parameter("material_scintillator_2", "G4_PbWO4", discrete_values=["G4_PbWO4", "G4_Si"]),
@@ -44,9 +44,9 @@ if __name__ == "__main__":
     AIDO.optimize(
         parameters=parameters,
         user_interface=UIFullCalorimeter,
-        simulation_tasks=30,
+        simulation_tasks=10,
         max_iterations=200,
         threads=11,
-        results_dir="./results_full_calorimeter/results_20241018"
+        results_dir="./results_full_calorimeter/results_20241019"
     )
     os.system("rm *.root")
