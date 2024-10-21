@@ -27,9 +27,7 @@ class AIDOPlotting:
         Returns:
             None
 
-        TODO Fix issue with discrete parameters being plotted alongside continuous ones in parameter
-        evolution and such -> move them to probability evolution instead. Also clean up this class
-        and do not repeat the reading of files all the time
+        TODO Clean up this class and do not repeat the reading of files all the time
         """
         if plot_types == "all":
             plot_types = ["optimizer_loss", "probability_evolution", "parameter_evolution", "simulation_samples"]
