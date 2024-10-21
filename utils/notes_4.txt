@@ -4,3 +4,11 @@ costs also weighted by the softmax of the discrete parameter
 dont make the costs too far appart
 
 compare with Nikhils code!
+
+vscode settings
+{
+    "flake8.args": [
+        "--max-line-length=120",
+        "--ignore=W293,E123,W503",
+    ],
+}
