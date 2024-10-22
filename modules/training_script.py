@@ -1,5 +1,6 @@
 import sys
 import os
+import numpy as np
 import pandas as pd
 import json
 import torch
@@ -43,6 +44,8 @@ if __name__ == "__main__":
     optimizer_model_previous_path = reco_file_paths_dict["optimizer_model_previous_path"]
     surrogate_save_path = reco_file_paths_dict["surrogate_model_save_path"]
     optimizer_save_path = reco_file_paths_dict["optimizer_model_save_path"]
+    optimizer_loss_save_path = reco_file_paths_dict["optimizer_loss_save_path"]
+    constraints_loss_save_path = reco_file_paths_dict["constraints_loss_save_path"]
 
     with open(parameter_dict_input_path, "r") as file:
         parameter_dict: dict = json.load(file)
@@ -78,11 +81,11 @@ if __name__ == "__main__":
             sl = surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0001)
 
     surr_out, reco_out, true_in = surrogate_model.apply_model_in_batches(surrogate_dataset, batch_size=512)
-    surr_out = surr_out * surrogate_dataset.stds[1] + surrogate_dataset.means[1]
+    surr_out = surr_out.numpy() * surrogate_dataset.stds[1] + surrogate_dataset.means[1]
     surrogate_df = pd.DataFrame(surr_out, columns=surrogate_dataset.df["Targets"].columns)
     surrogate_df = pd.concat({"Surrogate": surrogate_df}, axis=1)
     output_df: pd.DataFrame = pd.concat([surrogate_dataset.df, surrogate_df], axis=1)
-    output_df.to_parquet(output_df_path, index=range(len(output_df)))
+    # output_df.to_parquet(output_df_path, index=range(len(output_df)))
 
     # Optimization
     if os.path.isfile(optimizer_model_previous_path):
@@ -90,18 +93,21 @@ if __name__ == "__main__":
     else:
         optimizer = Optimizer(surrogate_model, parameter_dict)
 
-    updated_parameter_dict, is_optimal, o_loss = optimizer.optimize(
+    updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,
         batch_size=512,
         n_epochs=40,
         lr=0.02,
-        add_constraints=True
+        add_constraints=True,
     )
     if not is_optimal:
         raise RuntimeError
 
     with open(parameter_dict_output_path, "w") as file:
         json.dump(updated_parameter_dict, file)
+
+    pd.DataFrame(np.array(optimizer.optimizer_loss)).to_csv(optimizer_loss_save_path)
+    pd.DataFrame(np.array(optimizer.constraints_loss)).to_csv(constraints_loss_save_path)
 
     torch.save(surrogate_model, surrogate_save_path)
     torch.save(optimizer, optimizer_save_path)

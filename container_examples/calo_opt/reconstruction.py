@@ -110,9 +110,9 @@ class Reconstruction(torch.nn.Module):
         self.n_context_features = num_context_features
 
         self.layers = torch.nn.Sequential(
-            torch.nn.Linear(num_parameters + num_input_features, 100),
+            torch.nn.Linear(num_parameters + num_input_features, 200),
             torch.nn.ELU(),
-            torch.nn.Linear(100, 100),
+            torch.nn.Linear(200, 100),
             torch.nn.ELU(),
             torch.nn.Linear(100, 100),
             torch.nn.ELU(),
@@ -124,7 +124,7 @@ class Reconstruction(torch.nn.Module):
         self.device = torch.device('cuda')
 
     def forward(self, detector_parameters, x):
-        """ Concatenate the detector parameters and the input 
+        """ Concatenate the detector parameters and the input
         """
         x = torch.cat([detector_parameters, x], dim=1)
         return self.layers(x)

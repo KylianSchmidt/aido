@@ -146,7 +146,7 @@ class SurrogateDataset(Dataset):
         normalises the target
         '''
         return (target - self.c_means[2]) / self.c_stds[2]
-    
+
     def unnormalise_detector(self, detector):
         '''
         receives back the physically meaningful detector from the normalised detector
@@ -258,6 +258,7 @@ class Surrogate(torch.nn.Module):
             targets: torch.Tensor,
             context: torch.Tensor,
             ):
+        
         n_sample = targets.shape[0]
         x_i = torch.randn(n_sample, 1).to(self.device)  # x_0 ~ N(0, 1)
         
@@ -320,7 +321,7 @@ class Surrogate(torch.nn.Module):
         for i_o in range(oversample):
 
             for batch_idx, (parameters, targets, context, reconstructed) in enumerate(data_loader):
-                
+
                 print(f'Surrogate batch: {batch_idx} / {len(data_loader)}', end='\r')
                 parameters = parameters.to(self.device)
                 targets = targets.to(self.device)

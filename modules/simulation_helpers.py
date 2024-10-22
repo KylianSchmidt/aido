@@ -1,4 +1,7 @@
 from typing import Type, Dict, List, Iterable, Literal, Any
+import os
+import time
+import copy
 import json
 import numpy as np
 import pandas as pd
@@ -25,12 +28,30 @@ class SimulationParameter:
             starting_value: Any,
             current_value: Any | None = None,
             units: str | None = None,
-            optimizable=True,
+            optimizable: bool = True,
             min_value: float | None = None,
             max_value: float | None = None,
             sigma: float | None = None,
-            discrete_values: Iterable | None = None
+            discrete_values: Iterable | None = None,
+            cost: float | Iterable | None = None
             ):
+        """ Create a new Simulation Parameter
+
+        Args
+        ----
+                name (str): The name of the parameter.
+                starting_value (Any): The starting value of the parameter.
+                current_value (Any, optional): The current value of the parameter. Defaults to None.
+                units (str, optional): The units of the parameter. Defaults to None.
+                optimizable (bool, optional): Whether the parameter is optimizable. Defaults to True.
+                min_value (float, optional): The minimum value of the parameter. Defaults to None.
+                max_value (float, optional): The maximum value of the parameter. Defaults to None.
+                sigma (float, optional): The standard deviation of the parameter. Defaults to None.
+                discrete_values (Iterable, optional): The allowed discrete values of the parameter. Defaults to None.
+                cost (float, Iterable, optional): A float that quantifies the cost per unit of this Parameter. Defaults to None.
+                    For discrete parameters, this parameter must be an Iterable (e.g. list) of the same length as
+                    'discrete_values'.
+        """
         assert isinstance(name, str), "Name must be a string"
 
         self.name = name
@@ -85,6 +106,19 @@ class SimulationParameter:
                 isinstance(sigma, float) and discrete_values is None and optimizable is True
             ), "Unable to asign standard deviation to discrete or non-optimizable parameter."
 
+        if isinstance(cost, float):
+            self.cost = cost
+
+        if self.discrete_values and cost is not None:
+            assert (
+                isinstance(cost, Iterable)
+            ), "Parameter 'cost' must be an iterable of the same length as 'discrete_values'"
+            assert (
+                len(cost) == len(self.discrete_values)
+            ), f"Length of 'cost' ({len(cost)}) is different"
+            f"from that of 'discrete_values' ({len(self.discrete_values)})"
+            self.cost = cost
+
     def __str__(self):
         """Return the dict representation of the class, with human-readable indentation
         TODO Do not indent lists e.g. in discrete_values=[]
@@ -109,6 +143,8 @@ class SimulationParameter:
 
     @current_value.setter
     def current_value(self, value):
+        if isinstance(self._starting_value, int) and isinstance(value, float) and abs(value - round(value)) < 10E-15:
+            value = round(value)
         assert (
             isinstance(value, type(self._starting_value))
         ), f"The updated value is of another type ({type(value)}) than before ({type(self._starting_value)})"
@@ -148,8 +184,11 @@ class SimulationParameterDictionary:
         self.parameter_list.append(simulation_parameter)
         self.parameter_dict[name] = simulation_parameter
 
-    def __getitem__(self, key: str) -> SimulationParameter:
-        return self.parameter_dict[key]
+    def __getitem__(self, key: str | int) -> SimulationParameter:
+        if isinstance(key, str):
+            return self.parameter_dict[key]
+        if isinstance(key, int):
+            return self.parameter_list[key]
 
     def __len__(self) -> int:
         return len(self.parameter_list)
@@ -181,17 +220,37 @@ class SimulationParameterDictionary:
         with open(file_path, "w") as file:
             json.dump(self.to_dict(), file)
 
-    def to_df(self, df_length: int = 1) -> pd.DataFrame:
-        """ Create parameter dict from file if path given. Remove all parameters that are not
-        optimizable and also only keep current values. Output is a df of length 'df_length', so
-        that it can be concatenated with the other df's.
+    def to_df(
+            self,
+            df_length: int | None = 1,
+            include_non_optimizables=False,
+            one_hot=False,
+            **kwargs
+            ) -> pd.DataFrame:
+        """ Convert parameter dictionary to a pd.DataFrame
+
+        Args
+        ----
+            df_length (int): The length of the DataFrame to be created. Default is None.
+            include_non_optimizables (bool): Whether to include non-optimizable parameters in the
+                df. Defaults to False.
+            one_hot (bool): Format discrete parameters as one-hot encoded categoricals. Relevant for
+                training with discrete parameters. Defaults to False
+            kwargs: Additional keyword arguments to be passed to the pd.DataFrame constructor.
+        Return
+        ------
+            A pandas DataFrame containing the current parameter values.
         """
-        return pd.DataFrame(self.get_current_values("dict"), index=range(df_length))
+        if df_length is not None:
+            kwargs["index"] = range(df_length)
+
+        return pd.DataFrame(self.get_current_values("dict", include_non_optimizables, one_hot=one_hot), **kwargs)
 
     def get_current_values(
             self,
             format: Literal["list", "dict"] = "dict",
-            include_non_optimizables=False
+            include_non_optimizables=False,
+            one_hot=False
             ):
         if format == "list":
             current_values = []
@@ -204,7 +263,14 @@ class SimulationParameterDictionary:
             current_values = {}
 
             for parameter in self.parameter_list:
-                if parameter.optimizable is True or include_non_optimizables is True:
+                if parameter.optimizable is False and include_non_optimizables is False:
+                    continue
+                if parameter.discrete_values and one_hot is True:
+
+                    for index, val in enumerate(parameter.discrete_values):
+                        bit = 1 if val == parameter.current_value else 0
+                        current_values[f"{parameter.name}_{index}"] = bit
+                else:
                     current_values[parameter.name] = parameter.current_value
 
         return current_values
@@ -241,13 +307,26 @@ class SimulationParameterDictionary:
             parameter_dicts: Dict = json.load(file)
             return cls.from_dict(parameter_dicts.values())
 
-    def generate_new(self, rng_seed: int = 42):
-        """ Generate a set of new values for each parameter, bounded by the min_value and max_value
-        for float parameters. For discrete parameters, the new current_value is randomly chosen from
-        the list of allowed values.
-        TODO Decrease sigma if unable to find a new current_value
+    def generate_new(self, rng_seed: int | None = None):
         """
-        new_parameter_list = self.parameter_list
+        Generates a new set of values for each parameter, bounded by specified minimum and maximum
+        values for float parameters. For discrete parameters, the new value is randomly chosen from
+        the list of allowed values.
+
+        Args:
+        ----
+        rng_seed (int | None): Optional seed for the random number generator. If an integer is provided,
+            the random number generator is initialized with that seed to ensure reproducibility. If None,
+            a pseudo-random seed is generated based on the current time and the process ID, ensuring that
+            each execution results in different random values:
+
+            rng_seed = int(time.time()) + os.getpid()
+        """
+        if rng_seed is None:
+            rng_seed = int(time.time()) + os.getpid()
+
+        rng = np.random.default_rng(rng_seed)
+        new_parameter_list = copy.deepcopy(self.parameter_list)  # Prevents the modification of this instance
 
         for parameter in new_parameter_list:
             if parameter.optimizable is False:
@@ -258,7 +337,6 @@ class SimulationParameterDictionary:
                 continue
 
             elif isinstance(parameter.current_value, float):
-                rng = np.random.default_rng(rng_seed)
 
                 for i in range(100):
                     parameter.current_value = rng.normal(parameter.current_value, parameter.sigma)
@@ -274,7 +352,7 @@ class SimulationParameterDictionary:
                 else:
                     print(f"Warning: unable to set new current value for parameter {parameter}")
 
-        return SimulationParameterDictionary(new_parameter_list)
+        return type(self)(new_parameter_list)
 
 
 if __name__ == "__main__":
