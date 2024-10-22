@@ -129,7 +129,8 @@ class Optimizer(torch.nn.Module):
                     parameters_batch,
                     torch.unsqueeze(context[batch_idx], 0)
                 )
-                loss = surrogate_output.clone()
+                loss = surrogate_output
+                surrogate_loss_detached = surrogate_output.detach()
                 loss += self.other_constraints(additional_constraints)
                 loss += self.loss_box_constraints()
 
@@ -139,7 +140,7 @@ class Optimizer(torch.nn.Module):
                 if np.isnan(loss.item()):
                     # Save parameters, reset the optimizer as if it made a step but without updating the parameters
                     print("Optimizer: NaN loss, exiting.")
-                    prev_parameters = parameters_batch.clone()
+                    prev_parameters = parameters_batch.detach()
                     self.optimizer.step()
 
                     for i, parameter in enumerate(self.parameter_module):
@@ -154,7 +155,7 @@ class Optimizer(torch.nn.Module):
                     stop_epoch = True
                     break
 
-            print(f"Optimizer Epoch: {epoch} \tLoss: {surrogate_output.item():.5f} (reco)", end="\t")
+            print(f"Optimizer Epoch: {epoch} \tLoss: {surrogate_loss_detached.item():.5f} (reco)", end="\t")
             print(f"+ {(self.other_constraints(additional_constraints)):.5f} (constraints)", end="\t")
             print(f"+ {(self.loss_box_constraints()):.5f} (boundaries)", end="\t")
             print(f"= {loss.item():.5f} (total)")

@@ -46,8 +46,11 @@ class OneHotEncoder(torch.nn.Module):
 
     @property
     def probabilities(self):
-        """ Probabilities for each entry """
-        return torch.nn.functional.softmax(self.logits, dim=0)
+        """ Probabilities for each entry, with a minimal probability of 1%"""
+        probabilities = torch.nn.functional.softmax(self.logits, dim=0)
+        probabilities = torch.clamp(probabilities, min=0.01)
+        probabilities = probabilities / probabilities.sum(dim=-1, keepdim=True)
+        return probabilities
 
     @property
     def cost(self):
