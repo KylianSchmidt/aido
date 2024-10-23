@@ -36,30 +36,30 @@ if __name__ == "__main__":
 
     sigma = 3.0
     parameters = SimulationParameterDictionary([
-        AIDO.parameter("thickness_absorber_0", 5.0, min_value=0.1, max_value=50.0, sigma=sigma),
-        AIDO.parameter("thickness_scintillator_0", 10.0, min_value=1.0, max_value=25.0, sigma=sigma),
+        AIDO.parameter("thickness_absorber_0", 10.0, min_value=0.1, max_value=50.0, sigma=sigma),
+        AIDO.parameter("thickness_scintillator_0", 1.0, min_value=1.0, max_value=25.0, sigma=sigma),
         AIDO.parameter("material_absorber_0", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
         AIDO.parameter(
             "material_scintillator_0",
-            "G4_POLYSTYRENE",
+            "G4_PbWO4",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
             cost=[2500.0, 0.01]
         ),
-        AIDO.parameter("thickness_absorber_1", 5.0, min_value=0.1, max_value=50.0, sigma=sigma),
-        AIDO.parameter("thickness_scintillator_1", 15.0, min_value=1.0, max_value=25.0, sigma=sigma),
-        AIDO.parameter("material_absorber_1", "G4_Fe", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
+        AIDO.parameter("thickness_absorber_1", 2.0, min_value=0.1, max_value=50.0, sigma=sigma),
+        AIDO.parameter("thickness_scintillator_1", 1.0, min_value=1.0, max_value=25.0, sigma=sigma),
+        AIDO.parameter("material_absorber_1", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
         AIDO.parameter(
             "material_scintillator_1",
-            "G4_POLYSTYRENE",
+            "G4_PbWO4",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
             cost=[2500.0, 0.01]
         ),
-        AIDO.parameter("thickness_absorber_2", 5.0, min_value=0.1, max_value=50.0, sigma=sigma),
-        AIDO.parameter("thickness_scintillator_2", 10.0, min_value=1.0, max_value=25.0, sigma=sigma),
-        AIDO.parameter("material_absorber_2", "G4_Fe", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
+        AIDO.parameter("thickness_absorber_2", 2.0, min_value=0.1, max_value=50.0, sigma=sigma),
+        AIDO.parameter("thickness_scintillator_2", 1.0, min_value=1.0, max_value=25.0, sigma=sigma),
+        AIDO.parameter("material_absorber_2", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
         AIDO.parameter(
             "material_scintillator_2",
-            "G4_POLYSTYRENE",
+            "G4_PbWO4",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
             cost=[2500.0, 0.01]
         ),
@@ -78,7 +78,10 @@ if __name__ == "__main__":
         results_dir="./results_full_calorimeter/results_20241023",
         description="""
             Full Calorimeter with cost and length constraints.
-            Improvement to yesterday is the pre-training of the Surrogate model
+            Improvement to yesterday is the pre-training of the Surrogate model.
+            This version has normed Surrogate Inputs when running the optimizer!
+            Removed loading the weights from the previous iteration to check whether
+            this leads to periodic loss.
         """
     )
     os.system("rm *.root")

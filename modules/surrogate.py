@@ -241,8 +241,12 @@ class Surrogate(torch.nn.Module):
         self.sqrtmab = self.sqrtmab.to(device)
         return self
     
-    def create_noisy_input(self, x: torch.Tensor):
-        """ Add gaussian noise to a tensor.
+    def create_noisy_input(
+            self,
+            x: torch.Tensor,
+            scale: float = 1.0
+            ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """ Add gaussian noise to a tensor. Scale the noise with 'scale', by default the noise is N(0, 1).
 
         Args:
             x (torch.Tensor): The input tensor to which noise will be added.
@@ -254,7 +258,7 @@ class Surrogate(torch.nn.Module):
                 - torch.Tensor: The time steps used for generating the noise.
         """
         _ts = torch.randint(1, self.n_time_steps + 1, (x.shape[0],)).to(self.device)  # t ~ Uniform(0, n_time_steps)
-        noise = torch.randn_like(x)  # eps ~ N(0, 1)
+        noise = scale * torch.randn_like(x)  # eps ~ N(0, 1)
 
         x_t = self.sqrtab[_ts, None] * x + self.sqrtmab[_ts, None] * noise
         return x_t, noise, _ts
@@ -301,18 +305,21 @@ class Surrogate(torch.nn.Module):
 
             for batch_idx, (parameters, context, reconstructed) in enumerate(train_loader):
                 parameters = parameters.to(self.device)
-                reconstructed = reconstructed.to(self.device)
+                reconstructed: torch.Tensor = reconstructed.to(self.device)
                 context = context.to(self.device)
 
                 reco_noisy, noise, time_step = self.create_noisy_input(reconstructed)
-                model_out = self(parameters, context, reco_noisy, time_step / self.n_time_steps)
+                model_out: torch.Tensor = self(parameters, context, reco_noisy, time_step / self.n_time_steps)
 
                 loss: torch.Tensor = self.loss_mse(noise, model_out)
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
 
-            print(f'Surrogate Epoch: {epoch} \tLoss: {loss.item():.8f}')
+            print(
+                f"Surrogate Epoch: {epoch} \tLoss: {loss.item():.5f}\tReco: {reconstructed[0].item():.5f}"
+                + f"\tReco noisy {reco_noisy[0].item():.5f}\tNoisy surrogate {model_out[0].item():.5f}"
+            )
             self.surrogate_loss.append(loss.item())
 
         self.eval()
@@ -341,7 +348,7 @@ class Surrogate(torch.nn.Module):
         """
         self.to()
         self.eval()
-        data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+        data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         results = torch.zeros(oversample * len(dataset), self.num_reconstructed).to('cpu')
 
         for i_o in range(oversample):

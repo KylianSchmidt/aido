@@ -46,8 +46,6 @@ def training_loop(
     output_df_path = reco_file_paths_dict["reco_output_df"]
     parameter_dict_input_path = reco_file_paths_dict["current_parameter_dict"]
     parameter_dict_output_path = reco_file_paths_dict["updated_parameter_dict"]
-    surrogate_model_previous_path = reco_file_paths_dict["surrogate_model_previous_path"]
-    optimizer_model_previous_path = reco_file_paths_dict["optimizer_model_previous_path"]
     surrogate_save_path = reco_file_paths_dict["surrogate_model_save_path"]
     optimizer_save_path = reco_file_paths_dict["optimizer_model_save_path"]
     optimizer_loss_save_path = reco_file_paths_dict["optimizer_loss_save_path"]
@@ -60,15 +58,11 @@ def training_loop(
     n_epochs_main = 100
 
     # Surrogate:
-    print("Surrogate Training")
     surrogate_dataset = SurrogateDataset(pd.read_parquet(output_df_path))
-
-    if os.path.isfile(surrogate_model_previous_path):
-        surrogate = torch.load(surrogate_model_previous_path)
-    else:
-        surrogate = Surrogate(*surrogate_dataset.shape)
+    surrogate = Surrogate(*surrogate_dataset.shape)
 
     pre_train(surrogate, surrogate_dataset, n_epochs_pre)
+    print("Surrogate Training")
     surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
     surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
 
@@ -86,17 +80,12 @@ def training_loop(
             surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
             surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0001)
 
-    surrogate.apply_model_in_batches(surrogate_dataset, batch_size=512)
-
     # Optimization
-    if os.path.isfile(optimizer_model_previous_path):
-        optimizer = torch.load(optimizer_model_previous_path)
-    else:
-        optimizer = Optimizer(surrogate, parameter_dict)
+    optimizer = Optimizer(surrogate, parameter_dict)
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,
-        batch_size=512,
+        batch_size=256,
         n_epochs=40,
         lr=0.02,
         additional_constraints=constraints

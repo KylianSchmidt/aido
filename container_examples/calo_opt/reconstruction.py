@@ -173,9 +173,8 @@ class Reconstruction(torch.nn.Module):
             batch_size: int,
             normalize_outputs: bool = False
             ) -> Tuple[np.ndarray, np.ndarray, float]:
-        """ Apply the model in batches
-        this is necessary because the model is too large to apply it to the whole dataset at once.
-        The model is applied to the dataset in batches and the results are concatenated.
+        """ Apply the model in batches this is necessary because the model is too large to apply it to the
+        whole dataset at once. The model is applied to the dataset in batches and the results are concatenated
         (the batch size is a hyperparameter).
         """
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
@@ -197,14 +196,14 @@ class Reconstruction(torch.nn.Module):
 
             if results is None:
                 results = torch.zeros(len(dataset), y_pred.shape[1])
-                loss_array = torch.zeros(len(dataset), y_pred.shape[1])
+                loss_array = torch.zeros(len(dataset))
 
             results[batch_idx * batch_size: (batch_idx + 1) * batch_size] = y_pred
-            loss_array[batch_idx * batch_size: (batch_idx + 1) * batch_size] = torch.fill(y_pred, loss)
+            loss_array[batch_idx] = loss
 
         mean_loss /= len(data_loader)
         results = results.detach().cpu().numpy()
-        loss_array = loss_array.flatten().detach().cpu().numpy()
+        loss_array = loss_array.detach().cpu().numpy()
 
         if normalize_outputs is False:
             results = results * dataset.stds[2] + dataset.means[2]

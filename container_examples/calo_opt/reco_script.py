@@ -50,7 +50,7 @@ if __name__ == "__main__":
     reco_model.train_model(reco_dataset, batch_size=256, n_epochs=n_epochs_main // 4, lr=0.003)
     reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
     reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
-    reco_result, reco_loss, _ = reco_model.apply_model_in_batches(reco_dataset, batch_size=128)
+    reco_result, reco_loss, _ = reco_model.apply_model_in_batches(reco_dataset, batch_size=1)
 
     reconstructed_df = pd.DataFrame(reco_result, columns=reco_dataset.df["Targets"].columns)
     reconstructed_df = pd.concat({"Reconstructed": reconstructed_df}, axis=1)

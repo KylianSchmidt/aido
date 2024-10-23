@@ -122,15 +122,16 @@ class Optimizer(torch.nn.Module):
                 reconstructed = reconstructed.to(self.device)
 
                 parameters_batch = self.parameter_module()
+                parameters_batch_normed = (parameters_batch - dataset.c_means[0] + 1e-3) / dataset.c_stds[0]
                 self.parameter_dict.update_current_values(self.parameter_module.physical_values(format="dict"))
                 self.parameter_dict.update_probabilities(self.parameter_module.get_probabilities())
 
                 surrogate_output = self.surrogate_model.sample_forward(
-                    parameters_batch,
+                    parameters_batch_normed,
                     torch.unsqueeze(context[batch_idx], 0)
                 )
                 loss = surrogate_output
-                surrogate_loss_detached = surrogate_output.detach()
+                surrogate_loss_detached = surrogate_output.item()
                 loss += self.other_constraints(additional_constraints)
                 loss += self.loss_box_constraints()
 
@@ -155,7 +156,7 @@ class Optimizer(torch.nn.Module):
                     stop_epoch = True
                     break
 
-            print(f"Optimizer Epoch: {epoch} \tLoss: {surrogate_loss_detached.item():.5f} (reco)", end="\t")
+            print(f"Optimizer Epoch: {epoch} \tLoss: {surrogate_loss_detached:.5f} (reco)", end="\t")
             print(f"+ {(self.other_constraints(additional_constraints)):.5f} (constraints)", end="\t")
             print(f"+ {(self.loss_box_constraints()):.5f} (boundaries)", end="\t")
             print(f"= {loss.item():.5f} (total)")
