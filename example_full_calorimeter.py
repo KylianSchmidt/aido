@@ -43,7 +43,7 @@ if __name__ == "__main__":
             "material_scintillator_0",
             "G4_POLYSTYRENE",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
-            cost=[2500.0, 0.1]
+            cost=[2500.0, 0.01]
         ),
         AIDO.parameter("thickness_absorber_1", 5.0, min_value=0.1, max_value=50.0, sigma=sigma),
         AIDO.parameter("thickness_scintillator_1", 15.0, min_value=1.0, max_value=25.0, sigma=sigma),
@@ -52,7 +52,7 @@ if __name__ == "__main__":
             "material_scintillator_1",
             "G4_POLYSTYRENE",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
-            cost=[2500.0, 0.1]
+            cost=[2500.0, 0.01]
         ),
         AIDO.parameter("thickness_absorber_2", 5.0, min_value=0.1, max_value=50.0, sigma=sigma),
         AIDO.parameter("thickness_scintillator_2", 10.0, min_value=1.0, max_value=25.0, sigma=sigma),
@@ -61,7 +61,7 @@ if __name__ == "__main__":
             "material_scintillator_2",
             "G4_POLYSTYRENE",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
-            cost=[2500.0, 0.1]
+            cost=[2500.0, 0.01]
         ),
         AIDO.parameter("num_events", 200, optimizable=False),
         AIDO.parameter("max_length", 200, optimizable=False),
@@ -75,6 +75,10 @@ if __name__ == "__main__":
         simulation_tasks=10,
         max_iterations=100,
         threads=11,
-        results_dir="./results_full_calorimeter/results_20241022_with_cost_3"
+        results_dir="./results_full_calorimeter/results_20241023",
+        description="""
+            Full Calorimeter with cost and length constraints.
+            Improvement to yesterday is the pre-training of the Surrogate model
+        """
     )
     os.system("rm *.root")

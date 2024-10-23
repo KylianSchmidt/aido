@@ -220,6 +220,7 @@ class SimulationParameterDictionary:
         """Initialize a list of parameters"""
         self.iteration: int = 0
         self.creation_time = str(datetime.datetime.now())
+        self.description = ""
         self.parameter_list = parameter_list
         self.parameter_dict = self.to_dict(serialized=False)
 
@@ -378,7 +379,7 @@ class SimulationParameterDictionary:
 
     @property
     def metadata(self):
-        return {"iteration": self.iteration, "creation_time": self.creation_time}
+        return {"iteration": self.iteration, "creation_time": self.creation_time, "description": self.description}
 
     @classmethod
     def from_dict(cls, parameter_dict: Dict):
