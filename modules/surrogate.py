@@ -212,6 +212,7 @@ class Surrogate(torch.nn.Module):
             torch.nn.Linear(100, num_reconstructed),
         )
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
+        self.surrogate_loss = []
         self.n_time_steps = n_time_steps
         self.device = torch.device('cuda')
         self.t_is = torch.tensor([i / self.n_time_steps for i in range(self.n_time_steps + 1)]).to(self.device)
@@ -312,6 +313,7 @@ class Surrogate(torch.nn.Module):
                 self.optimizer.step()
 
             print(f'Surrogate Epoch: {epoch} \tLoss: {loss.item():.8f}')
+            self.surrogate_loss.append(loss.item())
 
         self.eval()
         return loss.item()

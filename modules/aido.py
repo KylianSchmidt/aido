@@ -107,7 +107,8 @@ class IteratorTask(b2luigi.Task):
             "reco_input_df": str(self.get_output_file_name("reco_input_df")),
             "reco_output_df": str(self.get_output_file_name("reco_output_df")),
             "optimizer_loss_save_path": f"{self.results_dir}/loss/optimizer/optimizer_loss_{self.iteration}",
-            "constraints_loss_save_path": f"{self.results_dir}/loss/constraints/contraints_loss_{self.iteration}"
+            "constraints_loss_save_path": f"{self.results_dir}/loss/constraints/constraints_loss_{self.iteration}",
+            "surrogate_loss_save_path": f"{self.results_dir}/loss/surrogate/surrogate_loss_{self.iteration}"
         }
         if os.path.isfile(self.next_param_dict_file):
             print(f"Iteration {self.iteration} has an updated parameter dict already and will be skipped")
@@ -198,7 +199,8 @@ class AIDO:
             simulation_tasks: int = 1,
             max_iterations: int = 50,
             threads: int = 1,
-            results_dir: str | os.PathLike = "./results/"
+            results_dir: str | os.PathLike = "./results/",
+            description: str = ""
             ):
         """
         Args:
@@ -227,6 +229,7 @@ class AIDO:
 
         if isinstance(parameters, list):
             parameters = SimulationParameterDictionary(parameters)
+        parameters.description = description
         parameters.to_json(start_param_dict_file_path)
 
         assert (

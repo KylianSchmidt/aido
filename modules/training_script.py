@@ -13,7 +13,7 @@ from modules.surrogate import Surrogate, SurrogateDataset
 
 
 def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
-    """ Pre-train the  a given model
+    """ Pre-train the Surrogate Model.
 
     TODO Reconstruction results are normalized. In the future only expose the un-normalised ones,
     but also requires adjustments to the surrogate dataset
@@ -47,29 +47,31 @@ def training_loop(
     output_df_path = reco_file_paths_dict["reco_output_df"]
     parameter_dict_input_path = reco_file_paths_dict["current_parameter_dict"]
     parameter_dict_output_path = reco_file_paths_dict["updated_parameter_dict"]
-    surrogate_model_previous_path = reco_file_paths_dict["surrogate_model_previous_path"]
+    surrogate_previous_path = reco_file_paths_dict["surrogate_previous_path"]
     optimizer_model_previous_path = reco_file_paths_dict["optimizer_model_previous_path"]
-    surrogate_save_path = reco_file_paths_dict["surrogate_model_save_path"]
+    surrogate_save_path = reco_file_paths_dict["surrogate_save_path"]
     optimizer_save_path = reco_file_paths_dict["optimizer_model_save_path"]
     optimizer_loss_save_path = reco_file_paths_dict["optimizer_loss_save_path"]
+    surrogate_loss_save_path = reco_file_paths_dict["surrogate_loss_save_path"]
     constraints_loss_save_path = reco_file_paths_dict["constraints_loss_save_path"]
 
     parameter_dict = SimulationParameterDictionary.from_json(parameter_dict_input_path)
 
     n_epochs_pre = 5
-    n_epochs_main = 50
+    n_epochs_main = 100
 
     # Surrogate:
     print("Surrogate Training")
     surrogate_dataset = SurrogateDataset(pd.read_parquet(output_df_path))
 
-    if os.path.isfile(surrogate_model_previous_path):
-        surrogate_model = torch.load(surrogate_model_previous_path)
+    if os.path.isfile(surrogate_previous_path):
+        surrogate = torch.load(surrogate_previous_path)
     else:
-        surrogate_model = Surrogate(*surrogate_dataset.shape)
+        surrogate = Surrogate(*surrogate_dataset.shape)
 
-    surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
-    surrogate_loss = surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
+    pre_train(surrogate, surrogate_dataset, n_epochs_pre)
+    surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
+    surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
 
     best_surrogate_loss = 1e10
 
@@ -79,19 +81,19 @@ def training_loop(
             break
         else:
             print("Surrogate Re-Training")
-            pre_train(surrogate_model, surrogate_dataset, n_epochs_pre)
-            surrogate_model.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 5, lr=0.005)
-            surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
-            surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
-            surrogate_model.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0001)
+            pre_train(surrogate, surrogate_dataset, n_epochs_pre)
+            surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 5, lr=0.005)
+            surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
+            surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
+            surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0001)
 
-    surrogate_model.apply_model_in_batches(surrogate_dataset, batch_size=512)
+    surrogate.apply_model_in_batches(surrogate_dataset, batch_size=512)
 
     # Optimization
     if os.path.isfile(optimizer_model_previous_path):
         optimizer = torch.load(optimizer_model_previous_path)
     else:
-        optimizer = Optimizer(surrogate_model, parameter_dict)
+        optimizer = Optimizer(surrogate, parameter_dict)
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,
@@ -105,10 +107,11 @@ def training_loop(
 
     updated_parameter_dict.to_json(parameter_dict_output_path)
 
+    pd.DataFrame(np.array(surrogate.surrogate_loss)).to_csv(surrogate_loss_save_path)
     pd.DataFrame(np.array(optimizer.optimizer_loss)).to_csv(optimizer_loss_save_path)
     pd.DataFrame(np.array(optimizer.constraints_loss)).to_csv(constraints_loss_save_path)
 
-    torch.save(surrogate_model, surrogate_save_path)
+    torch.save(surrogate, surrogate_save_path)
     torch.save(optimizer, optimizer_save_path)
 
 

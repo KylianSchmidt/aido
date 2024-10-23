@@ -166,7 +166,7 @@ class ParameterModule(torch.nn.ModuleDict):
         elif format == "dict":
             return {name: parameter.physical_value for name, parameter in self.items()}
         
-    def get_probabilities(self):
+    def get_probabilities(self) -> dict[str, np.ndarray]:
         return {
             name: parameter.probabilities.detach().cpu().numpy() for name, parameter in self.parameters_discrete.items()
         }
@@ -188,7 +188,7 @@ class ParameterModule(torch.nn.ModuleDict):
         Direction is a vector in parameter space
         """
         parameter_direction_vector = direction.detach().cpu().numpy()
-        parameter_direction_length = np.linalg.norm(parameter_direction_vector)
+        parameter_direction_length = np.linalg.norm(parameter_direction_vector) + 1E-6
 
         scaling_factor = min_scale * np.max([1., 4. * parameter_direction_length])
         # Create the scaling adjustment matrix
