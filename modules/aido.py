@@ -225,6 +225,7 @@ class AIDO:
         os.makedirs(f"{results_dir}/plots", exist_ok=True)
         os.makedirs(f"{results_dir}/loss/optimizer", exist_ok=True)
         os.makedirs(f"{results_dir}/loss/constraints", exist_ok=True)
+        os.makedirs(f"{results_dir}/loss/surrogate", exist_ok=True)
         start_param_dict_file_path = f"{results_dir}/parameters/param_dict_iter_0.json"
 
         if isinstance(parameters, list):
