@@ -220,6 +220,7 @@ class AIDO:
                 'threads' = 'simulation_tasks' + 1.
         """
         b2luigi.set_setting("result_dir", f"{results_dir}/task_outputs")
+        os.makedirs(f"{results_dir}", exist_ok=True)
         os.makedirs(f"{results_dir}/parameters", exist_ok=True)
         os.makedirs(f"{results_dir}/models", exist_ok=True)
         os.makedirs(f"{results_dir}/plots", exist_ok=True)
