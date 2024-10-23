@@ -69,6 +69,10 @@ class AIDO:
                 NOTE There is no benefit in having 'threads' > 'simulation_tasks' per se, but in some cases,
                 errors involving missing dependencies after the simulation step can be fixed by setting:
                 'threads' = 'simulation_tasks' + 1.
+            results_dir (str): Indicates where to save the results. Useful when differentiating runs from
+                each other.
+            description (str, optional): Additional text associated with the run. Is saved in the parameter
+                json files under 'metadata:description"
         """
         if isinstance(parameters, list):
             parameters = SimulationParameterDictionary(parameters)
