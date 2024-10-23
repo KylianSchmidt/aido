@@ -47,7 +47,7 @@ def training_loop(
     output_df_path = reco_file_paths_dict["reco_output_df"]
     parameter_dict_input_path = reco_file_paths_dict["current_parameter_dict"]
     parameter_dict_output_path = reco_file_paths_dict["updated_parameter_dict"]
-    surrogate_previous_path = reco_file_paths_dict["surrogate_previous_path"]
+    surrogate_model_previous_path = reco_file_paths_dict["surrogate_previous_path"]
     optimizer_model_previous_path = reco_file_paths_dict["optimizer_model_previous_path"]
     surrogate_save_path = reco_file_paths_dict["surrogate_save_path"]
     optimizer_save_path = reco_file_paths_dict["optimizer_model_save_path"]
@@ -64,8 +64,8 @@ def training_loop(
     print("Surrogate Training")
     surrogate_dataset = SurrogateDataset(pd.read_parquet(output_df_path))
 
-    if os.path.isfile(surrogate_previous_path):
-        surrogate = torch.load(surrogate_previous_path)
+    if os.path.isfile(surrogate_model_previous_path):
+        surrogate = torch.load(surrogate_model_previous_path)
     else:
         surrogate = Surrogate(*surrogate_dataset.shape)
 
