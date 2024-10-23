@@ -73,8 +73,8 @@ class Optimizer(torch.nn.Module):
         if len(self.parameter_box) != 0:
             parameters_continuous_tensor = self.parameter_module.tensor("continuous")
             return (
-                torch.mean(100. * torch.nn.ReLU()(self.parameter_box[:, 0] - parameters_continuous_tensor))
-                + torch.mean(100. * torch.nn.ReLU()(- self.parameter_box[:, 1] + parameters_continuous_tensor))
+                torch.mean(0.5 * torch.nn.ReLU()(self.parameter_box[:, 0] - parameters_continuous_tensor)**2)
+                + torch.mean(0.5 * torch.nn.ReLU()(- self.parameter_box[:, 1] + parameters_continuous_tensor)**2)
             )
 
     def other_constraints(
