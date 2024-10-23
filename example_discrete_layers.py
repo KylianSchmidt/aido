@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 from container_examples.calo_opt.interface_calo_opt import AIDOUserInterfaceExample
-from modules.aido import AIDO
+from modules.scheduler import AIDO
 
 if __name__ == "__main__":
     results_dir = "results_discrete_20241014"

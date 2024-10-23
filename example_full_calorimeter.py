@@ -3,15 +3,14 @@ import os
 import numpy as np
 import torch
 
+from aido import AIDO  # required
 from container_examples.calo_opt.interface_simple import AIDOUserInterfaceExample  # Import your derived class
-from modules.aido import AIDO  # required
-from modules.simulation_helpers import SimulationParameterDictionary
 
 
 class UIFullCalorimeter(AIDOUserInterfaceExample):
 
     @classmethod
-    def constraints(self, parameter_dict: SimulationParameterDictionary) -> torch.Tensor:
+    def constraints(self, parameter_dict: AIDO.parameter_dict) -> torch.Tensor:
 
         detector_length = 0.0
         cost = 0.0
@@ -35,7 +34,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 if __name__ == "__main__":
 
     sigma = 3.0
-    parameters = SimulationParameterDictionary([
+    parameters = AIDO.parameter_dict([
         AIDO.parameter("thickness_absorber_0", 10.0, min_value=0.1, max_value=50.0, sigma=sigma),
         AIDO.parameter("thickness_scintillator_0", 1.0, min_value=1.0, max_value=25.0, sigma=sigma),
         AIDO.parameter("material_absorber_0", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
@@ -75,7 +74,7 @@ if __name__ == "__main__":
         simulation_tasks=10,
         max_iterations=100,
         threads=11,
-        results_dir="./results_full_calorimeter/results_20241023",
+        results_dir="./results_full_calorimeter/results_20241023_2",
         description="""
             Full Calorimeter with cost and length constraints.
             Improvement to yesterday is the pre-training of the Surrogate model.

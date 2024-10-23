@@ -3,7 +3,7 @@ import importlib
 import importlib.util
 import sys
 
-from modules.aido import AIDO
+from modules.scheduler import AIDO
 from modules.simulation_helpers import SimulationParameterDictionary
 
 

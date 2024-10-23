@@ -1,7 +1,7 @@
 import os
 
 from container_examples.calo_opt.interface_calo_opt import AIDOUserInterfaceExample  # Import your derived class
-from modules.aido import AIDO  # required
+from modules.scheduler import AIDO  # required
 
 global_htcondor_settings = {
     # "requirements": '(Machine != "f03-001-140-e.gridka.de")',

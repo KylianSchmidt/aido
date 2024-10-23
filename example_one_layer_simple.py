@@ -3,7 +3,7 @@ import os
 import torch
 
 from container_examples.calo_opt.interface_simple import AIDOUserInterfaceExample  # Import your derived class
-from modules.aido import AIDO  # required
+from modules.scheduler import AIDO  # required
 from modules.simulation_helpers import SimulationParameterDictionary
 
 if __name__ == "__main__":

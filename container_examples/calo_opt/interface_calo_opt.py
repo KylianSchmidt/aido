@@ -4,8 +4,8 @@ from typing import Dict, Iterable, List
 import pandas as pd
 import torch
 
-from modules.aido import AIDO
 from modules.interface import AIDOUserInterface
+from modules.scheduler import AIDO
 from modules.simulation_helpers import SimulationParameterDictionary
 
 
