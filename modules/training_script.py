@@ -33,7 +33,6 @@ def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     model.train_model(dataset, batch_size=1024, n_epochs=n_epochs, lr=0.001)
 
     model.apply_model_in_batches(dataset, batch_size=128)
-    model.to('cpu')
 
 
 def training_loop(
