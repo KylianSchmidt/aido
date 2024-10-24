@@ -61,6 +61,7 @@ def training_loop(
     surrogate_dataset = SurrogateDataset(pd.read_parquet(output_df_path))
     surrogate = Surrogate(*surrogate_dataset.shape)
 
+    print("Surrogate Pre-Training")
     pre_train(surrogate, surrogate_dataset, n_epochs_pre)
     print("Surrogate Training")
     surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)

@@ -114,7 +114,8 @@ class Optimizer(torch.nn.Module):
         self.constraints_loss = []
 
         for epoch in range(n_epochs):
-            epoch_loss = 0
+            epoch_loss = 0.0
+            epoch_constraints_loss = 0.0
             stop_epoch = False
 
             for batch_idx, (_parameters, context, reconstructed) in enumerate(data_loader):
@@ -151,6 +152,7 @@ class Optimizer(torch.nn.Module):
 
                 self.optimizer.step()
                 epoch_loss += loss.item()
+                epoch_constraints_loss += self.other_constraints(additional_constraints)
 
                 if not self.parameter_module.check_parameters_are_local(self.parameter_module.tensor("continuous")):
                     stop_epoch = True
@@ -160,9 +162,11 @@ class Optimizer(torch.nn.Module):
             print(f"+ {(self.other_constraints(additional_constraints)):.5f} (constraints)", end="\t")
             print(f"+ {(self.loss_box_constraints()):.5f} (boundaries)", end="\t")
             print(f"= {loss.item():.5f} (total)")
+
             epoch_loss /= batch_idx + 1
+            epoch_constraints_loss /= batch_idx + 1
             self.optimizer_loss.append(epoch_loss)
-            self.constraints_loss.append(self.other_constraints(additional_constraints))
+            self.constraints_loss.append(epoch_constraints_loss)
 
             if stop_epoch:
                 break
