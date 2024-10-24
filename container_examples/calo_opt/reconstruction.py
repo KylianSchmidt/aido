@@ -143,7 +143,7 @@ class Reconstruction(torch.nn.Module):
         y_pred = torch.where(torch.isinf(y_pred), torch.zeros_like(y_pred), y_pred)
 
         return ((y_pred - y)**2 / (torch.abs(y) + 1.)).mean()
-    
+
     def train_model(self, dataset: ReconstructionDataset, batch_size: int, n_epochs: int, lr: float):
         train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         self.optimizer.lr = lr

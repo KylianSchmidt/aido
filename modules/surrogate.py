@@ -307,6 +307,7 @@ class Surrogate(torch.nn.Module):
                 model_out = self(parameters, context, reco_noisy, time_step / self.n_time_steps)
 
                 loss: torch.Tensor = self.loss_mse(noise, model_out)
+
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()

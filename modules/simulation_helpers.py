@@ -387,6 +387,7 @@ class SimulationParameterDictionary:
         """
         metadata: Dict = parameter_dict.pop("metadata")
         instance = cls([SimulationParameter.from_dict(parameter) for parameter in parameter_dict.values()])
+
         for name, value in metadata.items():
             instance.__setattr__(name, value)
         return instance

@@ -93,4 +93,3 @@ The pipeline for the optimization algorithm will be handled by b2luigi.
     - [x] Use Gradient descent to find local minimum
     - [x] Write optimal parameters to file for this iteration
     - [x] Call the class responsable for generating new parameter sets
-
