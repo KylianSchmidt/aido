@@ -98,15 +98,15 @@ def training_loop(
 
     pd.DataFrame(
         np.array(surrogate.surrogate_loss),
-        columns=["Epoch", "Surrogate Loss"]
+        columns=["Surrogate Loss"]
     ).to_csv(surrogate_loss_save_path)
     pd.DataFrame(
         np.array(optimizer.optimizer_loss),
-        columns=["Epoch", "Optimizer Loss"]
+        columns=["Optimizer Loss"]
     ).to_csv(optimizer_loss_save_path)
     pd.DataFrame(
         np.array(optimizer.constraints_loss),
-        columns=["Epoch", "Constraints Loss"]
+        columns=["Constraints Loss"]
     ).to_csv(constraints_loss_save_path)
 
     torch.save(surrogate, surrogate_save_path)

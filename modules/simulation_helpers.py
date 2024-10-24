@@ -11,12 +11,6 @@ import pandas as pd
 
 class SimulationParameter:
     """Base class for all parameters used in the simulation
-
-    TODO Write warnings in case the base class is used directly in the dictionary
-    ref: https://stackoverflow.com/questions/46092104/subclass-in-type-hinting
-    Update: dont know if this is necessary, this class has already most capabilities.
-
-    TODO Make min and max also private attributes
     """
 
     def __init__(
@@ -37,21 +31,21 @@ class SimulationParameter:
 
         Args
         ----
-                name (str): The name of the parameter.
-                starting_value (Any): The starting value of the parameter.
-                current_value (Any, optional): The current value of the parameter. Defaults to None.
-                units (str, optional): The units of the parameter. Defaults to None.
-                optimizable (bool, optional): Whether the parameter is optimizable. Defaults to True.
-                min_value (float, optional): The minimum value of the parameter. Defaults to None.
-                max_value (float, optional): The maximum value of the parameter. Defaults to None.
-                sigma (float, optional): The standard deviation of the parameter. Defaults to None.
-                discrete_values (Iterable, optional): The allowed discrete values of the parameter. Defaults to None.
-                probabilities (Iterable[float], optional): A list of the same length as 'discrete_values' used to
-                    sample from 'discrete_values', if set to None, an equally-distributed array is created.
-                    Only for discrete parameters. Defaults to None
-                cost (float, Iterable, optional): A float that quantifies the cost per unit of this Parameter.
-                    Defaults to None. For discrete parameters, this parameter must be an Iterable (e.g. list) of the
-                    same length as 'discrete_values'.
+            name (str): The name of the parameter.
+            starting_value (Any): The starting value of the parameter.
+            current_value (Any, optional): The current value of the parameter. Defaults to None.
+            units (str, optional): The units of the parameter. Defaults to None.
+            optimizable (bool, optional): Whether the parameter is optimizable. Defaults to True.
+            min_value (float, optional): The minimum value of the parameter. Defaults to None.
+            max_value (float, optional): The maximum value of the parameter. Defaults to None.
+            sigma (float, optional): The standard deviation of the parameter. Defaults to None.
+            discrete_values (Iterable, optional): The allowed discrete values of the parameter. Defaults to None.
+            probabilities (Iterable[float], optional): A list of the same length as 'discrete_values' used to
+                sample from 'discrete_values', if set to None, an equally-distributed array is created.
+                Only for discrete parameters. Defaults to None
+            cost (float, Iterable, optional): A float that quantifies the cost per unit of this Parameter.
+                Defaults to None. For discrete parameters, this parameter must be an Iterable (e.g. list) of the
+                same length as 'discrete_values'.
         """
         assert isinstance(name, str), "Name must be a string"
 
@@ -203,21 +197,58 @@ class SimulationParameter:
 
 
 class SimulationParameterDictionary:
-    """Dictionary containing the list of parameters used by the simulation.
+    """Dictionary containing all the parameters used by the simulation.
 
     Attributes:
     parameter_list: List[Type[SimulationParameter]]
+    parameter_dict: Dict[str, Type[SimulationParameter]]
 
-    Provides IO methods to easily write and read with json format.
+    Provides simple methods to easily write and read with the json format. Instances of this
+    class have the following methods, with additional options listed in the method's docstring
 
-    TODO Additional information such as current iteration number, date of creation, etc...
+      1. Accessing the information stored in the class:
+
+        - Indexing as a list (in the same order as given during instantiation) or as a dict
+            using the parameter's 'name'. Also usable with list or dict comprehension.
+        - 'to_dict' returns a dict with the parameters also in a dict format. Alternatively,
+            it returns a dict of 'SimulationParameter' (same as indexing this class by 'name')
+            if you add the keyword argument 'serialized=False'.
+        - 'to_json' will write all data from this class to a specified .json file in a dict
+            format.
+        - 'to_df' returns a pd.DataFrame of your parameters. More options are listed in the
+            method's docstring.
+        - 'get_current_values' returns all the current values of each parameter in a list or
+            dict format.
+        - 'get_probabilities' returns a dict whose values are the probabilities of each
+            discrete parameter. More information about the usage of probabilities for one-hot
+            encoded parameters is listed in the docstring of SimulationParameter.
+
+      2. Instantiating this class from other objects:
+        - 'from_dict' instantiates this class from a nested dict, where each entry is the dict
+            representation of a SimulationParameter (which has a similar method)
+        - 'from_json' instantiates this class from a json file. Specially useful in the combination
+            with 'to_json' to transfer this class between programs.
+
+      3. Changing the information stored:
+        - 'update_current_values' will change all the current values of the class provided a
+            simple dict [str, <update_value>].
+        - 'update_probabilities' does the same but with all the probabilities of the discrete
+            parameters of the class.
+        - 'generate_new' will return a new instance of this class with new current values for each
+            parameter
+
+      4. Properties:
+        - 'covariance' returns a diagonal matrix with the 'sigma' of every continuous parameter.
+        - 'metadata' returns additional information about this class such as its creation time,
+            the current iteration of the optimization process and user-defined descriptions.
     """
 
     def __init__(
             self,
             parameter_list: List[Type[SimulationParameter]] = [],
             ):
-        """Initialize a list of parameters"""
+        """ Initialize with a list of parameters 'SimulationParameter'
+        """
         self.iteration: int = 0
         self.creation_time = str(datetime.datetime.now())
         self.description = ""
@@ -284,6 +315,9 @@ class SimulationParameterDictionary:
                 df. Defaults to False.
             one_hot (bool): Format discrete parameters as one-hot encoded categoricals. Relevant for
                 training with discrete parameters. Defaults to False
+            types (str): Choose what kind of parameters will be added to the pd.DataFrame. All includes
+                all parameters, continuous only those with no 'discrete_values' and discrete only
+                those with 'discrete_values'.
             kwargs: Additional keyword arguments to be passed to the pd.DataFrame constructor.
         Return
         ------

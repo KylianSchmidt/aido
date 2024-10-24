@@ -3,14 +3,14 @@ import os
 import numpy as np
 import torch
 
-from aido import AIDO  # required
+import aido  # required
 from container_examples.calo_opt.interface_simple import AIDOUserInterfaceExample  # Import your derived class
 
 
 class UIFullCalorimeter(AIDOUserInterfaceExample):
 
     @classmethod
-    def constraints(self, parameter_dict: AIDO.parameter_dict) -> torch.Tensor:
+    def constraints(self, parameter_dict: aido.SimulationParameterDictionary) -> torch.Tensor:
 
         detector_length = 0.0
         cost = 0.0
@@ -33,48 +33,48 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
 if __name__ == "__main__":
 
-    sigma = 3.0
-    parameters = AIDO.parameter_dict([
-        AIDO.parameter("thickness_absorber_0", 10.0, min_value=0.1, max_value=50.0, sigma=sigma),
-        AIDO.parameter("thickness_scintillator_0", 1.0, min_value=1.0, max_value=25.0, sigma=sigma),
-        AIDO.parameter("material_absorber_0", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
-        AIDO.parameter(
+    sigma = 2.0
+    parameters = aido.SimulationParameterDictionary([
+        aido.SimulationParameter("thickness_absorber_0", 5.0, min_value=0.1, max_value=50.0, sigma=sigma),
+        aido.SimulationParameter("thickness_scintillator_0", 5.0, min_value=1.0, max_value=25.0, sigma=sigma),
+        aido.SimulationParameter("material_absorber_0", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
+        aido.SimulationParameter(
             "material_scintillator_0",
-            "G4_PbWO4",
+            "G4_POLYSTYRENE",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
             cost=[2500.0, 0.01]
         ),
-        AIDO.parameter("thickness_absorber_1", 2.0, min_value=0.1, max_value=50.0, sigma=sigma),
-        AIDO.parameter("thickness_scintillator_1", 1.0, min_value=1.0, max_value=25.0, sigma=sigma),
-        AIDO.parameter("material_absorber_1", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
-        AIDO.parameter(
+        aido.SimulationParameter("thickness_absorber_1", 5.0, min_value=0.1, max_value=50.0, sigma=sigma),
+        aido.SimulationParameter("thickness_scintillator_1", 5.0, min_value=1.0, max_value=25.0, sigma=sigma),
+        aido.SimulationParameter("material_absorber_1", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
+        aido.SimulationParameter(
             "material_scintillator_1",
             "G4_PbWO4",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
             cost=[2500.0, 0.01]
         ),
-        AIDO.parameter("thickness_absorber_2", 2.0, min_value=0.1, max_value=50.0, sigma=sigma),
-        AIDO.parameter("thickness_scintillator_2", 1.0, min_value=1.0, max_value=25.0, sigma=sigma),
-        AIDO.parameter("material_absorber_2", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
-        AIDO.parameter(
+        aido.SimulationParameter("thickness_absorber_2", 5.0, min_value=0.1, max_value=50.0, sigma=sigma),
+        aido.SimulationParameter("thickness_scintillator_2", 5.0, min_value=1.0, max_value=25.0, sigma=sigma),
+        aido.SimulationParameter("material_absorber_2", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
+        aido.SimulationParameter(
             "material_scintillator_2",
             "G4_PbWO4",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
             cost=[2500.0, 0.01]
         ),
-        AIDO.parameter("num_events", 200, optimizable=False),
-        AIDO.parameter("max_length", 200, optimizable=False),
-        AIDO.parameter("max_cost", 50_000, optimizable=False),
-        AIDO.parameter("full_calorimeter", True, optimizable=False)
+        aido.SimulationParameter("num_events", 500, optimizable=False),
+        aido.SimulationParameter("max_length", 200, optimizable=False),
+        aido.SimulationParameter("max_cost", 50_000, optimizable=False),
+        aido.SimulationParameter("full_calorimeter", True, optimizable=False)
     ])
 
-    AIDO.optimize(
+    aido.optimize(
         parameters=parameters,
         user_interface=UIFullCalorimeter,
         simulation_tasks=10,
-        max_iterations=100,
+        max_iterations=500,
         threads=11,
-        results_dir="./results_full_calorimeter/results_20241023_2",
+        results_dir="./results_full_calorimeter/results_20241024",
         description="""
             Full Calorimeter with cost and length constraints.
             Improvement to yesterday is the pre-training of the Surrogate model.
