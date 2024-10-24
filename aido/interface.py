@@ -3,10 +3,10 @@ from typing import List
 
 import torch
 
-from modules.simulation_helpers import SimulationParameterDictionary
+from aido.simulation_helpers import SimulationParameterDictionary
 
 
-class AIDOUserInterface(ABC):
+class AIDOBaseUserInterface(ABC):
 
     @abstractmethod
     def simulate(self, parameter_dict_path: str, sim_output_path: str) -> None:

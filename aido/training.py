@@ -7,9 +7,9 @@ import numpy as np
 import pandas as pd
 import torch
 
-from modules.optimizer import Optimizer
-from modules.simulation_helpers import SimulationParameterDictionary
-from modules.surrogate import Surrogate, SurrogateDataset
+from aido.optimizer import Optimizer
+from aido.simulation_helpers import SimulationParameterDictionary
+from aido.surrogate import Surrogate, SurrogateDataset
 
 
 def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):

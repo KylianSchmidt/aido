@@ -32,7 +32,7 @@ pytz==2024.1
 pytest==8.3.3
 pyyaml==6.0.2
 retry2==0.9.5
-setuptools==71.1.0
+setuptools>=75.2.0
 six==1.16.0
 smmap==5.0.1
 tenacity==8.5.0

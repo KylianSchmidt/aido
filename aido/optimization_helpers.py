@@ -3,7 +3,7 @@ from typing import Iterable, Literal, Tuple
 import numpy as np
 import torch
 
-from modules.simulation_helpers import SimulationParameter, SimulationParameterDictionary
+from aido.simulation_helpers import SimulationParameter, SimulationParameterDictionary
 
 
 class OneHotEncoder(torch.nn.Module):

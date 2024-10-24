@@ -4,15 +4,9 @@ The goal of this framework is to optimize the geometry of detectors simulated wi
 
 ## Installation
 
-Requires pip>=24.0 and python>=3.12. 
-
-1. Installation with 'setup.py':
+Installation with 'setup.py' requires pip>=24.0 and python>=3.12:
 ```
-python3 -m pip install .
-```
-2. Or with 'requirements.txt'
-```
-python3 -m pip install -r requirements.txt
+python3 -m pip install aido
 ```
 
 ## Requirements

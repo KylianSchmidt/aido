@@ -4,9 +4,9 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from modules.optimization_helpers import ParameterModule
-from modules.simulation_helpers import SimulationParameterDictionary
-from modules.surrogate import Surrogate, SurrogateDataset
+from aido.optimization_helpers import ParameterModule
+from aido.simulation_helpers import SimulationParameterDictionary
+from aido.surrogate import Surrogate, SurrogateDataset
 
 
 class Optimizer(torch.nn.Module):

@@ -1,9 +1,9 @@
 import os
 from typing import List
 
-from modules.interface import AIDOUserInterface
-from modules.scheduler import start_scheduler
-from modules.simulation_helpers import SimulationParameter, SimulationParameterDictionary
+from aido.interface import AIDOBaseUserInterface
+from aido.scheduler import start_scheduler
+from aido.simulation_helpers import SimulationParameter, SimulationParameterDictionary
 
 """
 AIDO
@@ -45,7 +45,7 @@ The 'results' directory contain:
 
 def optimize(
         parameters: List[SimulationParameter] | SimulationParameterDictionary,
-        user_interface: AIDOUserInterface,
+        user_interface: AIDOBaseUserInterface,
         simulation_tasks: int = 1,
         max_iterations: int = 50,
         threads: int = 1,

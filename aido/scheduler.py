@@ -4,10 +4,10 @@ import os
 
 import b2luigi
 
-from modules.interface import AIDOUserInterface
-from modules.plotting import AIDOPlotting
-from modules.simulation_helpers import SimulationParameterDictionary
-from modules.training import training_loop
+from aido.interface import AIDOBaseUserInterface
+from aido.plotting import AIDOPlotting
+from aido.simulation_helpers import SimulationParameterDictionary
+from aido.training import training_loop
 
 
 class SimulationTask(b2luigi.Task):
@@ -155,7 +155,7 @@ class AIDOMainTask(b2luigi.Task):
 
 def start_scheduler(
         parameters: SimulationParameterDictionary,
-        user_interface: AIDOUserInterface,
+        user_interface: AIDOBaseUserInterface,
         simulation_tasks: int,
         max_iterations: int,
         threads: int,
@@ -181,8 +181,8 @@ def start_scheduler(
         user_interface = user_interface()
 
     assert (
-        issubclass(type(user_interface), AIDOUserInterface)
-    ), f"The class {user_interface} must inherit from {AIDOUserInterface}."
+        issubclass(type(user_interface), AIDOBaseUserInterface)
+    ), f"The class {user_interface} must inherit from {AIDOBaseUserInterface}."
 
     global interface  # Fix for b2luigi, as passing b2luigi.Parameter of non-serializable classes is not possible
     interface = user_interface

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from modules.simulation_helpers import SimulationParameterDictionary
+from aido.simulation_helpers import SimulationParameterDictionary
 
 
 class AIDOPlotting:
@@ -167,6 +167,9 @@ class AIDOPlotting:
                 df["Iteration"] = int(re.search(r"/iteration=(\d+)/", iteration_dir).group(1))
                 df["Task_ID"] = int(re.search(r"task_id=(\d+)", simulation_dir).group(1))
                 df_list.append(df)
+
+        if len(df_list) <= 1:
+            return df_list
 
         df_params = pd.concat(df_list)
         df_params = df_params.sort_values(["Iteration", "Task_ID"]).reset_index(drop=True)
