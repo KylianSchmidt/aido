@@ -1,0 +1,49 @@
+image: python:3.12.3
+
+stages:
+  - setup
+  - lint
+  - test
+
+variables:
+  VENV_DIR: "$CI_PROJECT_DIR/venv"  # Path to the virtual environment
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"  # Cache pip dependencies
+
+before_script:
+  - python -m venv $VENV_DIR
+  - source $VENV_DIR/bin/activate
+  - python -m pip install --upgrade pip
+  - pip install -r requirements.txt
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - venv/  # Cache the virtual environment
+    - .cache/pip/  # Cache pip downloads
+
+linting:
+  stage: lint
+  before_script:
+    - |  # Check if is merge or branch and if .py files were changed
+      if [[ -z $(git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA | grep -E '\.py$') ]]; then
+        echo "No Python files changed, skipping linting stage."
+        exit 0
+      fi
+  script:
+    - source $VENV_DIR/bin/activate
+    - isort . --line-length=120
+    - flake8 . --max-line-length=120 --ignore=W293,E123,W503 --exclude=$VENV_DIR/**,utils/*
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_COMMIT_BRANCH
+
+testing:
+  stage: test
+  script:
+    - source $VENV_DIR/bin/activate
+    - export PYTHONPATH=$PYTHONPATH:$(pwd)
+    - pytest .
+  only:
+    - merge_requests
+    - pushes
+    - branches

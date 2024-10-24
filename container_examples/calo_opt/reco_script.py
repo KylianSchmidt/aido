@@ -1,27 +1,28 @@
 import sys
+
 import pandas as pd
+from reconstruction import Reconstruction, ReconstructionDataset
 from torch.utils.data import Dataset
-from reconstruction import ReconstructionDataset, Reconstruction
 
 
 def pre_train(model: Reconstruction, dataset: Dataset, n_epochs: int):
     """ Pre-train the  a given model
 
-    TODO Reconstruction results are normalized. In the future only expose the un-normalised ones, 
+    TODO Reconstruction results are normalized. In the future only expose the un-normalised ones,
     but also requires adjustments to the surrogate dataset
     """
     model.to('cuda')
 
-    print('pre-training 0')
+    print("Reconstruction: Pre-training 0")
     model.train_model(dataset, batch_size=256, n_epochs=10, lr=0.03)
 
-    print('pre-training 1')
+    print("Reconstruction: Pre-training 1")
     model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.01)
 
-    print('pre-training 2')
+    print("Reconstruction: Pre-training 2")
     model.train_model(dataset, batch_size=512, n_epochs=n_epochs, lr=0.001)
 
-    print('pre-training 3')
+    print("Reconstruction: Pre-training 3")
     model.train_model(dataset, batch_size=1024, n_epochs=n_epochs, lr=0.001)
 
     model.apply_model_in_batches(reco_dataset, batch_size=128)
@@ -49,11 +50,11 @@ if __name__ == "__main__":
     reco_model.train_model(reco_dataset, batch_size=256, n_epochs=n_epochs_main // 4, lr=0.003)
     reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
     reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
-    reco_result, reco_loss = reco_model.apply_model_in_batches(reco_dataset, batch_size=128)
-    reco_result = reco_result.detach().cpu().numpy()
+    reco_result, reco_loss, _ = reco_model.apply_model_in_batches(reco_dataset, batch_size=128)
 
-    reco_result = reco_result * reco_dataset.stds[2] + reco_dataset.means[2]
     reconstructed_df = pd.DataFrame(reco_result, columns=reco_dataset.df["Targets"].columns)
     reconstructed_df = pd.concat({"Reconstructed": reconstructed_df}, axis=1)
-    output_df: pd.DataFrame = pd.concat([reco_dataset.df, reconstructed_df], axis=1)
+    loss_df = pd.DataFrame({"Reco_loss": reco_loss.tolist()})
+    loss_df = pd.concat({"Loss": loss_df}, axis=1)
+    output_df: pd.DataFrame = pd.concat([reco_dataset.df, reconstructed_df, loss_df], axis=1)
     output_df.to_parquet(output_df_path)

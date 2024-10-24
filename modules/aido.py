@@ -1,12 +1,15 @@
-import b2luigi
-import os
-import json
 import inspect
-from typing import List
+import json
+import os
 from functools import wraps
-from modules.simulation_helpers import SimulationParameterDictionary, SimulationParameter
+from typing import List
+
+import b2luigi
+
+from modules.interface import AIDOUserInterface
 from modules.plotting import AIDOPlotting
-from interface import AIDOUserInterface
+from modules.simulation_helpers import SimulationParameter, SimulationParameterDictionary
+from modules.training_script import training_loop
 
 
 class StartSimulationTask(b2luigi.Task):
@@ -82,6 +85,13 @@ class IteratorTask(b2luigi.Task):
 
         Alternative container:
             /cvmfs/unpacked.cern.ch/registry.hub.docker.com/cernml4reco/deepjetcore3:latest
+
+        Current parameter dict is the main parameter dict of this iteration that was used to generate the
+            simulations. It is fed to the Reconstruction and Surrogate/Optimizer models as input
+        Updated parameter dict is the output of the optimizer and is saved as the parameter dict of the
+            next iteration (becoming its current parameter)
+        Next parameter dict is the location of the next iteration's parameter dict, if already exists, the
+            whole Tasks is skipped. Otherwise, the updated parameter dict is saved in this location
         """
         parameter_dict_file_paths = self.get_input_file_names("param_dict.json")
         simulation_file_paths = self.get_input_file_names("simulation_output")
@@ -111,22 +121,11 @@ class IteratorTask(b2luigi.Task):
         interface.reconstruct(self.reco_paths_dict["reco_input_df"], self.reco_paths_dict["reco_output_df"])
 
         # Run surrogate and optimizer model
-        os.system(f"python3 modules/training_script.py {self.reco_paths_dict["own_path"]}")
+        training_loop(self.reco_paths_dict["own_path"], interface.constraints)
 
-        # Update parameter dict if not exist
-        if os.path.isfile(self.next_param_dict_file):
-            # Dont change anything, just propagate the values for b2luigi
-            updated_param_dict = SimulationParameterDictionary.from_json(self.reco_paths_dict["next_parameter_dict"])
-            updated_param_dict = updated_param_dict.get_current_values(format="dict")
-        else:
-            with open(self.reco_paths_dict["updated_parameter_dict"], "r") as file:
-                updated_param_dict = json.load(file)
-
-        initial_param_dict = SimulationParameterDictionary.from_json(self.reco_paths_dict["current_parameter_dict"])
-
-        new_param_dict = initial_param_dict.update_current_values(updated_param_dict)
+        new_param_dict = SimulationParameterDictionary.from_json(self.reco_paths_dict["updated_parameter_dict"])
+        new_param_dict.iteration = self.iteration + 1
         new_param_dict.to_json(self.reco_paths_dict["next_parameter_dict"])
-        new_param_dict.to_json(self.reco_paths_dict["updated_parameter_dict"])
 
         # Plot the evolution
         # TODO Make it accessible to the end user to add plotting scripts
@@ -134,7 +133,7 @@ class IteratorTask(b2luigi.Task):
             AIDOPlotting.plot(results_dir=self.results_dir)
 
 
-class AIDOMainWrapperTask(b2luigi.WrapperTask):
+class AIDOMainTask(b2luigi.Task):
     """ Trigger recursive calls for each Iteration
     TODO Fix exit condition in 'run' method
     TODO parameter results dir
@@ -145,16 +144,8 @@ class AIDOMainWrapperTask(b2luigi.WrapperTask):
     start_param_dict_file_path = b2luigi.PathParameter(hashed=True)
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
-    def requires(self):
-        yield IteratorTask(
-            iteration=0,
-            num_simulation_tasks=self.num_simulation_tasks,
-            iter_start_param_dict_file_path=f"{self.results_dir}/parameters/param_dict_iter_0.json",
-            results_dir=self.results_dir
-        )
-
     def run(self):
-        for iteration in range(1, self.num_max_iterations):
+        for iteration in range(0, self.num_max_iterations):
             yield IteratorTask(
                 iteration=iteration,
                 num_simulation_tasks=self.num_simulation_tasks,
@@ -182,29 +173,21 @@ class AIDO:
     Workflow
     --------
     The internal optimization loop is structured as follows:
-
         1) Start a total of 'simulation_tasks' simulations using 'threads'.
-
         2) Merge and write an input file for the Reconstruction Task
-
         3) Run the Reconstruction Task
-
         4) Convert to pandas.DataFrame for the Optimizer model
-
         5) Run the Optimizer, which predicts the best set of parameters for this iteration
 
     Repeat for a number of 'max_iterations'.
 
     Results
     -------
-    The 'results' directory will contain:
-
+    The 'results' directory contain:
+        - 'loss': Loss of the Surrogate and Optimizer models
         - 'models': pytorch files with the states and weights of the surrogate and optimizer models
-
         - 'parameters': a list of parameter dictionaries (.json) with the parameters of each iteration
-
-        - 'plots': evolution plots of the parameters TODO
-
+        - 'plots': evolution plots of the parameters
         - 'task_outputs': Task outputs generated by the b2luigi scheduler. Can be safely removed to
             save disc space.
     """
@@ -260,7 +243,7 @@ class AIDO:
         interface = user_interface
 
         b2luigi.process(
-            AIDOMainWrapperTask(
+            AIDOMainTask(
                 start_param_dict_file_path=start_param_dict_file_path,
                 num_simulation_tasks=simulation_tasks,
                 num_max_iterations=max_iterations,
@@ -269,7 +252,7 @@ class AIDO:
             workers=threads,
         )
 
-    def parameter(*args, **kwargs):
+    def parameter(*args, **kwargs) -> SimulationParameter:
         """ Create a new Simulation Parameter
 
         Args
@@ -292,10 +275,29 @@ class AIDO:
 
         return wrapper(*args, **kwargs)
     
-    def parameter_dict(*args, **kwargs):
+    def parameter_dict(*args, **kwargs) -> SimulationParameterDictionary:
+        """
+        Decorator function that wraps the initialization of the SimulationParameterDictionary class.
+        """
 
         @wraps(SimulationParameterDictionary.__init__)
         def wrapper(*args, **kwargs):
             return SimulationParameterDictionary(*args, **kwargs)
 
         return wrapper(*args, **kwargs)
+
+    def check_results_folder_format(directory: str | os.PathLike) -> bool:
+        """
+        Checks if the specified directory is of the 'results' format specified by AIDO.optimize().
+
+        Args:
+            directory (str | os.PathLike): The path to the directory to check.
+
+        Returns:
+            bool: True if the directory contains all the required folders
+                  ("loss", "models", "parameters", "plots", "task_outputs"),
+                  False otherwise.
+        """
+        existing_folders = set(os.listdir(directory))
+        required_folders = set(["loss", "models", "parameters", "plots", "task_outputs"])
+        return True if required_folders.issubset(existing_folders) else False

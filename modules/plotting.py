@@ -1,11 +1,13 @@
+import glob
 import os
 import re
-import glob
+from typing import List, Tuple
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from typing import Tuple, List
-from .simulation_helpers import SimulationParameterDictionary
+
+from modules.simulation_helpers import SimulationParameterDictionary
 
 
 class AIDOPlotting:
@@ -24,15 +26,19 @@ class AIDOPlotting:
 
         Returns:
             None
+
+        TODO Clean up this class and do not repeat the reading of files all the time
         """
         if plot_types == "all":
-            plot_types = ["parameter_evolution", "optimizer_loss", "simulation_samples"]
+            plot_types = ["optimizer_loss", "probability_evolution", "parameter_evolution", "simulation_samples"]
 
         if isinstance(plot_types, str):
             plot_types = [plot_types]
 
         for plot_type in plot_types:
             getattr(cls, plot_type)(results_dir=results_dir)
+
+        print(f"AIDOPlotting: Saved all figures to {results_dir}")
 
     def parameter_evolution(
             fig_savepath: str | os.PathLike | None = "/plots/parameter_evolution",
@@ -57,12 +63,12 @@ class AIDOPlotting:
         df_list = []
         sigma_df_list = []
 
-        for file_name in sorted(os.listdir(parameter_dir)):
+        for file_name in os.listdir(parameter_dir):
             param_dict = SimulationParameterDictionary.from_json(parameter_dir + file_name)
-            index = int(file_name.removeprefix("param_dict_iter_").removesuffix(".json"))
-
-            df_list.append(pd.DataFrame(param_dict.get_current_values(format="dict"), index=[index]))
-
+            df_list.append(pd.DataFrame(
+                param_dict.get_current_values(format="dict", types="continuous"),
+                index=[param_dict.iteration],
+            ))
             sigma_df_list.append(np.diag(param_dict.covariance))
 
         df: pd.DataFrame = pd.concat(df_list, axis=0).sort_index()
@@ -80,6 +86,7 @@ class AIDOPlotting:
             plt.xlabel("Iteration", loc="right")
             plt.ylabel("Parameter Value", loc="top")
             plt.savefig(fig_savepath)
+            plt.close()
 
         return df, sigma
 
@@ -87,7 +94,7 @@ class AIDOPlotting:
             fig_savepath: str | os.PathLike | None = "/plots/optimizer_loss",
             results_dir: str = "./results/",
             optimizer_loss_dir: str | os.PathLike = "/loss/optimizer"
-            ) -> None:
+            ) -> pd.DataFrame:
         """
         Plot the optimizer loss over epochs and save the figure if `fig_savepath` is provided.
         Args:
@@ -123,6 +130,7 @@ class AIDOPlotting:
             plt.yscale("linear")
             plt.legend()
             plt.savefig(fig_savepath)
+            plt.close()
 
         return df_loss
 
@@ -147,13 +155,15 @@ class AIDOPlotting:
         fig_savepath = f"{results_dir}/{fig_savepath}"
         sampled_param_dict_filepath = f"{results_dir}/{sampled_param_dict_filepath}"
 
-        df_list = []
+        df_list: List[pd.DataFrame] = []
 
         for iteration_dir in glob.glob(sampled_param_dict_filepath):
             
             for simulation_dir in glob.glob(iteration_dir + "/simulation_task_id=*"):
 
-                df = SimulationParameterDictionary.from_json(simulation_dir + "/param_dict.json").to_df(1)
+                df = SimulationParameterDictionary.from_json(
+                    simulation_dir + "/param_dict.json"
+                ).to_df(types="continuous")
                 df["Iteration"] = int(re.search(r"/iteration=(\d+)/", iteration_dir).group(1))
                 df["Task_ID"] = int(re.search(r"task_id=(\d+)", simulation_dir).group(1))
                 df_list.append(df)
@@ -162,7 +172,7 @@ class AIDOPlotting:
         df_params = df_params.sort_values(["Iteration", "Task_ID"]).reset_index(drop=True)
 
         if fig_savepath is not None:
-            df_optim, sigma = AIDOPlotting.parameter_evolution(None)
+            df_optim, sigma = AIDOPlotting.parameter_evolution(None, results_dir=results_dir)
 
             plt.figure(figsize=(8, 6), dpi=400)
             plt.plot(df_optim, label=df_optim.columns)
@@ -185,9 +195,67 @@ class AIDOPlotting:
             plt.ylabel("Parameter Value", loc="top")
             plt.legend()
             plt.savefig(fig_savepath)
+            plt.close()
 
         return df_params, sigma
 
+    def probability_evolution(
+            fig_savepath: str | os.PathLike | None = "/plots/probability_evolution",
+            results_dir: str = "./results/",
+            parameter_dir: str | os.PathLike = "/parameters"
+            ):
 
-if __name__ == "__main__":
-    AIDOPlotting.plot(results_dir="./results_discrete/")
+        def plot_probabilities(
+                name: str,
+                param_dicts_list: List[SimulationParameterDictionary],
+                fig_savepath_absolute: str | os.PathLike,
+                ):
+
+            probabilities_over_iterations = []
+            iterations = []
+
+            for param_dict in param_dicts_list:
+                discrete_values = param_dict[name].discrete_values
+                iterations.append(param_dict.iteration)
+                probabilities_over_iterations.append(param_dict[name].probabilities)
+
+            probabilities_over_iterations = np.array(probabilities_over_iterations)[np.argsort(iterations)]
+            iterations = np.array(iterations)[np.argsort(iterations)]
+
+            fig, ax = plt.subplots(figsize=(8, 6))
+
+            for i, discrete_value in enumerate(discrete_values):
+                ax.bar(
+                    iterations,
+                    probabilities_over_iterations[:, i],
+                    bottom=probabilities_over_iterations[:, :i].sum(axis=1),
+                    label=discrete_value,
+                    width=1,
+                    align="edge"
+                )
+
+            ax.set_xlabel("Iteration")
+            ax.set_ylabel("Probabilities")
+            plt.legend()
+            plt.xlim(iterations[0], iterations[-1])
+            plt.ylim(0, 1)
+            plt.tight_layout()
+            plt.savefig(f"{fig_savepath_absolute}_{name}")
+            plt.close()
+            return None
+
+        fig_savepath_absolute = f"{results_dir}/{fig_savepath}"
+        parameter_dir_absolute = f"{results_dir}/{parameter_dir}/*"
+        param_dicts_list: List[SimulationParameterDictionary] = []
+
+        for param_dict_dir in glob.glob(parameter_dir_absolute):
+            param_dicts_list.append(SimulationParameterDictionary.from_json(param_dict_dir))
+
+        if not param_dicts_list:
+            raise FileNotFoundError(f"No parameter dicts files could be found in {parameter_dir_absolute}")
+
+        for parameter in param_dicts_list[0]:
+            if parameter.discrete_values:
+                plot_probabilities(parameter.name, param_dicts_list, fig_savepath_absolute)
+
+        return None

@@ -1,9 +1,10 @@
-import numpy as np
-import pandas as pd
+import json
 import os
 import sys
-import json
-from  G4Calo import G4System, GeometryDescriptor
+
+import numpy as np
+import pandas as pd
+from G4Calo import G4System, GeometryDescriptor
 
 
 class Simulation():
@@ -18,15 +19,44 @@ class Simulation():
         else:
             self.n_events_per_var = 100
 
+        if "absorber_material" in parameter_dict:
+            absorber_material = parameter_dict["absorber_material"]["current_value"]
+        else:
+            absorber_material = "G4_Pb"
+
+        if "scintillator_material" in parameter_dict:
+            scintillator_material = parameter_dict["scintillator_material"]["current_value"]
+        else:
+            scintillator_material = "G4_PbWO4"
+
         if "num_blocks" in parameter_dict:  # Case for discrete number of absorber/scintillator blocks
             self.cw = GeometryDescriptor()
 
             for _ in range(parameter_dict["num_blocks"]["current_value"]):
-                self.cw.addLayer(parameter_dict["thickness_absorber"]["current_value"], "G4_Pb", False, 1)
-                self.cw.addLayer(parameter_dict["thickness_scintillator"]["current_value"], "G4_PbWO4", True, 1)
+                self.cw.addLayer(
+                    parameter_dict["thickness_absorber"]["current_value"], absorber_material, False, 1
+                )
+                self.cw.addLayer(
+                    parameter_dict["thickness_scintillator"]["current_value"], scintillator_material, True, 1
+                )
+        elif "simple_setup" in parameter_dict:
+            self.cw = self.produce_descriptor(parameter_dict)
+        elif "full_calorimeter" in parameter_dict:
+            self.cw = GeometryDescriptor()
 
-        else:  # Case optimization of layer thickness
-            self.cw = self.produce_descriptor(self.parameter_dict)
+            for i in range(3):
+                self.cw.addLayer(
+                    parameter_dict[f"thickness_absorber_{i}"]["current_value"],
+                    parameter_dict[f"material_absorber_{i}"]["current_value"],
+                    False,
+                    1
+                )
+                self.cw.addLayer(
+                    parameter_dict[f"thickness_scintillator_{i}"]["current_value"],
+                    parameter_dict[f"material_scintillator_{i}"]["current_value"],
+                    True,
+                    1
+                )
 
     def run_simulation(self) -> pd.DataFrame:
         G4System.init(self.cw)
@@ -36,18 +66,20 @@ class Simulation():
         G4System.applyUICommand("/tracking/verbose 0")
         G4System.applyUICommand("/process/verbose 0")
         G4System.applyUICommand("/run/quiet true")
-        
-        dfs = []
-        particles = [['pi+', 0.211]]
 
-        for p in particles:
-            df: pd.DataFrame = G4System.run_batch(self.n_events_per_var, p[0], 1., 50.)
-            df = df.assign(true_pid=np.array(len(df) * [p[1]], dtype='float32'))
+        dfs = []
+        particles = {'pi+': 0.211, 'gamma': 0.22}
+
+        for particle in particles.items():
+            name, pid = particle
+            df: pd.DataFrame = G4System.run_batch(int(self.n_events_per_var / len(particles)), name, 1., 20.)
+            df = df.assign(true_pid=np.full(len(df), pid, dtype='float32'))
             dfs.append(df)
-            
+
         return pd.concat(dfs, axis=0, ignore_index=True)
 
-    def produce_descriptor(parameter_dict: dict):
+    @classmethod
+    def produce_descriptor(cls, parameter_dict: dict):
         ''' Returns a GeometryDescriptor from the given parameters.
         Strictly takes a dict as input to ensure that the parameter names are consistent.
         Current parameters:
