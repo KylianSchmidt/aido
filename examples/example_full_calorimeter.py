@@ -3,7 +3,7 @@ import os
 import numpy as np
 import torch
 
-import aido  # required
+import aido
 from container_examples.calo_opt.interface_simple import AIDOUserInterfaceExample  # Import your derived class
 
 
@@ -31,7 +31,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
         return detector_length_loss + max_cost_penalty
 
 
-if __name__ == "__main__":
+if __name__ == "__aido__":
 
     sigma = 2.0
     parameters = aido.SimulationParameterDictionary([

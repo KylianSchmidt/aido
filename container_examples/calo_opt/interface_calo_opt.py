@@ -2,14 +2,13 @@ import os
 from typing import Dict, Iterable, List
 
 import pandas as pd
-import torch
 
-from modules.interface import AIDOUserInterface
-from modules.scheduler import AIDO
-from modules.simulation_helpers import SimulationParameterDictionary
+import aido
+from aido.interface import AIDOBaseUserInterface
+from aido.simulation_helpers import SimulationParameterDictionary
 
 
-class AIDOUserInterfaceExample(AIDOUserInterface):
+class AIDOUserInterfaceExample(AIDOBaseUserInterface):
     """ This class is an example of how to implement the 'AIDOUserInterface' class.
     """
 
@@ -114,40 +113,28 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
         return None
     
     def constraints(self, parameter_dict: SimulationParameterDictionary) -> float:
-        num_blocks = parameter_dict["num_blocks"].current_value
-        absorber_cost = (
-            parameter_dict["absorber_material"].weighted_cost
-            * parameter_dict["thickness_absorber"].current_value
-        )
-        scintillator_cost = (
-            parameter_dict["scintillator_material"].weighted_cost
-            * parameter_dict["thickness_scintillator"].current_value
-        )
-        material_costs = num_blocks * (absorber_cost + scintillator_cost)
-
-        detector_length = num_blocks * (
-            parameter_dict["thickness_absorber"].current_value
-            + parameter_dict["thickness_scintillator"].current_value
-        )
-        detector_length_loss = torch.mean(torch.nn.ReLU()(torch.tensor(detector_length - 100.0)))
-        return material_costs + detector_length_loss
+        return 0.0
 
 
 if __name__ == "__main__":
     sim_param_cheap = SimulationParameterDictionary([
-        AIDO.parameter("thickness_absorber", 1.0, units="cm", max_value=50.0, min_value=0.1, sigma=0.5),
-        AIDO.parameter("thickness_scintillator", 0.5, units="cm", max_value=10.0, min_value=0.01, sigma=0.5),
-        AIDO.parameter("absorber_material", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[1.3, 0.092]),
-        AIDO.parameter("scintillator_material", "G4_PbWO4", discrete_values=["G4_PbWO4", "G4_Fe"], cost=[1.5, 1.0]),
-        AIDO.parameter("num_blocks", 10, optimizable=False),
-        AIDO.parameter("num_events", 400, optimizable=False)
+        aido.SimulationParameter("thickness_absorber", 1.0, units="cm", max_value=50.0, min_value=0.1, sigma=0.5),
+        aido.SimulationParameter("thickness_scintillator", 0.5, units="cm", max_value=10.0, min_value=0.01, sigma=0.5),
+        aido.SimulationParameter("absorber_material", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[1.3, 0.092]),
+        aido.SimulationParameter(
+            "scintillator_material", "G4_PbWO4", discrete_values=["G4_PbWO4", "G4_Fe"], cost=[1.5, 1.0]
+        ),
+        aido.SimulationParameter("num_blocks", 10, optimizable=False),
+        aido.SimulationParameter("num_events", 400, optimizable=False)
     ])
     sim_param_expensive = SimulationParameterDictionary([
-        AIDO.parameter("thickness_absorber", 1.0, units="cm", max_value=50.0, min_value=0.1, sigma=0.5),
-        AIDO.parameter("thickness_scintillator", 0.5, units="cm", max_value=10.0, min_value=0.01, sigma=0.5),
-        AIDO.parameter("absorber_material", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[1.3, 0.092]),
-        AIDO.parameter("scintillator_material", "G4_PbWO4", discrete_values=["G4_PbWO4", "G4_Fe"], cost=[1.5, 1.0]),
-        AIDO.parameter("num_blocks", 10, optimizable=False),
-        AIDO.parameter("num_events", 400, optimizable=False)
+        aido.SimulationParameter("thickness_absorber", 1.0, units="cm", max_value=50.0, min_value=0.1, sigma=0.5),
+        aido.SimulationParameter("thickness_scintillator", 0.5, units="cm", max_value=10.0, min_value=0.01, sigma=0.5),
+        aido.SimulationParameter("absorber_material", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[1.3, 0.092]),
+        aido.SimulationParameter(
+            "scintillator_material", "G4_PbWO4", discrete_values=["G4_PbWO4", "G4_Fe"], cost=[1.5, 1.0]
+        ),
+        aido.SimulationParameter("num_blocks", 10, optimizable=False),
+        aido.SimulationParameter("num_events", 400, optimizable=False)
     ])
     print(f"{AIDOUserInterfaceExample().constraints(sim_param_cheap)=}")

@@ -3,11 +3,11 @@ from typing import Dict, Iterable, List
 
 import pandas as pd
 
-from modules.interface import AIDOUserInterface
-from modules.simulation_helpers import SimulationParameterDictionary
+from aido.interface import AIDOBaseUserInterface
+from aido.simulation_helpers import SimulationParameterDictionary
 
 
-class AIDOUserInterfaceExample(AIDOUserInterface):
+class AIDOUserInterfaceExample(AIDOBaseUserInterface):
     """ This class is an example of how to implement the 'AIDOUserInterface' class.
     """
 
