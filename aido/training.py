@@ -86,7 +86,7 @@ def training_loop(
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,
-        batch_size=256,
+        batch_size=512,
         n_epochs=40,
         lr=0.02,
         additional_constraints=constraints

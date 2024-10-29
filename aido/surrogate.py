@@ -73,10 +73,12 @@ class SurrogateDataset(Dataset):
             input_df: pd.DataFrame,
             parameter_key: str = "Parameters",
             context_key: str = "Context",
-            reco_loss_key: str = "Loss"
+            reco_loss_key: str = "Loss",
+            device: str = "cuda"
             ):
         """
-        Initializes the Surrogate model with the provided DataFrame and keys.
+        Initializes the Surrogate model with the provided DataFrame and keys. All inputs must be
+        unnormalized and will be kept as such. Normalization for training is left to the caller.
 
         Args:
         ----
@@ -105,16 +107,13 @@ class SurrogateDataset(Dataset):
             np.mean(self.reconstructed, axis=0)
         ]
         self.stds = [
-            np.std(self.parameters, axis=0) + 1e-3,
-            np.std(self.context, axis=0) + 1e-3,
-            np.std(self.reconstructed, axis=0) + 1e-3
+            np.std(self.parameters, axis=0) + 1e-10,
+            np.std(self.context, axis=0) + 1e-10,
+            np.std(self.reconstructed, axis=0) + 1e-10
         ]
 
-        self.parameters = (self.parameters - self.means[0]) / self.stds[0]
-        self.context = (self.context - self.means[1]) / self.stds[1]
-
-        self.c_means = [torch.tensor(a).to('cuda') for a in self.means]
-        self.c_stds = [torch.tensor(a).to('cuda') for a in self.stds]
+        self.c_means = [torch.tensor(a).to(device) for a in self.means]
+        self.c_stds = [torch.tensor(a).to(device) for a in self.stds]
         self.df = self.filter_infs_and_nans(self.df)
 
     def filter_infs_and_nans(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -124,31 +123,25 @@ class SurrogateDataset(Dataset):
         df = df.dropna(axis=0, ignore_index=True)
         return df
 
-    def unnormalise_target(self, target):
+    def unnormalise_features(self, target: torch.Tensor, index: int) -> torch.Tensor:
+        ''' Return the physically meaningful target from the normalised target
+        Index:
+            0 -> Parameters
+            1 -> Context
+            2 -> Reconstructed (Targets)
         '''
-        receives back the physically meaningful target from the normalised target
-        '''
-        return target * self.c_stds[2] + self.c_means[2]
+        return target * self.c_stds[index] + self.c_means[index]
 
-    def normalise_target(self, target):
+    def normalise_features(self, target: torch.Tensor, index: int) -> torch.Tensor:
+        ''' Normalize a feature
+        Index:
+            0 -> Parameters
+            1 -> Context
+            2 -> Reconstructed (Targets)
         '''
-        normalises the target
-        '''
-        return (target - self.c_means[2]) / self.c_stds[2]
+        return (target - self.c_means[index]) / self.c_stds[index]
 
-    def unnormalise_detector(self, detector):
-        '''
-        receives back the physically meaningful detector from the normalised detector
-        '''
-        return detector * self.c_stds[1] + self.c_means[1]
-    
-    def normalise_detector(self, detector):
-        '''
-        normalises the detector
-        '''
-        return (detector - self.c_means[1]) / self.c_stds[1]
-
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int):
         return self.parameters[idx], self.context[idx], self.reconstructed[idx]
 
     def __len__(self):
@@ -227,8 +220,16 @@ class Surrogate(torch.nn.Module):
             reconstructed: torch.Tensor,
             time_step: torch.Tensor
             ):
-        """ Concatenate the detector parameters and the input then apply the model layers
+        """ When sampling forward, 'parameters' has only one entry, therefore it is broadcast to
+        the shape of 'context'.
         """
+        assert (
+            context.shape[0] == reconstructed.shape[0]
+        ), "Context and Reconstructed inputs have unequal lengths"
+
+        if parameters.shape[0] == 1:
+            parameters = parameters.repeat(context.shape[0], 1)
+
         return self.layers(torch.cat([parameters, context, reconstructed, time_step.view(-1, 1)], dim=1))
     
     def to(self, device: str = None):

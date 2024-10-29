@@ -31,7 +31,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
         return detector_length_loss + max_cost_penalty
 
 
-if __name__ == "__aido__":
+if __name__ == "__main__":
 
     sigma = 2.0
     parameters = aido.SimulationParameterDictionary([
@@ -72,15 +72,17 @@ if __name__ == "__aido__":
         parameters=parameters,
         user_interface=UIFullCalorimeter,
         simulation_tasks=10,
-        max_iterations=500,
+        max_iterations=200,
         threads=11,
-        results_dir="./results_full_calorimeter/results_20241024",
+        results_dir="./results_full_calorimeter/results_20241028",
         description="""
             Full Calorimeter with cost and length constraints.
             Improvement to yesterday is the pre-training of the Surrogate model.
             This version has normed Surrogate Inputs when running the optimizer!
             Removed loading the weights from the previous iteration to check whether
             this leads to periodic loss.
+            Removed normalization of Surrogate inputs as discrete parameters are not
+            correctly normalized (fixed for now, TODO later)
         """
     )
     os.system("rm *.root")

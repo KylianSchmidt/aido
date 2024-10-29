@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Tuple
 
 import numpy as np
 import torch
@@ -24,8 +24,8 @@ class Optimizer(torch.nn.Module):
             self,
             surrogate_model: Surrogate,
             starting_parameter_dict: SimulationParameterDictionary,
-            lr=0.001,
-            batch_size=128,
+            lr: float = 0.001,
+            batch_size: int = 128,
             ):
         """
         Initializes the optimizer with the given surrogate model and parameters.
@@ -34,12 +34,13 @@ class Optimizer(torch.nn.Module):
             starting_parameter_dict (Dict): A dictionary containing the initial parameters.
             lr (float, optional): Learning rate for the optimizer. Defaults to 0.001.
             batch_size (int, optional): Batch size for the optimizer. Defaults to 128.
+
+        TODO Surrogate Model is not needed at instantiation, can be moved to optimize() method
         """
 
         super().__init__()
         self.surrogate_model = surrogate_model
         self.parameter_dict = starting_parameter_dict
-        self.n_time_steps = surrogate_model.n_time_steps
         self.lr = lr
         self.batch_size = batch_size
         self.device = torch.device("cuda")
@@ -51,18 +52,18 @@ class Optimizer(torch.nn.Module):
         self.to(self.device)
         self.optimizer = torch.optim.Adam(self.parameter_module.parameters(), lr=self.lr)
 
-    def to(self, device: str):
+    def to(self, device: str | torch.device, **kwargs):
         """ Move all Tensors and modules to 'device'.
         """
-        self.device = device
-        self.surrogate_model.to(device)
-        self.starting_parameters_continuous = self.starting_parameters_continuous.to(device)
-        self.parameter_box = self.parameter_box.to(device)
-        self.parameter_module = self.parameter_module.to(device)
-        super().to(device)
+        self.device = device if isinstance(device, torch.device) else torch.device(device)
+        self.surrogate_model.to(self.device)
+        self.starting_parameters_continuous = self.starting_parameters_continuous.to(self.device)
+        self.parameter_box = self.parameter_box.to(self.device)
+        self.parameter_module = self.parameter_module.to(self.device)
+        super().to(self.device, **kwargs)
         return self
-    
-    def loss_box_constraints(self) -> torch.Tensor:
+
+    def loss_box_constraints(self) -> torch.Tensor | None:
         """ Adds penalties for parameters that are outside of the boundaries spaned by 'self.parameter_box'. This
         ensures that the optimizer does not propose new values that are outside of the scope of the Surrogate and
         therefore largely unknown to the current iteration.
@@ -76,6 +77,8 @@ class Optimizer(torch.nn.Module):
                 torch.mean(0.5 * torch.nn.ReLU()(self.parameter_box[:, 0] - parameters_continuous_tensor)**2)
                 + torch.mean(0.5 * torch.nn.ReLU()(- self.parameter_box[:, 1] + parameters_continuous_tensor)**2)
             )
+        else:
+            return None
 
     def other_constraints(
             self,
@@ -100,7 +103,7 @@ class Optimizer(torch.nn.Module):
             n_epochs: int,
             lr: float,
             additional_constraints: None | Callable[[SimulationParameterDictionary], float | torch.Tensor] = None,
-            ):
+            ) -> Tuple[SimulationParameterDictionary, bool]:
         """ Perform the optimization step. First, the ParameterModules forward() method generates new parameters.
         Second, the Surrogate Model computes the corresponding Reconstruction Loss (based on its interpolation).
         The Optimizer Loss is the Sum of the Reconstruction Loss, user-defined Parameter Loss (e.g. cost constraints)
@@ -118,21 +121,19 @@ class Optimizer(torch.nn.Module):
             epoch_constraints_loss = 0.0
             stop_epoch = False
 
-            for batch_idx, (_parameters, context, reconstructed) in enumerate(data_loader):
+            for batch_idx, (parameters, context, reconstructed) in enumerate(data_loader):
                 context = context.to(self.device)
-                reconstructed = reconstructed.to(self.device)
 
                 parameters_batch = self.parameter_module()
-                parameters_batch_normed = (parameters_batch - dataset.c_means[0] + 1e-3) / dataset.c_stds[0]
                 self.parameter_dict.update_current_values(self.parameter_module.physical_values(format="dict"))
                 self.parameter_dict.update_probabilities(self.parameter_module.get_probabilities())
 
                 surrogate_output = self.surrogate_model.sample_forward(
-                    parameters_batch_normed,
-                    torch.unsqueeze(context[batch_idx], 0)
+                    parameters_batch,
+                    context
                 )
-                loss = surrogate_output
-                surrogate_loss_detached = surrogate_output.item()
+                loss = surrogate_output.mean()
+                surrogate_loss_detached = loss.item()
                 loss += self.other_constraints(additional_constraints)
                 loss += self.loss_box_constraints()
 
@@ -148,7 +149,7 @@ class Optimizer(torch.nn.Module):
                     for i, parameter in enumerate(self.parameter_module):
                         parameter.data = prev_parameters[i].to(self.device)
 
-                    return self.parameter_dict, False, epoch_loss / (batch_idx + 1)
+                    return self.parameter_dict, False
 
                 self.optimizer.step()
                 epoch_loss += loss.item()
@@ -177,5 +178,5 @@ class Optimizer(torch.nn.Module):
             )
         return self.parameter_dict, True
 
-    def get_optimum(self):
+    def get_optimum(self) -> SimulationParameterDictionary:
         return self.parameter_dict
