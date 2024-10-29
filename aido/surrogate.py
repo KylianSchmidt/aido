@@ -144,7 +144,7 @@ class SurrogateDataset(Dataset):
     def __getitem__(self, idx: int):
         return self.parameters[idx], self.context[idx], self.reconstructed[idx]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.reconstructed)
 
 

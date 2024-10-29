@@ -74,7 +74,7 @@ if __name__ == "__main__":
         simulation_tasks=10,
         max_iterations=200,
         threads=11,
-        results_dir="./results_full_calorimeter/results_20241028",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241029",
         description="""
             Full Calorimeter with cost and length constraints.
             Improvement to yesterday is the pre-training of the Surrogate model.
@@ -83,6 +83,7 @@ if __name__ == "__main__":
             this leads to periodic loss.
             Removed normalization of Surrogate inputs as discrete parameters are not
             correctly normalized (fixed for now, TODO later)
+            Returned dataloader setting to shuffle=True
         """
     )
     os.system("rm *.root")

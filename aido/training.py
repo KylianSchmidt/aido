@@ -27,10 +27,10 @@ def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.01)
 
     print('Surrogate: Pre-Training 2')
-    model.train_model(dataset, batch_size=512, n_epochs=n_epochs, lr=0.001)
+    model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.001)
 
     print('Surrogate: Pre-Training 3')
-    model.train_model(dataset, batch_size=1024, n_epochs=n_epochs, lr=0.001)
+    model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.001)
 
     model.apply_model_in_batches(dataset, batch_size=128)
 
@@ -62,10 +62,11 @@ def training_loop(
     surrogate = Surrogate(*surrogate_dataset.shape)
 
     print("Surrogate Pre-Training")
-    pre_train(surrogate, surrogate_dataset, n_epochs_pre)
+    if parameter_dict.iteration < 5:
+        pre_train(surrogate, surrogate_dataset, n_epochs_pre)
     print("Surrogate Training")
-    surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
-    surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
+    surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.005)
+    surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0003)
 
     best_surrogate_loss = 1e10
 
@@ -77,18 +78,18 @@ def training_loop(
             print("Surrogate Re-Training")
             pre_train(surrogate, surrogate_dataset, n_epochs_pre)
             surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 5, lr=0.005)
-            surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
-            surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
-            surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0001)
+            surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.005)
+            surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.0003)
+            surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.0001)
 
     # Optimization
     optimizer = Optimizer(surrogate, parameter_dict)
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,
-        batch_size=512,
+        batch_size=128,
         n_epochs=40,
-        lr=0.02,
+        lr=0.001,
         additional_constraints=constraints
     )
     if not is_optimal:
