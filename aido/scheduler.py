@@ -5,7 +5,7 @@ import os
 import b2luigi
 
 from aido.interface import AIDOBaseUserInterface
-from aido.plotting import AIDOPlotting
+from aido.plotting import Plotting
 from aido.simulation_helpers import SimulationParameterDictionary
 from aido.training import training_loop
 
@@ -129,7 +129,7 @@ class OptimizationTask(b2luigi.Task):
         # Plot the evolution
         # TODO Make it accessible to the end user to add plotting scripts
         if True:
-            AIDOPlotting.plot(results_dir=self.results_dir)
+            Plotting.plot(results_dir=self.results_dir)
 
 
 class AIDOMainTask(b2luigi.Task):

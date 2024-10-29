@@ -10,7 +10,7 @@ import pandas as pd
 from aido.simulation_helpers import SimulationParameterDictionary
 
 
-class AIDOPlotting:
+class Plotting:
 
     @classmethod
     def plot(cls, plot_types: str | List[str] = "all", results_dir: str | os.PathLike = "./results/"):
@@ -38,7 +38,7 @@ class AIDOPlotting:
         for plot_type in plot_types:
             getattr(cls, plot_type)(results_dir=results_dir)
 
-        print(f"AIDOPlotting: Saved all figures to {results_dir}")
+        print(f"aido.Plotting: Saved all figures to {results_dir}")
 
     def parameter_evolution(
             fig_savepath: str | os.PathLike | None = "/plots/parameter_evolution",
@@ -110,7 +110,7 @@ class AIDOPlotting:
         df_loss_list = []
 
         for file_name in glob.glob(f"{optimizer_loss_dir}/*"):
-            df_i = pd.read_csv(file_name, names=["Epoch", "Loss"])
+            df_i = pd.read_csv(file_name, names=["Epoch", "Loss"], dtype="float32", header=1)
             df_i["Iteration"] = int(re.search(r"optimizer_loss_(\d+)", file_name).group(1))
             df_loss_list.append(df_i)
 
@@ -127,7 +127,7 @@ class AIDOPlotting:
             plt.xlim(0, df_loss["Iteration"].to_numpy()[-1])
             plt.xlabel("Epoch", loc="right")
             plt.ylabel("Loss", loc="top")
-            plt.yscale("linear")
+            plt.yscale("log")
             plt.legend()
             plt.savefig(fig_savepath)
             plt.close()
@@ -175,7 +175,7 @@ class AIDOPlotting:
         df_params = df_params.sort_values(["Iteration", "Task_ID"]).reset_index(drop=True)
 
         if fig_savepath is not None:
-            df_optim, sigma = AIDOPlotting.parameter_evolution(None, results_dir=results_dir)
+            df_optim, sigma = Plotting.parameter_evolution(None, results_dir=results_dir)
 
             plt.figure(figsize=(8, 6), dpi=400)
             plt.plot(df_optim, label=df_optim.columns)
