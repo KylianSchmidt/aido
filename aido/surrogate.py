@@ -305,9 +305,9 @@ class Surrogate(torch.nn.Module):
         for epoch in range(n_epochs):
 
             for batch_idx, (parameters, context, reconstructed) in enumerate(train_loader):
-                parameters = parameters.to(self.device)
+                parameters: torch.Tensor = parameters.to(self.device)
                 reconstructed: torch.Tensor = reconstructed.to(self.device)
-                context = context.to(self.device)
+                context: torch.Tensor = context.to(self.device)
 
                 reco_noisy, noise, time_step = self.create_noisy_input(reconstructed)
                 model_out: torch.Tensor = self(parameters, context, reco_noisy, time_step / self.n_time_steps)
@@ -318,8 +318,11 @@ class Surrogate(torch.nn.Module):
                 self.optimizer.step()
 
             print(
-                f"Surrogate Epoch: {epoch} \tLoss: {loss.item():.5f}\tReco: {reconstructed[0].item():.5f}"
-                + f"\tReco noisy {reco_noisy[0].item():.5f}\tNoisy surrogate {model_out[0].item():.5f}"
+                f"Surrogate Epoch: {epoch}",
+                f"Loss: {loss.item():.5f}",
+                f"Prediction: {self.sample_forward(parameters, context)[0].item():.5f}",
+                f"Reconstructed: {reconstructed[0].item():.5f}",
+                sep="\t"
             )
             self.surrogate_loss.append(loss.item())
 

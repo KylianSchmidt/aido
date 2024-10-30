@@ -71,10 +71,10 @@ if __name__ == "__main__":
     aido.optimize(
         parameters=parameters,
         user_interface=UIFullCalorimeter,
-        simulation_tasks=10,
+        simulation_tasks=30,
         max_iterations=200,
-        threads=11,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241029",
+        threads=15,
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241030",
         description="""
             Full Calorimeter with cost and length constraints.
             Improvement to yesterday is the pre-training of the Surrogate model.
@@ -84,6 +84,7 @@ if __name__ == "__main__":
             Removed normalization of Surrogate inputs as discrete parameters are not
             correctly normalized (fixed for now, TODO later)
             Returned dataloader setting to shuffle=True
+            Mayjor improvements to the reconstruction algorithm
         """
     )
     os.system("rm *.root")

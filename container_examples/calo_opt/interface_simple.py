@@ -75,7 +75,12 @@ class AIDOUserInterfaceExample(AIDOBaseUserInterface):
         )
         return df
 
-    def merge(self, parameter_dict_file_paths, simulation_file_paths, reco_input_path):
+    def merge(
+            self,
+            parameter_dict_file_paths: List[str],
+            simulation_file_paths: List[str],
+            reco_input_path: str
+            ):
         """ Combines parameter dicts and pd.DataFrames into a large pd.DataFrame which is subsequently saved
         to parquet format.
         """
