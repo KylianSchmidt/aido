@@ -132,6 +132,7 @@ class Optimizer(torch.nn.Module):
                     parameters_batch,
                     context
                 )
+                surrogate_output = dataset.unnormalise_reconstructed(surrogate_output)
                 loss = surrogate_output.mean()
                 surrogate_loss_detached = loss.item()
                 loss += self.other_constraints(additional_constraints)

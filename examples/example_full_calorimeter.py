@@ -74,7 +74,7 @@ if __name__ == "__main__":
         simulation_tasks=30,
         max_iterations=200,
         threads=15,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241030",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241031",
         description="""
             Full Calorimeter with cost and length constraints.
             Improvement to yesterday is the pre-training of the Surrogate model.
@@ -84,7 +84,8 @@ if __name__ == "__main__":
             Removed normalization of Surrogate inputs as discrete parameters are not
             correctly normalized (fixed for now, TODO later)
             Returned dataloader setting to shuffle=True
-            Mayjor improvements to the reconstruction algorithm
+            Major improvements to the reconstruction algorithm
+            Improved normalization of reconstructed array in Surrogate Model
         """
     )
     os.system("rm *.root")

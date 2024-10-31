@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -74,7 +74,8 @@ class SurrogateDataset(Dataset):
             parameter_key: str = "Parameters",
             context_key: str = "Context",
             reco_loss_key: str = "Loss",
-            device: str = "cuda"
+            device: str = "cuda",
+            norm_reco_loss: bool = False
             ):
         """
         Initializes the Surrogate model with the provided DataFrame and keys. All inputs must be
@@ -92,28 +93,34 @@ class SurrogateDataset(Dataset):
         """
 
         self.df = input_df
-        self.parameters = self.df[parameter_key].to_numpy("float32")
-        self.context = self.df[context_key].to_numpy("float32")
-        self.reconstructed = self.df[reco_loss_key].to_numpy("float32")
+        self.parameters = self.df[parameter_key].to_numpy(np.float32)
+        self.context = self.df[context_key].to_numpy(np.float32)
+        self.reconstructed = self.df[reco_loss_key].to_numpy(np.float32)
+        self.norm_reco_loss = norm_reco_loss
 
-        self.shape = (
+        assert np.all(self.reconstructed >= 0.0), "Reconstruction Loss must only have positive entries"
+
+        self.shape: List[int] = (
             self.parameters.shape[1],
             self.context.shape[1],
             self.reconstructed.shape[1]
         )
-        self.means = [
+        self.means: List[np.float32] = [
             np.mean(self.parameters, axis=0),
             np.mean(self.context, axis=0),
             np.mean(self.reconstructed, axis=0)
         ]
-        self.stds = [
+        self.stds: List[np.float32] = [
             np.std(self.parameters, axis=0) + 1e-10,
             np.std(self.context, axis=0) + 1e-10,
             np.std(self.reconstructed, axis=0) + 1e-10
         ]
-
         self.c_means = [torch.tensor(a).to(device) for a in self.means]
         self.c_stds = [torch.tensor(a).to(device) for a in self.stds]
+
+        if self.norm_reco_loss:
+            self.reconstructed = self.normalise_reconstructed(self.reconstructed)
+
         self.df = self.filter_infs_and_nans(self.df)
 
     def filter_infs_and_nans(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -128,18 +135,50 @@ class SurrogateDataset(Dataset):
         Index:
             0 -> Parameters
             1 -> Context
-            2 -> Reconstructed (Targets)
+            2 -> Reconstructed
         '''
-        return target * self.c_stds[index] + self.c_means[index]
+        assert index in [0, 1, 2]
+        if index == 2:
+            return self.unnormalise_reconstructed(target)
+        elif index == 0 or index == 1:
+            return target * self.c_stds[index] + self.c_means[index]
 
     def normalise_features(self, target: torch.Tensor, index: int) -> torch.Tensor:
         ''' Normalize a feature
         Index:
             0 -> Parameters
             1 -> Context
-            2 -> Reconstructed (Targets)
+            2 -> Reconstructed
         '''
-        return (target - self.c_means[index]) / self.c_stds[index]
+        assert index in [0, 1, 2]
+        if index == 2:
+            return self.normalise_reconstructed(target)
+        elif index == 0 or index == 1:
+            return (target - self.c_means[index]) / self.c_stds[index]
+
+    def normalise_reconstructed(self, target: torch.Tensor | np.ndarray) -> torch.Tensor | np.ndarray:
+        """ Normalize the Reconstruction Loss. Important if the Loss is highly negatively skewed.
+        Applies a log before normalization
+        """
+        if isinstance(target, np.ndarray):
+            target = np.log(target)
+            target_normed = (target - self.means[2]) / self.stds[2]
+        elif isinstance(target, torch.Tensor):
+            target = torch.log(target)
+            target_normed = (target - self.c_means[2]) / self.c_stds[2]
+        return target_normed
+
+    def unnormalise_reconstructed(
+            self,
+            target_normed: torch.Tensor | np.ndarray
+            ) -> torch.Tensor | np.ndarray:
+        if self.norm_reco_loss is False:
+            return target_normed
+        if isinstance(target_normed, np.ndarray):
+            target = np.exp((target_normed * self.stds[2]) + self.means[2])
+        elif isinstance(target_normed, torch.Tensor):
+            target = torch.exp((target_normed * self.c_stds[2]) + self.c_means[2])
+        return target
 
     def __getitem__(self, idx: int):
         return self.parameters[idx], self.context[idx], self.reconstructed[idx]
@@ -295,7 +334,6 @@ class Surrogate(torch.nn.Module):
         """ Train the Surrogate Diffusion model. The training loop includes the added
         noise.
         """
-
         train_loader = DataLoader(surrogate_dataset, batch_size=batch_size, shuffle=True)
         self.optimizer.lr = lr
         self.to(self.device)
@@ -317,11 +355,16 @@ class Surrogate(torch.nn.Module):
                 loss.backward()
                 self.optimizer.step()
 
+            reconstructed_mean = reconstructed.mean()
+            if surrogate_dataset.norm_reco_loss is True:
+                reconstructed_mean = surrogate_dataset.unnormalise_reconstructed(reconstructed_mean)
             print(
                 f"Surrogate Epoch: {epoch}",
                 f"Loss: {loss.item():.5f}",
-                f"Prediction: {self.sample_forward(parameters, context)[0].item():.5f}",
-                f"Reconstructed: {reconstructed[0].item():.5f}",
+                f"Prediction: {surrogate_dataset.unnormalise_reconstructed(
+                    self.sample_forward(parameters, context).mean()
+                ).item():.5f}",
+                f"Reconstructed: {reconstructed_mean.item():.5f}",
                 sep="\t"
             )
             self.surrogate_loss.append(loss.item())
@@ -333,7 +376,7 @@ class Surrogate(torch.nn.Module):
             self,
             dataset: SurrogateDataset,
             batch_size: int,
-            oversample=1,
+            oversample: int = 1,
             ):
         """
         Applies the model to the given dataset in batches and returns the results.

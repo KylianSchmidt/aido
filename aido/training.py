@@ -58,7 +58,7 @@ def training_loop(
     n_epochs_main = 100
 
     # Surrogate:
-    surrogate_dataset = SurrogateDataset(pd.read_parquet(output_df_path))
+    surrogate_dataset = SurrogateDataset(pd.read_parquet(output_df_path), norm_reco_loss=True)
     surrogate = Surrogate(*surrogate_dataset.shape)
 
     print("Surrogate Pre-Training")
@@ -87,7 +87,7 @@ def training_loop(
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,
-        batch_size=128,
+        batch_size=512,
         n_epochs=40,
         lr=0.001,
         additional_constraints=constraints

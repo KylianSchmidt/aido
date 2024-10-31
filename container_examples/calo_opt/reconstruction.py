@@ -155,7 +155,7 @@ class Reconstruction(torch.nn.Module):
         y_pred = torch.where(torch.isnan(y_pred), torch.zeros_like(y_pred), y_pred)
         y_pred = torch.where(torch.isinf(y_pred), torch.zeros_like(y_pred), y_pred)
 
-        return ((y_pred - y)**2).flatten()
+        return ((y_pred - y)**2 / (torch.abs(y) + 1.)).flatten()
 
     def train_model(self, dataset: ReconstructionDataset, batch_size: int, n_epochs: int, lr: float):
         train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
