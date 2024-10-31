@@ -1,6 +1,6 @@
 import pytest
 
-from aido.simulation_helpers import SimulationParameter, SimulationParameterDictionary
+from aido import SimulationParameter, SimulationParameterDictionary
 
 
 @pytest.fixture

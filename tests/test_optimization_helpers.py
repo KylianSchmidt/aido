@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
+from aido import SimulationParameter, SimulationParameterDictionary
 from aido.optimization_helpers import ParameterModule
-from aido.simulation_helpers import SimulationParameter, SimulationParameterDictionary
 
 
 @pytest.fixture
