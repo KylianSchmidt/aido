@@ -46,6 +46,8 @@ def training_loop(
     output_df_path = reco_file_paths_dict["reco_output_df"]
     parameter_dict_input_path = reco_file_paths_dict["current_parameter_dict"]
     parameter_dict_output_path = reco_file_paths_dict["updated_parameter_dict"]
+    surrogate_previous_path = reco_file_paths_dict["surrogate_model_previous_path"]
+    optimizer_previous_path = reco_file_paths_dict["optimizer_model_previous_path"]
     surrogate_save_path = reco_file_paths_dict["surrogate_model_save_path"]
     optimizer_save_path = reco_file_paths_dict["optimizer_model_save_path"]
     optimizer_loss_save_path = reco_file_paths_dict["optimizer_loss_save_path"]
@@ -59,7 +61,11 @@ def training_loop(
 
     # Surrogate:
     surrogate_dataset = SurrogateDataset(pd.read_parquet(output_df_path), norm_reco_loss=True)
-    surrogate = Surrogate(*surrogate_dataset.shape)
+
+    if os.path.isfile(surrogate_previous_path):
+        surrogate = torch.load(surrogate_previous_path)
+    else:
+        surrogate = Surrogate(*surrogate_dataset.shape)
 
     print("Surrogate Pre-Training")
     if parameter_dict.iteration < 5:
@@ -83,13 +89,16 @@ def training_loop(
             surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.0001)
 
     # Optimization
-    optimizer = Optimizer(surrogate, parameter_dict)
+    if os.path.isfile(optimizer_previous_path):
+        optimizer = torch.load(optimizer_previous_path)
+    else:
+        optimizer = Optimizer(surrogate, parameter_dict)
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,
         batch_size=512,
         n_epochs=40,
-        lr=0.001,
+        lr=0.02,
         additional_constraints=constraints
     )
     if not is_optimal:
