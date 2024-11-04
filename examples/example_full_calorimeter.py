@@ -33,7 +33,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
 if __name__ == "__main__":
 
-    sigma = 2.0
+    sigma = 5.0
     parameters = aido.SimulationParameterDictionary([
         aido.SimulationParameter("thickness_absorber_0", 5.0, min_value=0.1, max_value=50.0, sigma=sigma),
         aido.SimulationParameter("thickness_scintillator_0", 5.0, min_value=1.0, max_value=25.0, sigma=sigma),
