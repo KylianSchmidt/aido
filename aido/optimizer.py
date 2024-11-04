@@ -40,7 +40,8 @@ class Optimizer(torch.nn.Module):
 
         super().__init__()
         self.surrogate_model = surrogate_model
-        self.parameter_dict = starting_parameter_dict
+        self.starting_parameter_dict = starting_parameter_dict
+        self.parameter_dict = self.starting_parameter_dict
         self.lr = lr
         self.batch_size = batch_size
         self.device = torch.device("cuda")
@@ -144,13 +145,8 @@ class Optimizer(torch.nn.Module):
                 if np.isnan(loss.item()):
                     # Save parameters, reset the optimizer as if it made a step but without updating the parameters
                     print("Optimizer: NaN loss, exiting.")
-                    prev_parameters = parameters_batch.detach()
                     self.optimizer.step()
-
-                    for i, parameter in enumerate(self.parameter_module):
-                        parameter.data = prev_parameters[i].to(self.device)
-
-                    return self.parameter_dict, False
+                    return self.starting_parameter_dict, False
 
                 self.optimizer.step()
                 epoch_loss += loss.item()
@@ -177,7 +173,26 @@ class Optimizer(torch.nn.Module):
             self.parameter_module.tensor("continuous").to(self.device)
             - self.starting_parameters_continuous.to(self.device)
             )
-        return self.parameter_dict, True
+        return self.boosted_parameter_dict, True
 
-    def get_optimum(self) -> SimulationParameterDictionary:
-        return self.parameter_dict
+    @property
+    def boosted_parameter_dict(self) -> SimulationParameterDictionary:
+        r""" Compute a new set of parameters by taking the current parameter dict and boosting it along
+        the direction of change between the previous and the current values (only continuous parameters).
+
+        Formula:
+            \[
+            p_{n+1} = p_{opt} + \frac{1}{2} \left( p_{opt} - p_n \right)
+            \]
+
+            Where:
+            - \( p_{n+1} \) is the updated parameter dict.
+            - \( p_{opt} \) is the current (optimized) parameter dict.
+            - \( p_n \) is the starting parameter dict.
+        """
+        current_values = self.parameter_dict.get_current_values("dict", types="continuous")
+        previous_values = self.starting_parameter_dict.get_current_values("dict", types="continuous")
+
+        return self.parameter_dict.update_current_values(
+            {key: current_values[key] + 0.5 * (current_values[key] - previous_values[key]) for key in current_values}
+        )
