@@ -9,3 +9,4 @@ build
 *.aido*
 *.json
 *pkl
+docs
