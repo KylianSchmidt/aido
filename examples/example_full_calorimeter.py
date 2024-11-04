@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 import aido
-from container_examples.calo_opt.interface_simple import AIDOUserInterfaceExample  # Import your derived class
+from examples.calo_opt.interface_simple import AIDOUserInterfaceExample  # Import your derived class
 
 
 class UIFullCalorimeter(AIDOUserInterfaceExample):
@@ -74,18 +74,11 @@ if __name__ == "__main__":
         simulation_tasks=30,
         max_iterations=200,
         threads=15,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241031",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241104",
         description="""
             Full Calorimeter with cost and length constraints.
-            Improvement to yesterday is the pre-training of the Surrogate model.
-            This version has normed Surrogate Inputs when running the optimizer!
-            Removed loading the weights from the previous iteration to check whether
-            this leads to periodic loss.
-            Removed normalization of Surrogate inputs as discrete parameters are not
-            correctly normalized (fixed for now, TODO later)
-            Returned dataloader setting to shuffle=True
-            Major improvements to the reconstruction algorithm
             Improved normalization of reconstructed array in Surrogate Model
+            Using boosted parameter dict output by optimizer
         """
     )
     os.system("rm *.root")

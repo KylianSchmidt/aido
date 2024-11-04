@@ -1,5 +1,5 @@
 import aido
-from container_examples.calo_opt.interface_calo_opt import AIDOUserInterfaceExample
+from examples.calo_opt.interface_calo_opt import AIDOUserInterfaceExample
 
 if __name__ == "__main__":
     aido.optimize([

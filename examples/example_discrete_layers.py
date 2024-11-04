@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 import aido
-from container_examples.calo_opt.interface_calo_opt import AIDOUserInterfaceExample
+from examples.calo_opt.interface_calo_opt import AIDOUserInterfaceExample
 
 if __name__ == "__main__":
     results_dir = "results_discrete_20241014"
