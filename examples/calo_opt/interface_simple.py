@@ -3,11 +3,10 @@ from typing import Dict, Iterable, List
 
 import pandas as pd
 
-from aido.interface import AIDOBaseUserInterface
-from aido.simulation_helpers import SimulationParameterDictionary
+import aido
 
 
-class AIDOUserInterfaceExample(AIDOBaseUserInterface):
+class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
     """ This class is an example of how to implement the 'AIDOUserInterface' class.
     """
 
@@ -60,7 +59,7 @@ class AIDOUserInterfaceExample(AIDOBaseUserInterface):
         if isinstance(simulation_output_df, str):
             input_df: pd.DataFrame = pd.read_parquet(simulation_output_df)
 
-        parameter_dict = SimulationParameterDictionary.from_json(parameter_dict_path)
+        parameter_dict = aido.SimulationParameterDictionary.from_json(parameter_dict_path)
 
         df_combined_dict = {
             "Parameters": parameter_dict.to_df(len(input_df), one_hot=True),
