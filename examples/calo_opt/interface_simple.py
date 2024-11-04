@@ -15,7 +15,7 @@ class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
     def simulate(self, parameter_dict_path: str, sim_output_path: str):
         os.system(
             f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base.sif python3 \
-            container_examples/calo_opt/simulation.py {parameter_dict_path} {sim_output_path}"
+            examples/calo_opt/simulation.py {parameter_dict_path} {sim_output_path}"
         )
         return None
     

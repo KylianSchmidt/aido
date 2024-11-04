@@ -7,7 +7,6 @@ setup(
     name="aido",
     version="0.0.3",
     packages=find_packages(),
-    package_dir={"": "aido"},
     install_requires=requirements,
     python_requires=">=3.12.3",
     license="",
