@@ -4,11 +4,9 @@ from typing import Dict, Iterable, List
 import pandas as pd
 
 import aido
-from aido.interface import AIDOBaseUserInterface
-from aido.simulation_helpers import SimulationParameterDictionary
 
 
-class AIDOUserInterfaceExample(AIDOBaseUserInterface):
+class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
     """ This class is an example of how to implement the 'AIDOUserInterface' class.
     """
 
@@ -61,7 +59,7 @@ class AIDOUserInterfaceExample(AIDOBaseUserInterface):
         if isinstance(simulation_output_df, str):
             input_df: pd.DataFrame = pd.read_parquet(simulation_output_df)
 
-        parameter_dict = SimulationParameterDictionary.from_json(parameter_dict_path)
+        parameter_dict = aido.SimulationParameterDictionary.from_json(parameter_dict_path)
 
         df_combined_dict = {
             "Parameters": parameter_dict.to_df(len(input_df), one_hot=True),
@@ -112,12 +110,12 @@ class AIDOUserInterfaceExample(AIDOBaseUserInterface):
         os.system("rm *.pkl")
         return None
     
-    def constraints(self, parameter_dict: SimulationParameterDictionary) -> float:
+    def constraints(self, parameter_dict: aido.SimulationParameterDictionary) -> float:
         return 0.0
 
 
 if __name__ == "__main__":
-    sim_param_cheap = SimulationParameterDictionary([
+    sim_param_cheap = aido.SimulationParameterDictionary([
         aido.SimulationParameter("thickness_absorber", 1.0, units="cm", max_value=50.0, min_value=0.1, sigma=0.5),
         aido.SimulationParameter("thickness_scintillator", 0.5, units="cm", max_value=10.0, min_value=0.01, sigma=0.5),
         aido.SimulationParameter("absorber_material", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[1.3, 0.092]),
@@ -127,7 +125,7 @@ if __name__ == "__main__":
         aido.SimulationParameter("num_blocks", 10, optimizable=False),
         aido.SimulationParameter("num_events", 400, optimizable=False)
     ])
-    sim_param_expensive = SimulationParameterDictionary([
+    sim_param_expensive = aido.SimulationParameterDictionary([
         aido.SimulationParameter("thickness_absorber", 1.0, units="cm", max_value=50.0, min_value=0.1, sigma=0.5),
         aido.SimulationParameter("thickness_scintillator", 0.5, units="cm", max_value=10.0, min_value=0.01, sigma=0.5),
         aido.SimulationParameter("absorber_material", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[1.3, 0.092]),
