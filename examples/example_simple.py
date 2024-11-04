@@ -1,7 +1,8 @@
 import os
 
+from calo_opt.interface_calo_opt import AIDOUserInterfaceExample  # Import your derived class
+
 import aido
-from examples.calo_opt.interface_calo_opt import AIDOUserInterfaceExample  # Import your derived class
 
 if __name__ == "__main__":
     os.system("rm ./results -rf")  # remove everything from results

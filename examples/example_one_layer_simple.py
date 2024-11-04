@@ -1,9 +1,9 @@
 import os
 
 import torch
+from calo_opt.interface_simple import AIDOUserInterfaceExample  # Import your derived class
 
 import aido
-from examples.calo_opt.interface_simple import AIDOUserInterfaceExample  # Import your derived class
 
 if __name__ == "__main__":
     class UISimple(AIDOUserInterfaceExample):

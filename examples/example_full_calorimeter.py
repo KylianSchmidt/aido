@@ -2,9 +2,9 @@ import os
 
 import numpy as np
 import torch
+from calo_opt.interface_simple import AIDOUserInterfaceExample  # Import your derived class
 
 import aido
-from examples.calo_opt.interface_simple import AIDOUserInterfaceExample  # Import your derived class
 
 
 class UIFullCalorimeter(AIDOUserInterfaceExample):
