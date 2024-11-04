@@ -1,6 +1,7 @@
 import inspect
 import json
 import os
+from typing import Generator
 
 import b2luigi
 
@@ -44,7 +45,7 @@ class OptimizationTask(b2luigi.Task):
     iter_start_param_dict_file_path = b2luigi.PathParameter(hashed=True, significant=False)
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
-    def output(self):
+    def output(self) -> Generator:
         """
         'reco_output_df': store the output of the reconstruction model
         'reconstruction_input_file_path': the simulation output files are kept
@@ -56,7 +57,7 @@ class OptimizationTask(b2luigi.Task):
         yield self.add_to_output("param_dict.json")
         yield self.add_to_output("reco_paths_dict")
 
-    def requires(self):
+    def requires(self) -> Generator:
         """ Create Tasks for each set of simulation parameters. The seed 'num_simulation_tasks' ensures that
         b2luigi does not skip any Task due to duplicates.
 
@@ -77,7 +78,7 @@ class OptimizationTask(b2luigi.Task):
                     simulation_task_id=i,
                 )
 
-    def run(self):
+    def run(self) -> None:
         """ For each root file produced by the simulation Task, start a container with the reconstruction algorithm.
         Afterwards, the parameter dictionary used to generate these results are also passed as output
 
@@ -143,7 +144,7 @@ class AIDOMainTask(b2luigi.Task):
     start_param_dict_file_path = b2luigi.PathParameter(hashed=True)
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
-    def run(self):
+    def run(self) -> Generator:
         for iteration in range(0, self.num_max_iterations):
             yield OptimizationTask(
                 iteration=iteration,

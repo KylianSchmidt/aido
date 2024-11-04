@@ -121,7 +121,7 @@ class SimulationParameter:
             ), "Cost argument must be a positive float for continuous parameters."
         self.cost = cost
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return the dict representation of the class, with human-readable indentation
         TODO Do not indent lists e.g. in discrete_values=[]
         """
@@ -140,11 +140,11 @@ class SimulationParameter:
         return cls(**attribute_dict)
 
     @property
-    def current_value(self):
+    def current_value(self) -> Any:
         return self._current_value
 
     @current_value.setter
-    def current_value(self, value):
+    def current_value(self, value: Any) -> None:
         if isinstance(self._starting_value, int) and isinstance(value, float) and abs(value - round(value)) < 10E-15:
             value = round(value)
         assert (
@@ -255,7 +255,7 @@ class SimulationParameterDictionary:
         self.parameter_list = parameter_list
         self.parameter_dict = self.to_dict(serialized=False)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return json.dumps(self.to_dict(), indent=4)
 
     def __setitem__(self, name: str, simulation_parameter: Type[SimulationParameter]):
@@ -374,7 +374,7 @@ class SimulationParameterDictionary:
 
         return current_values
 
-    def get_probabilities(self):
+    def get_probabilities(self) -> dict[str, List[float]]:
         probabilities = {}
 
         for parameter in self.parameter_list:
@@ -401,8 +401,10 @@ class SimulationParameterDictionary:
             if self.parameter_dict[key].discrete_values is not None:
                 self.parameter_dict[key].probabilities = value
 
+        return self
+
     @property
-    def covariance(self):
+    def covariance(self) -> np.ndarray:
         covariance_matrix = []
 
         for parameter in self.parameter_list:
@@ -412,7 +414,7 @@ class SimulationParameterDictionary:
         return np.diag(np.array(covariance_matrix))
 
     @property
-    def metadata(self):
+    def metadata(self) -> Dict[str, int | str]:
         return {"iteration": self.iteration, "creation_time": self.creation_time, "description": self.description}
 
     @classmethod
@@ -422,8 +424,10 @@ class SimulationParameterDictionary:
         """
         metadata: Dict = parameter_dict.pop("metadata")
         instance = cls([SimulationParameter.from_dict(parameter) for parameter in parameter_dict.values()])
+
         for name, value in metadata.items():
             instance.__setattr__(name, value)
+
         return instance
 
     @classmethod
