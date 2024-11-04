@@ -16,11 +16,11 @@ class SimulationTask(b2luigi.Task):
     simulation_task_id = b2luigi.IntParameter()
     iter_start_param_dict_file_path = b2luigi.PathParameter(hashed=True, significant=False)
 
-    def output(self):
+    def output(self) -> Generator:
         yield self.add_to_output("simulation_output")
         yield self.add_to_output("param_dict.json")
 
-    def run(self):
+    def run(self) -> None:
         """ Workflow:
          1. Generate a new set of parameters based on the previous iteration
          2. Start geant4 simulations using the 'interface.simulate' method provided by the user
