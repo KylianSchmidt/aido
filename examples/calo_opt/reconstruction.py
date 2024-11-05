@@ -167,10 +167,10 @@ class Reconstruction(torch.nn.Module):
     
             for (detector_parameters, x, y) in train_loader:
                 detector_parameters = detector_parameters.to(self.device)
-                x = x.to(self.device)
-                y = y.to(self.device)
+                x: torch.Tensor = x.to(self.device)
+                y: torch. Tensor = y.to(self.device)
                 y_pred = self(detector_parameters, x)
-                loss_per_event = self.loss(dataset.unnormalise_target(y_pred), dataset.unnormalise_target(y))
+                loss_per_event = self.loss(y_pred, y)
                 loss = loss_per_event.mean()
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -190,7 +190,7 @@ class Reconstruction(torch.nn.Module):
         whole dataset at once. The model is applied to the dataset in batches and the results are concatenated
         (the batch size is a hyperparameter).
         """
-        data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         results = None
         loss_array = torch.zeros(len(dataset))
         mean_loss = 0.
@@ -204,7 +204,7 @@ class Reconstruction(torch.nn.Module):
             y: torch.Tensor = y.to(self.device)
             y_pred: torch.Tensor = self(detector_parameters, x)
 
-            loss_per_event = self.loss(dataset.unnormalise_target(y_pred), dataset.unnormalise_target(y))
+            loss_per_event = self.loss(y_pred, y)
             loss = loss_per_event.mean()
             mean_loss += loss.item()
 

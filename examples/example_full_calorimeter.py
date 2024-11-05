@@ -71,10 +71,10 @@ if __name__ == "__main__":
     aido.optimize(
         parameters=parameters,
         user_interface=UIFullCalorimeter,
-        simulation_tasks=30,
+        simulation_tasks=20,
         max_iterations=200,
-        threads=15,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241104",
+        threads=20,
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241105",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model
