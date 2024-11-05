@@ -395,7 +395,7 @@ class Surrogate(torch.nn.Module):
         """
         self.to()
         self.eval()
-        data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         results = torch.zeros(oversample * len(dataset), self.num_reconstructed).to('cpu')
 
         for i_o in range(oversample):
