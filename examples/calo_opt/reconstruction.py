@@ -46,7 +46,6 @@ class ReconstructionDataset(Dataset):
             np.std(self.context, axis=0) + 1e-10
         ]
 
-        self.parameters = (self.parameters - self.means[0]) / self.stds[0]
         self.inputs = (self.inputs - self.means[1]) / self.stds[1]
         self.targets = (self.targets - self.means[2]) / self.stds[2]
         self.context = (self.context - self.means[3]) / self.stds[3]
@@ -63,34 +62,34 @@ class ReconstructionDataset(Dataset):
         df = df.dropna(axis=0, ignore_index=True)
         return df
 
-    def unnormalise_target(self, target):
+    def unnormalise_target(self, target: torch.Tensor):
         '''
         receives back the physically meaningful target from the normalised target
         '''
         return target * self.c_stds[2] + self.c_means[2]
     
-    def normalise_target(self, target):
+    def normalise_target(self, target: torch.Tensor):
         '''
         normalises the target
         '''
         return (target - self.c_means[2]) / self.c_stds[2]
     
-    def unnormalise_detector(self, detector):
+    def unnormalise_detector(self, detector: torch.Tensor):
         '''
         receives back the physically meaningful detector from the normalised detector
         '''
         return detector * self.c_stds[1] + self.c_means[1]
     
-    def normalise_detector(self, detector):
+    def normalise_detector(self, detector: torch.Tensor):
         '''
         normalises the detector
         '''
         return (detector - self.c_means[1]) / self.c_stds[1]
         
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.inputs)
     
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int):
         return self.parameters[idx], self.inputs[idx], self.targets[idx]
 
 
