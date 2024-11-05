@@ -7,7 +7,7 @@ import torch
 from modules.aido import AIDO
 from modules.interface import AIDOUserInterface
 from modules.simulation_helpers import SimulationParameterDictionary
-
+from interface_globals import container_execution_cmd, container_gpu_execution_cmd
 
 class AIDOUserInterfaceExample(AIDOUserInterface):
     """ This class is an example of how to implement the 'AIDOUserInterface' class.
@@ -17,7 +17,7 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
 
     def simulate(self, parameter_dict_path: str, sim_output_path: str):
         os.system(
-            f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base.sif python3 \
+            f"{container_execution_cmd} python3 \
             container_examples/calo_opt/simulation.py {parameter_dict_path} {sim_output_path}"
         )
         return None
@@ -107,7 +107,7 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
         TODO Change to the dockerhub version when deploying to production.
         """
         os.system(
-            f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base.sif python3 \
+            f"{container_gpu_execution_cmd} python3 \
             container_examples/calo_opt/reco_script.py {reco_input_path} {reco_output_path}"
         )
         os.system("rm *.pkl")
