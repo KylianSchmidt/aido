@@ -4,7 +4,7 @@ import sys
 
 import numpy as np
 import pandas as pd
-from G4Calo import G4System, GeometryDescriptor
+from G4Calo import GeometryDescriptor, run_batch
 
 
 class Simulation():
@@ -59,20 +59,14 @@ class Simulation():
                 )
 
     def run_simulation(self) -> pd.DataFrame:
-        G4System.init(self.cw)
-        G4System.applyUICommand("/control/verbose 0")
-        G4System.applyUICommand("/run/verbose 0")
-        G4System.applyUICommand("/event/verbose 0")
-        G4System.applyUICommand("/tracking/verbose 0")
-        G4System.applyUICommand("/process/verbose 0")
-        G4System.applyUICommand("/run/quiet true")
 
         dfs = []
         particles = {'pi+': 0.211, 'gamma': 0.22}
 
         for particle in particles.items():
             name, pid = particle
-            df: pd.DataFrame = G4System.run_batch(int(self.n_events_per_var / len(particles)), name, 1., 20.)
+            df: pd.DataFrame = run_batch(self.cw, int(self.n_events_per_var / len(particles)), name, 1., 20., 
+                                         no_mp=True) # no_mp=True to avoid further internal multiprocessing - but can be set to False (default)
             df = df.assign(true_pid=np.full(len(df), pid, dtype='float32'))
             dfs.append(df)
 
