@@ -103,7 +103,7 @@ if __name__ == "__main__":
     plt.savefig(".validation")
     plt.close()
 
-    bins = np.linspace(-5, 5, 100 + 1)
+    bins = np.linspace(-10, 10, 100 + 1)
     plt.hist(output_df["Loss"]["Reco_loss"] - output_df["Loss"]["Surrogate"], bins=bins)
     plt.xlabel("Surrogate Accuracy")
     plt.xlim(bins[0], bins[-1])

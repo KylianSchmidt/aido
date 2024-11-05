@@ -32,8 +32,6 @@ def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     print('Surrogate: Pre-Training 3')
     model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.001)
 
-    model.apply_model_in_batches(dataset, batch_size=128)
-
 
 def training_loop(
         reco_file_paths_dict: dict | str | os.PathLike,
