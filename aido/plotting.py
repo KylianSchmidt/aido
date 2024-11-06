@@ -1,13 +1,23 @@
 import glob
 import os
 import re
-from typing import List, Tuple
+from typing import Annotated, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from aido.simulation_helpers import SimulationParameterDictionary
+
+
+def percentage_type(value: float) -> float:
+    """ Checks if a float lies between [0, 1] """
+    if not (0.0 <= value < 1.0):
+        raise ValueError(f"Value {value} must be in [0, 1]")
+    return value
+
+
+Percentage = Annotated[float, percentage_type]
 
 
 class Plotting:
@@ -175,6 +185,7 @@ class Plotting:
         df_params = df_params.sort_values(["Iteration", "Task_ID"]).reset_index(drop=True)
 
         if fig_savepath is not None:
+            cmap = plt.get_cmap("Set2")
             df_optim, sigma = Plotting.parameter_evolution(None, results_dir=results_dir)
 
             plt.figure(figsize=(8, 6), dpi=400)
@@ -186,13 +197,14 @@ class Plotting:
                         df_optim[col].index,
                         df_optim[col] - sigma[i],
                         df_optim[col] + sigma[i],
-                        alpha=0.5
+                        alpha=0.5,
+                        color=cmap[i]
                     )
 
             plt.gca().set_prop_cycle(None)
 
             for i, col in enumerate(df_params.columns.drop(["Iteration", "Task_ID"])):
-                plt.scatter(df_params["Iteration"], df_params[col].values, marker="+", s=100)
+                plt.scatter(df_params["Iteration"], df_params[col].values, marker="+", s=100, color=cmap[i])
 
             plt.xlabel("Iteration", loc="right")
             plt.ylabel("Parameter Value", loc="top")
@@ -262,3 +274,38 @@ class Plotting:
                 plot_probabilities(parameter.name, param_dicts_list, fig_savepath_absolute)
 
         return None
+    
+    def fwhm(
+            x: np.ndarray,
+            y: np.ndarray,
+            height: Percentage = 0.5,
+            ax: plt.Axes | None = None
+            ) -> Tuple[float, float, float, float] | plt.Axes:
+        """ Compute the FWHM of a (x, y) distribution
+        If x has one more item than y, the zeroth item of x will be skipped (useful for binned histograms)
+        Returns:
+        -------
+            If Axes is None:
+                fwhm (float): Full Width at Half Maximum (weighted by 'height' argument)
+                x_left (float): left x value
+                y_right (float): right y value
+                height_absolute (float): absolute height of y at fwhm point
+            If Axes is given:
+                ax (plt.Axes): ax with added vlines for the left and right x values
+
+        TODO what if x is not monotone?
+        """
+        assert np.all(y >= 0.0), "y must be an Array with only positive entries"
+        if len(x) == len(y) + 1:
+            x = x[1:]
+        height_absolute = np.max(y) * height
+        index_max = np.argmax(y)
+        x_left = np.interp(height_absolute, y[:index_max + 1], x[:index_max + 1])
+        x_right = np.interp(height_absolute, np.flip(y[index_max:]), np.flip(x[index_max:]))
+
+        if ax is not None:
+            ax.vlines(x_left, 0.0, height_absolute, color="k", linestyles="--")
+            ax.vlines(x_right, 0.0, height_absolute, color="k", linestyles="--")
+            return ax
+
+        return x_right - x_left, x_left, x_right, height_absolute
