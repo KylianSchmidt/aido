@@ -1,4 +1,4 @@
-from calo_opt.interface_calo_opt import AIDOUserInterfaceExample
+from calo_opt.interface_simple import AIDOUserInterfaceExample
 
 import aido
 

@@ -1,6 +1,6 @@
 import os
 
-from calo_opt.interface_calo_opt import AIDOUserInterfaceExample  # Import your derived class
+from calo_opt.interface_simple import AIDOUserInterfaceExample  # Import your derived class
 
 import aido
 
