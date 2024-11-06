@@ -64,7 +64,7 @@ class Optimizer(torch.nn.Module):
         super().to(self.device, **kwargs)
         return self
 
-    def loss_box_constraints(self) -> torch.Tensor | None:
+    def loss_box_constraints(self) -> torch.Tensor:
         """ Adds penalties for parameters that are outside of the boundaries spaned by 'self.parameter_box'. This
         ensures that the optimizer does not propose new values that are outside of the scope of the Surrogate and
         therefore largely unknown to the current iteration.
@@ -79,7 +79,7 @@ class Optimizer(torch.nn.Module):
                 + torch.mean(0.5 * torch.nn.ReLU()(- self.parameter_box[:, 1] + parameters_continuous_tensor)**2)
             )
         else:
-            return None
+            return torch.Tensor([0.0])
 
     def other_constraints(
             self,
@@ -133,7 +133,7 @@ class Optimizer(torch.nn.Module):
                     parameters_batch,
                     context
                 )
-                surrogate_output = dataset.unnormalise_reconstructed(surrogate_output)
+                surrogate_output = dataset.unnormalise_reconstructed(surrogate_output.cpu().detach())
                 loss = surrogate_output.mean()
                 surrogate_loss_detached = loss.item()
                 loss += self.other_constraints(additional_constraints)
