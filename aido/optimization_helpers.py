@@ -81,8 +81,8 @@ class ContinuousParameter(torch.nn.Module):
         super().__init__()
         self.starting_value = torch.tensor(parameter.current_value)
         self.parameter = torch.nn.Parameter(self.starting_value.clone(), requires_grad=True)
-        self.min_value = np.nan_to_num(parameter.min_value, nan=-10E10)
-        self.max_value = np.nan_to_num(parameter.max_value, nan=10E10)
+        self.min_value = parameter.min_value if parameter.min_value is not None else -10E10
+        self.max_value = parameter.max_value if parameter.max_value is not None else +10E10
         self.boundaries = torch.tensor(np.array([self.min_value, self.max_value], dtype="float32"))
         self.sigma = np.array(parameter.sigma)
         self._cost = parameter.cost if parameter.cost is not None else 0.0
