@@ -198,13 +198,13 @@ class Plotting:
                         df_optim[col] - sigma[i],
                         df_optim[col] + sigma[i],
                         alpha=0.5,
-                        color=cmap[i]
+                        color=cmap(i)
                     )
 
             plt.gca().set_prop_cycle(None)
 
             for i, col in enumerate(df_params.columns.drop(["Iteration", "Task_ID"])):
-                plt.scatter(df_params["Iteration"], df_params[col].values, marker="+", s=100, color=cmap[i])
+                plt.scatter(df_params["Iteration"], df_params[col].values, marker="+", s=100, color=cmap(i))
 
             plt.xlabel("Iteration", loc="right")
             plt.ylabel("Parameter Value", loc="top")
