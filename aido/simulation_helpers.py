@@ -1,8 +1,6 @@
 import copy
 import datetime
 import json
-import os
-import time
 from typing import Any, Dict, Iterable, Iterator, List, Literal, Type
 
 import numpy as np
@@ -485,10 +483,8 @@ class SimulationParameterDictionary:
                 rng.choice(len(parameter.discrete_values), p=parameter.probabilities)
             ]
 
-        if rng_seed is None:
-            rng_seed = int(1000.0 * time.time()) + os.getpid()
-
         rng = np.random.default_rng(rng_seed)
+        rng_seed = rng_seed or int(rng.integers(9_999_999))
         new_parameter_list = copy.deepcopy(self.parameter_list)  # Prevents the modification of this instance
 
         for parameter in new_parameter_list:
