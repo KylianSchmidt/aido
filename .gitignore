@@ -8,3 +8,5 @@ build
 *.root
 *.aido*
 *.json
+*pkl
+docs
