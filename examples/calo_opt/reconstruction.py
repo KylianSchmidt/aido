@@ -47,7 +47,6 @@ class ReconstructionDataset(Dataset):
         ]
 
         self.inputs = (self.inputs - self.means[1]) / self.stds[1]
-        self.targets = (self.targets - self.means[2]) / self.stds[2]
         self.context = (self.context - self.means[3]) / self.stds[3]
 
         self.c_means = [torch.tensor(a).to('cuda') for a in self.means]
@@ -184,7 +183,6 @@ class Reconstruction(torch.nn.Module):
             self,
             dataset: ReconstructionDataset,
             batch_size: int,
-            normalize_outputs: bool = False
             ) -> Tuple[np.ndarray, np.ndarray, float]:
         """ Apply the model in batches this is necessary because the model is too large to apply it to the
         whole dataset at once. The model is applied to the dataset in batches and the results are concatenated
@@ -217,8 +215,4 @@ class Reconstruction(torch.nn.Module):
         mean_loss /= len(data_loader)
         results = results.detach().cpu().numpy()
         loss_array = loss_array.detach().cpu().numpy()
-
-        if normalize_outputs is False:
-            results = results * dataset.stds[2] + dataset.means[2]
-
         return results, loss_array, mean_loss
