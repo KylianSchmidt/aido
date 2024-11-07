@@ -72,7 +72,7 @@ if __name__ == "__main__":
         parameters=parameters,
         user_interface=UIFullCalorimeter,
         simulation_tasks=20,
-        max_iterations=2,
+        max_iterations=200,
         threads=20,
         results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241107",
         description="""
