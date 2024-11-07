@@ -3,7 +3,6 @@ from typing import List, Tuple
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.preprocessing import QuantileTransformer
 from torch.utils.data import DataLoader, Dataset
 
 
@@ -96,7 +95,6 @@ class SurrogateDataset(Dataset):
         self.context = self.df[context_key].to_numpy(np.float32)
         self.reconstructed = self.df[reco_loss_key].to_numpy(np.float32)
         self.norm_reco_loss = norm_reco_loss
-        self.quantile_transformer = QuantileTransformer(output_distribution="normal")
 
         assert np.all(self.reconstructed >= 0.0), "Reconstruction Loss must only have positive entries"
 
@@ -161,14 +159,15 @@ class SurrogateDataset(Dataset):
             target: torch.Tensor | np.ndarray
             ) -> torch.Tensor | np.ndarray:
         """ Normalize the Reconstruction Loss. Important if the Loss is highly negatively skewed.
+        Currently, no normalization is applied
         """
-        return self.quantile_transformer.fit_transform(target)
+        return target
 
     def unnormalise_reconstructed(
             self,
             target: torch.Tensor | np.ndarray
             ) -> torch.Tensor | np.ndarray:
-        return self.quantile_transformer.inverse_transform(target)
+        return target
 
     def __getitem__(self, idx: int):
         return self.parameters[idx], self.context[idx], self.reconstructed[idx]
