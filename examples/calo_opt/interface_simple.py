@@ -3,11 +3,10 @@ from typing import Dict, Iterable, List
 
 import pandas as pd
 
-from interface import AIDOUserInterface
-from modules.simulation_helpers import SimulationParameterDictionary
+import aido
 
 
-class AIDOUserInterfaceExample(AIDOUserInterface):
+class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
     """ This class is an example of how to implement the 'AIDOUserInterface' class.
     """
 
@@ -15,8 +14,8 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
 
     def simulate(self, parameter_dict_path: str, sim_output_path: str):
         os.system(
-            f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base.sif python3 \
-            container_examples/calo_opt/simulation.py {parameter_dict_path} {sim_output_path}"
+            f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/minicalosim_latest.sif python3 \
+            examples/calo_opt/simulation.py {parameter_dict_path} {sim_output_path}"
         )
         return None
     
@@ -60,7 +59,7 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
         if isinstance(simulation_output_df, str):
             input_df: pd.DataFrame = pd.read_parquet(simulation_output_df)
 
-        parameter_dict = SimulationParameterDictionary.from_json(parameter_dict_path)
+        parameter_dict = aido.SimulationParameterDictionary.from_json(parameter_dict_path)
 
         df_combined_dict = {
             "Parameters": parameter_dict.to_df(len(input_df), one_hot=True),
@@ -75,7 +74,12 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
         )
         return df
 
-    def merge(self, parameter_dict_file_paths, simulation_file_paths, reco_input_path):
+    def merge(
+            self,
+            parameter_dict_file_paths: List[str],
+            simulation_file_paths: List[str],
+            reco_input_path: str
+            ):
         """ Combines parameter dicts and pd.DataFrames into a large pd.DataFrame which is subsequently saved
         to parquet format.
         """
@@ -105,8 +109,8 @@ class AIDOUserInterfaceExample(AIDOUserInterface):
         TODO Change to the dockerhub version when deploying to production.
         """
         os.system(
-            f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base.sif python3 \
-            container_examples/calo_opt/reco_script.py {reco_input_path} {reco_output_path}"
+            f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/minicalosim_latest.sif python3 \
+            examples/calo_opt/reco_script.py {reco_input_path} {reco_output_path}"
         )
         os.system("rm *.pkl")
         return None

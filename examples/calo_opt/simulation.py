@@ -4,7 +4,7 @@ import sys
 
 import numpy as np
 import pandas as pd
-from G4Calo import G4System, GeometryDescriptor
+from G4Calo import GeometryDescriptor, run_batch
 
 
 class Simulation():
@@ -34,41 +34,51 @@ class Simulation():
 
             for _ in range(parameter_dict["num_blocks"]["current_value"]):
                 self.cw.addLayer(
-                    parameter_dict["thickness_absorber"]["current_value"],
-                    absorber_material,
+                    parameter_dict["thickness_absorber"]["current_value"], absorber_material, False, 1
+                )
+                self.cw.addLayer(
+                    parameter_dict["thickness_scintillator"]["current_value"], scintillator_material, True, 1
+                )
+        elif "simple_setup" in parameter_dict:
+            self.cw = self.produce_descriptor(parameter_dict)
+        elif "full_calorimeter" in parameter_dict:
+            self.cw = GeometryDescriptor()
+
+            for i in range(3):
+                self.cw.addLayer(
+                    parameter_dict[f"thickness_absorber_{i}"]["current_value"],
+                    parameter_dict[f"material_absorber_{i}"]["current_value"],
                     False,
                     1
                 )
                 self.cw.addLayer(
-                    parameter_dict["thickness_scintillator"]["current_value"],
-                    scintillator_material,
+                    parameter_dict[f"thickness_scintillator_{i}"]["current_value"],
+                    parameter_dict[f"material_scintillator_{i}"]["current_value"],
                     True,
                     1
                 )
 
-        else:  # Case optimization of layer thickness
-            self.cw = Simulation.produce_descriptor(self.parameter_dict)
-
     def run_simulation(self) -> pd.DataFrame:
-        G4System.init(self.cw)
-        G4System.applyUICommand("/control/verbose 0")
-        G4System.applyUICommand("/run/verbose 0")
-        G4System.applyUICommand("/event/verbose 0")
-        G4System.applyUICommand("/tracking/verbose 0")
-        G4System.applyUICommand("/process/verbose 0")
-        G4System.applyUICommand("/run/quiet true")
-
         dfs = []
-        particles = {'pi+': 0.211}
+        particles = {'pi+': 0.211, 'gamma': 0.22}
 
-        for name, pid in particles.items():
-            df: pd.DataFrame = G4System.run_batch(self.n_events_per_var, name, 1., 50.)
+        for particle in particles.items():
+            name, pid = particle
+            df: pd.DataFrame = run_batch(
+                gd=self.cw,
+                nEvents=int(self.n_events_per_var / len(particles)),
+                particleSpec=name,
+                minEnergy_GeV=1.,
+                maxEnergy_GeV=20.,
+                no_mp=True
+            )
             df = df.assign(true_pid=np.full(len(df), pid, dtype='float32'))
             dfs.append(df)
 
         return pd.concat(dfs, axis=0, ignore_index=True)
 
-    def produce_descriptor(parameter_dict: dict):
+    @classmethod
+    def produce_descriptor(cls, parameter_dict: dict):
         ''' Returns a GeometryDescriptor from the given parameters.
         Strictly takes a dict as input to ensure that the parameter names are consistent.
         Current parameters:
@@ -86,18 +96,19 @@ class Simulation():
         return cw
 
 
-parameter_dict_file_path = sys.argv[1]
-output_path = sys.argv[2]
+if __name__ == "__main__":
+    parameter_dict_file_path = sys.argv[1]
+    output_path = sys.argv[2]
 
-with open(parameter_dict_file_path, "r") as file:
-    parameter_dict = json.load(file)
+    with open(parameter_dict_file_path, "r") as file:
+        parameter_dict = json.load(file)
 
-generator = Simulation(parameter_dict)
-df = generator.run_simulation()
+    generator = Simulation(parameter_dict)
+    df = generator.run_simulation()
 
-for column in df.columns:
-    if df[column].dtype == "awkward":
-        df[column] = df[column].to_list()
+    for column in df.columns:
+        if df[column].dtype == "awkward":
+            df[column] = df[column].to_list()
 
-df.to_parquet(output_path)
-os.system("rm ./*.pkl")
+    df.to_parquet(output_path)
+    os.system("rm ./*.pkl")

@@ -3,7 +3,7 @@ from typing import Iterable, Literal, Tuple
 import numpy as np
 import torch
 
-from modules.simulation_helpers import SimulationParameter, SimulationParameterDictionary
+from aido.simulation_helpers import SimulationParameter, SimulationParameterDictionary
 
 
 class OneHotEncoder(torch.nn.Module):
@@ -15,6 +15,8 @@ class OneHotEncoder(torch.nn.Module):
             represent the model's confidence in each category prior to normalization. They can take any
             real value, including negatives, and are not probabilities themselves. Use the probabilities
             property to convert the logits to probabilities.
+    
+    TODO Restrict the learning rate of the logits since they converge much faster than Continuous parameters.
     """
     def __init__(self, parameter: SimulationParameter):
         """
@@ -30,27 +32,30 @@ class OneHotEncoder(torch.nn.Module):
         )
         self._cost = parameter.cost if parameter.cost is not None else 0.0
 
-    def forward(self):
+    def forward(self) -> torch.Tensor:
         """ Passes the probabilities of each entry """
         return self.probabilities
 
     @property
-    def current_value(self):
+    def current_value(self) -> torch.Tensor:
         """ Returns the index corresponding to highest scoring entry """
         return torch.argmax(self.logits.clone().detach())
 
     @property
-    def physical_value(self):
+    def physical_value(self) -> torch.Tensor:
         """ Returns the value of the highest scoring entry """
         return self.discrete_values[self.current_value.item()]
 
     @property
-    def probabilities(self):
-        """ Probabilities for each entry """
-        return torch.nn.functional.softmax(self.logits, dim=0)
+    def probabilities(self) -> torch.Tensor:
+        """ Probabilities for each entry, with a minimal probability of 1%"""
+        probabilities = torch.nn.functional.softmax(self.logits, dim=0)
+        probabilities = torch.clamp(probabilities, min=0.01)
+        probabilities = probabilities / probabilities.sum(dim=-1, keepdim=True)
+        return probabilities
 
     @property
-    def cost(self):
+    def cost(self) -> torch.Tensor:
         """ Costs associated to each entry """
         return torch.dot(self.probabilities, torch.tensor(self._cost, device=self.probabilities.device))
 
@@ -76,25 +81,25 @@ class ContinuousParameter(torch.nn.Module):
         super().__init__()
         self.starting_value = torch.tensor(parameter.current_value)
         self.parameter = torch.nn.Parameter(self.starting_value.clone(), requires_grad=True)
-        self.min_value = np.nan_to_num(parameter.min_value, nan=-10E10)
-        self.max_value = np.nan_to_num(parameter.max_value, nan=10E10)
+        self.min_value = parameter.min_value if parameter.min_value is not None else -10E10
+        self.max_value = parameter.max_value if parameter.max_value is not None else +10E10
         self.boundaries = torch.tensor(np.array([self.min_value, self.max_value], dtype="float32"))
         self.sigma = np.array(parameter.sigma)
         self._cost = parameter.cost if parameter.cost is not None else 0.0
 
-    def forward(self):
+    def forward(self) -> torch.Tensor:
         return torch.unsqueeze(self.parameter, 0)
 
     @property
-    def current_value(self):  # TODO Normalization
+    def current_value(self) -> torch.Tensor:
         return self.parameter
 
     @property
-    def physical_value(self):
-        return self.current_value.item()  # TODO Keep without normalization
+    def physical_value(self) -> float:
+        return self.current_value.item()
 
     @property
-    def cost(self):
+    def cost(self) -> float:
         return self.physical_value * self._cost
     
 
@@ -123,7 +128,7 @@ class ParameterModule(torch.nn.ModuleDict):
     def values(self) -> Iterable[OneHotEncoder | ContinuousParameter]:
         return super().values()
 
-    def reset_covariance(self):
+    def reset_covariance(self) -> np.ndarray:
         return np.diag(np.array(
             [parameter.sigma.item() for parameter in self.parameters_continuous.values()],
             dtype="float32"
@@ -136,11 +141,11 @@ class ParameterModule(torch.nn.ModuleDict):
         return torch.unsqueeze(torch.concat([parameter() for parameter in self.values()]), 0)
 
     @property
-    def discrete(self):
+    def discrete(self) -> None:
         return super().__init__(self.parameters_discrete)
-    
+
     @property
-    def continuous(self):
+    def continuous(self) -> None:
         return super().__init__(self.parameters_continuous)
 
     def tensor(self, parameter_types: Literal["all", "discrete", "continuous"] = "all"):
@@ -163,7 +168,7 @@ class ParameterModule(torch.nn.ModuleDict):
         elif format == "dict":
             return {name: parameter.physical_value for name, parameter in self.items()}
         
-    def get_probabilities(self):
+    def get_probabilities(self) -> dict[str, np.ndarray]:
         return {
             name: parameter.probabilities.detach().cpu().numpy() for name, parameter in self.parameters_discrete.items()
         }
@@ -179,13 +184,14 @@ class ParameterModule(torch.nn.ModuleDict):
     @property
     def cost_loss(self) -> torch.Tensor:
         return sum(parameter.cost for parameter in self.values())
-    
+
     def adjust_covariance(self, direction: torch.Tensor, min_scale=2.0):
+        return self.covariance
         """ Stretches the box_covariance of the generator in the directon specified as input.
         Direction is a vector in parameter space
         """
         parameter_direction_vector = direction.detach().cpu().numpy()
-        parameter_direction_length = np.linalg.norm(parameter_direction_vector)
+        parameter_direction_length = np.linalg.norm(parameter_direction_vector) + 1E-6
 
         scaling_factor = min_scale * np.max([1., 4. * parameter_direction_length])
         # Create the scaling adjustment matrix
@@ -196,6 +202,7 @@ class ParameterModule(torch.nn.ModuleDict):
         return np.diag(self.covariance)
 
     def check_parameters_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:
+        return True
         """ Assure that the predicted parameters by the optimizer are within the bounds of the covariance
         matrix spanned by the 'sigma' of each parameter.
         """

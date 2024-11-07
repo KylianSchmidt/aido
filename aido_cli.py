@@ -3,8 +3,7 @@ import importlib
 import importlib.util
 import sys
 
-from modules.aido import AIDO
-from modules.simulation_helpers import SimulationParameterDictionary
+import aido
 
 
 def interface_loader(interface_path: str):
@@ -69,8 +68,8 @@ def main():
         help="Directory for the results. Defaults to './results/'"
     )
     args, b2luigi_args = parser.parse_known_args()
-    param_dict = SimulationParameterDictionary.from_json(args.parameter_file_path)
-    AIDO.optimize(
+    param_dict = aido.SimulationParameterDictionary.from_json(args.parameter_file_path)
+    aido.optimize(
         param_dict,
         user_interface=interface_loader(args.interface),
         simulation_tasks=args.simulation_tasks,

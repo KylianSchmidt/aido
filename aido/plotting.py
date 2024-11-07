@@ -1,16 +1,26 @@
 import glob
 import os
 import re
-from typing import List, Tuple
+from typing import Annotated, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from modules.simulation_helpers import SimulationParameterDictionary
+from aido.simulation_helpers import SimulationParameterDictionary
 
 
-class AIDOPlotting:
+def percentage_type(value: float) -> float:
+    """ Checks if a float lies between [0, 1] """
+    if not (0.0 <= value < 1.0):
+        raise ValueError(f"Value {value} must be in [0, 1]")
+    return value
+
+
+Percentage = Annotated[float, percentage_type]
+
+
+class Plotting:
 
     @classmethod
     def plot(cls, plot_types: str | List[str] = "all", results_dir: str | os.PathLike = "./results/"):
@@ -27,9 +37,7 @@ class AIDOPlotting:
         Returns:
             None
 
-        TODO Fix issue with discrete parameters being plotted alongside continuous ones in parameter
-        evolution and such -> move them to probability evolution instead. Also clean up this class
-        and do not repeat the reading of files all the time
+        TODO Clean up this class and do not repeat the reading of files all the time
         """
         if plot_types == "all":
             plot_types = ["optimizer_loss", "probability_evolution", "parameter_evolution", "simulation_samples"]
@@ -40,7 +48,7 @@ class AIDOPlotting:
         for plot_type in plot_types:
             getattr(cls, plot_type)(results_dir=results_dir)
 
-        print(f"AIDOPlotting: Saved all figures to {results_dir}")
+        print(f"aido.Plotting: Saved all figures to {results_dir}")
 
     def parameter_evolution(
             fig_savepath: str | os.PathLike | None = "/plots/parameter_evolution",
@@ -88,6 +96,7 @@ class AIDOPlotting:
             plt.xlabel("Iteration", loc="right")
             plt.ylabel("Parameter Value", loc="top")
             plt.savefig(fig_savepath)
+            plt.close()
 
         return df, sigma
 
@@ -111,7 +120,7 @@ class AIDOPlotting:
         df_loss_list = []
 
         for file_name in glob.glob(f"{optimizer_loss_dir}/*"):
-            df_i = pd.read_csv(file_name, names=["Epoch", "Loss"])
+            df_i = pd.read_csv(file_name, names=["Epoch", "Loss"], dtype="float32", header=1)
             df_i["Iteration"] = int(re.search(r"optimizer_loss_(\d+)", file_name).group(1))
             df_loss_list.append(df_i)
 
@@ -128,9 +137,10 @@ class AIDOPlotting:
             plt.xlim(0, df_loss["Iteration"].to_numpy()[-1])
             plt.xlabel("Epoch", loc="right")
             plt.ylabel("Loss", loc="top")
-            plt.yscale("linear")
+            plt.yscale("log")
             plt.legend()
             plt.savefig(fig_savepath)
+            plt.close()
 
         return df_loss
 
@@ -168,11 +178,15 @@ class AIDOPlotting:
                 df["Task_ID"] = int(re.search(r"task_id=(\d+)", simulation_dir).group(1))
                 df_list.append(df)
 
+        if len(df_list) <= 1:
+            return df_list
+
         df_params = pd.concat(df_list)
         df_params = df_params.sort_values(["Iteration", "Task_ID"]).reset_index(drop=True)
 
         if fig_savepath is not None:
-            df_optim, sigma = AIDOPlotting.parameter_evolution(None, results_dir=results_dir)
+            cmap = plt.get_cmap("Set2")
+            df_optim, sigma = Plotting.parameter_evolution(None, results_dir=results_dir)
 
             plt.figure(figsize=(8, 6), dpi=400)
             plt.plot(df_optim, label=df_optim.columns)
@@ -183,18 +197,20 @@ class AIDOPlotting:
                         df_optim[col].index,
                         df_optim[col] - sigma[i],
                         df_optim[col] + sigma[i],
-                        alpha=0.5
+                        alpha=0.5,
+                        color=cmap(i)
                     )
 
             plt.gca().set_prop_cycle(None)
 
             for i, col in enumerate(df_params.columns.drop(["Iteration", "Task_ID"])):
-                plt.scatter(df_params["Iteration"], df_params[col].values, marker="+", s=100)
+                plt.scatter(df_params["Iteration"], df_params[col].values, marker="+", s=100, color=cmap(i))
 
             plt.xlabel("Iteration", loc="right")
             plt.ylabel("Parameter Value", loc="top")
             plt.legend()
             plt.savefig(fig_savepath)
+            plt.close()
 
         return df_params, sigma
 
@@ -240,6 +256,7 @@ class AIDOPlotting:
             plt.ylim(0, 1)
             plt.tight_layout()
             plt.savefig(f"{fig_savepath_absolute}_{name}")
+            plt.close()
             return None
 
         fig_savepath_absolute = f"{results_dir}/{fig_savepath}"
@@ -257,3 +274,38 @@ class AIDOPlotting:
                 plot_probabilities(parameter.name, param_dicts_list, fig_savepath_absolute)
 
         return None
+    
+    def fwhm(
+            x: np.ndarray,
+            y: np.ndarray,
+            height: Percentage = 0.5,
+            ax: plt.Axes | None = None
+            ) -> Tuple[float, float, float, float] | plt.Axes:
+        """ Compute the FWHM of a (x, y) distribution
+        If x has one more item than y, the zeroth item of x will be skipped (useful for binned histograms)
+        Returns:
+        -------
+            If Axes is None:
+                fwhm (float): Full Width at Half Maximum (weighted by 'height' argument)
+                x_left (float): left x value
+                y_right (float): right y value
+                height_absolute (float): absolute height of y at fwhm point
+            If Axes is given:
+                ax (plt.Axes): ax with added vlines for the left and right x values
+
+        TODO what if x is not monotone?
+        """
+        assert np.all(y >= 0.0), "y must be an Array with only positive entries"
+        if len(x) == len(y) + 1:
+            x = x[1:]
+        height_absolute = np.max(y) * height
+        index_max = np.argmax(y)
+        x_left = np.interp(height_absolute, y[:index_max + 1], x[:index_max + 1])
+        x_right = np.interp(height_absolute, np.flip(y[index_max:]), np.flip(x[index_max:]))
+
+        if ax is not None:
+            ax.vlines(x_left, 0.0, height_absolute, color="k", linestyles="--")
+            ax.vlines(x_right, 0.0, height_absolute, color="k", linestyles="--")
+            return ax
+
+        return x_right - x_left, x_left, x_right, height_absolute

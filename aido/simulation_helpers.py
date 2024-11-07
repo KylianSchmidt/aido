@@ -1,8 +1,6 @@
 import copy
 import datetime
 import json
-import os
-import time
 from typing import Any, Dict, Iterable, Iterator, List, Literal, Type
 
 import numpy as np
@@ -11,12 +9,6 @@ import pandas as pd
 
 class SimulationParameter:
     """Base class for all parameters used in the simulation
-
-    TODO Write warnings in case the base class is used directly in the dictionary
-    ref: https://stackoverflow.com/questions/46092104/subclass-in-type-hinting
-    Update: dont know if this is necessary, this class has already most capabilities.
-
-    TODO Make min and max also private attributes
     """
 
     def __init__(
@@ -37,21 +29,21 @@ class SimulationParameter:
 
         Args
         ----
-                name (str): The name of the parameter.
-                starting_value (Any): The starting value of the parameter.
-                current_value (Any, optional): The current value of the parameter. Defaults to None.
-                units (str, optional): The units of the parameter. Defaults to None.
-                optimizable (bool, optional): Whether the parameter is optimizable. Defaults to True.
-                min_value (float, optional): The minimum value of the parameter. Defaults to None.
-                max_value (float, optional): The maximum value of the parameter. Defaults to None.
-                sigma (float, optional): The standard deviation of the parameter. Defaults to None.
-                discrete_values (Iterable, optional): The allowed discrete values of the parameter. Defaults to None.
-                probabilities (Iterable[float], optional): A list of the same length as 'discrete_values' used to
-                    sample from 'discrete_values', if set to None, an equally-distributed array is created.
-                    Only for discrete parameters. Defaults to None
-                cost (float, Iterable, optional): A float that quantifies the cost per unit of this Parameter.
-                    Defaults to None. For discrete parameters, this parameter must be an Iterable (e.g. list) of the
-                    same length as 'discrete_values'.
+            name (str): The name of the parameter.
+            starting_value (Any): The starting value of the parameter.
+            current_value (Any, optional): The current value of the parameter. Defaults to None.
+            units (str, optional): The units of the parameter. Defaults to None.
+            optimizable (bool, optional): Whether the parameter is optimizable. Defaults to True.
+            min_value (float, optional): The minimum value of the parameter. Defaults to None.
+            max_value (float, optional): The maximum value of the parameter. Defaults to None.
+            sigma (float, optional): The standard deviation of the parameter. Defaults to None.
+            discrete_values (Iterable, optional): The allowed discrete values of the parameter. Defaults to None.
+            probabilities (Iterable[float], optional): A list of the same length as 'discrete_values' used to
+                sample from 'discrete_values', if set to None, an equally-distributed array is created.
+                Only for discrete parameters. Defaults to None
+            cost (float, Iterable, optional): A float that quantifies the cost per unit of this Parameter.
+                Defaults to None. For discrete parameters, this parameter must be an Iterable (e.g. list) of the
+                same length as 'discrete_values'.
         """
         assert isinstance(name, str), "Name must be a string"
 
@@ -127,7 +119,7 @@ class SimulationParameter:
             ), "Cost argument must be a positive float for continuous parameters."
         self.cost = cost
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return the dict representation of the class, with human-readable indentation
         TODO Do not indent lists e.g. in discrete_values=[]
         """
@@ -146,11 +138,11 @@ class SimulationParameter:
         return cls(**attribute_dict)
 
     @property
-    def current_value(self):
+    def current_value(self) -> Any:
         return self._current_value
 
     @current_value.setter
-    def current_value(self, value):
+    def current_value(self, value: Any) -> None:
         if isinstance(self._starting_value, int) and isinstance(value, float) and abs(value - round(value)) < 10E-15:
             value = round(value)
         assert (
@@ -169,11 +161,11 @@ class SimulationParameter:
         self._current_value = value
 
     @property
-    def optimizable(self):
+    def optimizable(self) -> bool:
         return self._optimizable
 
     @property
-    def probabilities(self):
+    def probabilities(self) -> List[float]:
         return self._probabilities
 
     @probabilities.setter
@@ -192,29 +184,77 @@ class SimulationParameter:
         prob_array: np.ndarray = prob_array / np.sum(prob_array)
         self._probabilities: List[float] = prob_array.tolist()
 
+    @property
+    def weighted_cost(self) -> None | float:
+        if self.cost is None:
+            return None
+        if self.discrete_values is None:
+            return self.current_value * self.cost
+        else:
+            return float(np.dot(np.array(self.probabilities), np.array(self.cost)))
+
 
 class SimulationParameterDictionary:
-    """Dictionary containing the list of parameters used by the simulation.
+    """Dictionary containing all the parameters used by the simulation.
 
     Attributes:
     parameter_list: List[Type[SimulationParameter]]
+    parameter_dict: Dict[str, Type[SimulationParameter]]
 
-    Provides IO methods to easily write and read with json format.
+    Provides simple methods to easily write and read with the json format. Instances of this
+    class have the following methods, with additional options listed in the method's docstring
 
-    TODO Additional information such as current iteration number, date of creation, etc...
+      1. Accessing the information stored in the class:
+
+        - Indexing as a list (in the same order as given during instantiation) or as a dict
+            using the parameter's 'name'. Also usable with list or dict comprehension.
+        - 'to_dict' returns a dict with the parameters also in a dict format. Alternatively,
+            it returns a dict of 'SimulationParameter' (same as indexing this class by 'name')
+            if you add the keyword argument 'serialized=False'.
+        - 'to_json' will write all data from this class to a specified .json file in a dict
+            format.
+        - 'to_df' returns a pd.DataFrame of your parameters. More options are listed in the
+            method's docstring.
+        - 'get_current_values' returns all the current values of each parameter in a list or
+            dict format.
+        - 'get_probabilities' returns a dict whose values are the probabilities of each
+            discrete parameter. More information about the usage of probabilities for one-hot
+            encoded parameters is listed in the docstring of SimulationParameter.
+
+      2. Instantiating this class from other objects:
+        - 'from_dict' instantiates this class from a nested dict, where each entry is the dict
+            representation of a SimulationParameter (which has a similar method)
+        - 'from_json' instantiates this class from a json file. Specially useful in the combination
+            with 'to_json' to transfer this class between programs.
+
+      3. Changing the information stored:
+        - 'update_current_values' will change all the current values of the class provided a
+            simple dict [str, <update_value>].
+        - 'update_probabilities' does the same but with all the probabilities of the discrete
+            parameters of the class.
+        - 'generate_new' will return a new instance of this class with new current values for each
+            parameter
+
+      4. Properties:
+        - 'covariance' returns a diagonal matrix with the 'sigma' of every continuous parameter.
+        - 'metadata' returns additional information about this class such as its creation time,
+            the current iteration of the optimization process and user-defined descriptions.
     """
 
     def __init__(
             self,
             parameter_list: List[Type[SimulationParameter]] = [],
             ):
-        """Initialize a list of parameters"""
+        """ Initialize with a list of parameters 'SimulationParameter'
+        """
         self.iteration: int = 0
         self.creation_time = str(datetime.datetime.now())
+        self.rng_seed: int | None = None
+        self.description = ""
         self.parameter_list = parameter_list
         self.parameter_dict = self.to_dict(serialized=False)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return json.dumps(self.to_dict(), indent=4)
 
     def __setitem__(self, name: str, simulation_parameter: Type[SimulationParameter]):
@@ -274,6 +314,9 @@ class SimulationParameterDictionary:
                 df. Defaults to False.
             one_hot (bool): Format discrete parameters as one-hot encoded categoricals. Relevant for
                 training with discrete parameters. Defaults to False
+            types (str): Choose what kind of parameters will be added to the pd.DataFrame. All includes
+                all parameters, continuous only those with no 'discrete_values' and discrete only
+                those with 'discrete_values'.
             kwargs: Additional keyword arguments to be passed to the pd.DataFrame constructor.
         Return
         ------
@@ -330,7 +373,7 @@ class SimulationParameterDictionary:
 
         return current_values
 
-    def get_probabilities(self):
+    def get_probabilities(self) -> dict[str, List[float]]:
         probabilities = {}
 
         for parameter in self.parameter_list:
@@ -357,8 +400,10 @@ class SimulationParameterDictionary:
             if self.parameter_dict[key].discrete_values is not None:
                 self.parameter_dict[key].probabilities = value
 
+        return self
+
     @property
-    def covariance(self):
+    def covariance(self) -> np.ndarray:
         covariance_matrix = []
 
         for parameter in self.parameter_list:
@@ -368,18 +413,28 @@ class SimulationParameterDictionary:
         return np.diag(np.array(covariance_matrix))
 
     @property
-    def metadata(self):
-        return {"iteration": self.iteration, "creation_time": self.creation_time}
+    def metadata(self) -> Dict[str, int | str]:
+        return {
+            "iteration": self.iteration,
+            "creation_time": self.creation_time,
+            "rng_seed": self.rng_seed,
+            "description": self.description
+        }
+
+    @metadata.setter
+    def metadata(self, new_metadata_dict: Dict[str, int | str]):
+        for name, value in new_metadata_dict.items():
+            if name in self.metadata:
+                self.__setattr__(name, value)
 
     @classmethod
     def from_dict(cls, parameter_dict: Dict):
         """Create an instance from dictionary
         TODO Make sure it is a serialized dict, not a dict of SimulationParameters
         """
-        metadata: Dict = parameter_dict.pop("metadata")
+        metadata = parameter_dict.pop("metadata")
         instance = cls([SimulationParameter.from_dict(parameter) for parameter in parameter_dict.values()])
-        for name, value in metadata.items():
-            instance.__setattr__(name, value)
+        instance.metadata = metadata
         return instance
 
     @classmethod
@@ -428,10 +483,8 @@ class SimulationParameterDictionary:
                 rng.choice(len(parameter.discrete_values), p=parameter.probabilities)
             ]
 
-        if rng_seed is None:
-            rng_seed = int(time.time()) + os.getpid()
-
         rng = np.random.default_rng(rng_seed)
+        rng_seed = rng_seed or int(rng.integers(9_999_999))
         new_parameter_list = copy.deepcopy(self.parameter_list)  # Prevents the modification of this instance
 
         for parameter in new_parameter_list:
@@ -444,4 +497,7 @@ class SimulationParameterDictionary:
             elif isinstance(parameter.current_value, float) and parameter.optimizable:
                 parameter.current_value = generate_continuous(parameter)
 
-        return type(self)(new_parameter_list)
+        new_instance = type(self)(new_parameter_list)
+        new_instance.metadata = self.metadata
+        new_instance.rng_seed = rng_seed
+        return new_instance

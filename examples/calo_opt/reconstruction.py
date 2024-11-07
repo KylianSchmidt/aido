@@ -40,15 +40,13 @@ class ReconstructionDataset(Dataset):
             np.mean(self.context, axis=0)
         ]
         self.stds = [
-            np.std(self.parameters, axis=0) + 1e-3,
-            np.std(self.inputs, axis=0) + 1e-3,
-            np.std(self.targets, axis=0) + 1e-3,
-            np.std(self.context, axis=0) + 1e-3
+            np.std(self.parameters, axis=0) + 1e-10,
+            np.std(self.inputs, axis=0) + 1e-10,
+            np.std(self.targets, axis=0) + 1e-10,
+            np.std(self.context, axis=0) + 1e-10
         ]
 
-        self.parameters = (self.parameters - self.means[0]) / self.stds[0]
         self.inputs = (self.inputs - self.means[1]) / self.stds[1]
-        self.targets = (self.targets - self.means[2]) / self.stds[2]
         self.context = (self.context - self.means[3]) / self.stds[3]
 
         self.c_means = [torch.tensor(a).to('cuda') for a in self.means]
@@ -63,39 +61,45 @@ class ReconstructionDataset(Dataset):
         df = df.dropna(axis=0, ignore_index=True)
         return df
 
-    def unnormalise_target(self, target):
+    def unnormalise_target(self, target: torch.Tensor):
         '''
         receives back the physically meaningful target from the normalised target
         '''
         return target * self.c_stds[2] + self.c_means[2]
     
-    def normalise_target(self, target):
+    def normalise_target(self, target: torch.Tensor):
         '''
         normalises the target
         '''
         return (target - self.c_means[2]) / self.c_stds[2]
     
-    def unnormalise_detector(self, detector):
+    def unnormalise_detector(self, detector: torch.Tensor):
         '''
         receives back the physically meaningful detector from the normalised detector
         '''
         return detector * self.c_stds[1] + self.c_means[1]
     
-    def normalise_detector(self, detector):
+    def normalise_detector(self, detector: torch.Tensor):
         '''
         normalises the detector
         '''
         return (detector - self.c_means[1]) / self.c_stds[1]
         
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.inputs)
     
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int):
         return self.parameters[idx], self.inputs[idx], self.targets[idx]
 
 
 class Reconstruction(torch.nn.Module):
-    def __init__(self, num_parameters, num_input_features, num_target_features, num_context_features):
+    def __init__(
+            self,
+            num_parameters: int,
+            num_input_features: int,
+            num_target_features: int,
+            num_context_features: int
+            ):
         """Initialize the shape of the model.
 
         Args:
@@ -111,6 +115,14 @@ class Reconstruction(torch.nn.Module):
         self.n_target_features = num_target_features
         self.n_context_features = num_context_features
 
+        self.pre_processing_layers = torch.nn.Sequential(
+            torch.nn.Linear(self.n_parameters, 100),
+            torch.nn.ELU(),
+            torch.nn.Linear(100, 100),
+            torch.nn.ELU(),
+            torch.nn.Linear(100, num_input_features),
+            torch.nn.ReLU()
+        )
         self.layers = torch.nn.Sequential(
             torch.nn.Linear(num_parameters + num_input_features, 200),
             torch.nn.ELU(),
@@ -120,18 +132,17 @@ class Reconstruction(torch.nn.Module):
             torch.nn.ELU(),
             torch.nn.Linear(100, num_target_features),
         )
-
-        # Placeholders for a simpler training loop
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
         self.device = torch.device('cuda')
 
-    def forward(self, detector_parameters, x) -> torch.Tensor:
+    def forward(self, parameters, x) -> torch.Tensor:
         """ Concatenate the detector parameters and the input
         """
-        x = torch.cat([detector_parameters, x], dim=1)
+        x = self.pre_processing_layers(parameters) * x
+        x = torch.cat([parameters, x], dim=1)
         return self.layers(x)
 
-    def loss(self, y_pred, y):
+    def loss(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """ Remark: filters nans and in order to make it more stable.
         Uses an L2 loss with with 1/sqrt(E) weighting
 
@@ -142,8 +153,8 @@ class Reconstruction(torch.nn.Module):
         y_pred = torch.where(torch.isnan(y_pred), torch.zeros_like(y_pred), y_pred)
         y_pred = torch.where(torch.isinf(y_pred), torch.zeros_like(y_pred), y_pred)
 
-        return ((y_pred - y)**2 / (torch.abs(y) + 1.)).mean()
-    
+        return ((y_pred - y)**2 / (torch.abs(y) + 1.)).flatten()
+
     def train_model(self, dataset: ReconstructionDataset, batch_size: int, n_epochs: int, lr: float):
         train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         self.optimizer.lr = lr
@@ -155,10 +166,11 @@ class Reconstruction(torch.nn.Module):
     
             for (detector_parameters, x, y) in train_loader:
                 detector_parameters = detector_parameters.to(self.device)
-                x = x.to(self.device)
-                y = y.to(self.device)
+                x: torch.Tensor = x.to(self.device)
+                y: torch. Tensor = y.to(self.device)
                 y_pred = self(detector_parameters, x)
-                loss = self.loss(dataset.unnormalise_target(y_pred), dataset.unnormalise_target(y))
+                loss_per_event = self.loss(y_pred, y)
+                loss = loss_per_event.mean()
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
@@ -171,16 +183,14 @@ class Reconstruction(torch.nn.Module):
             self,
             dataset: ReconstructionDataset,
             batch_size: int,
-            normalize_outputs: bool = False
             ) -> Tuple[np.ndarray, np.ndarray, float]:
-        """ Apply the model in batches
-        this is necessary because the model is too large to apply it to the whole dataset at once.
-        The model is applied to the dataset in batches and the results are concatenated.
+        """ Apply the model in batches this is necessary because the model is too large to apply it to the
+        whole dataset at once. The model is applied to the dataset in batches and the results are concatenated
         (the batch size is a hyperparameter).
         """
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
         results = None
-        loss_array = None
+        loss_array = torch.zeros(len(dataset))
         mean_loss = 0.
 
         self.to(self.device)
@@ -192,21 +202,17 @@ class Reconstruction(torch.nn.Module):
             y: torch.Tensor = y.to(self.device)
             y_pred: torch.Tensor = self(detector_parameters, x)
 
-            loss = self.loss(dataset.unnormalise_target(y_pred), dataset.unnormalise_target(y))
+            loss_per_event = self.loss(y_pred, y)
+            loss = loss_per_event.mean()
             mean_loss += loss.item()
 
             if results is None:
                 results = torch.zeros(len(dataset), y_pred.shape[1])
-                loss_array = torch.zeros(len(dataset), y_pred.shape[1])
 
             results[batch_idx * batch_size: (batch_idx + 1) * batch_size] = y_pred
-            loss_array[batch_idx * batch_size: (batch_idx + 1) * batch_size] = torch.fill(y_pred, loss)
+            loss_array[batch_idx * batch_size: (batch_idx + 1) * batch_size] = loss_per_event
 
         mean_loss /= len(data_loader)
         results = results.detach().cpu().numpy()
-        loss_array = loss_array.flatten().detach().cpu().numpy()
-
-        if normalize_outputs is False:
-            results = results * dataset.stds[2] + dataset.means[2]
-
+        loss_array = loss_array.detach().cpu().numpy()
         return results, loss_array, mean_loss
