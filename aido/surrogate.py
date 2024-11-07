@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -10,7 +10,7 @@ def ddpm_schedules(beta1: float, beta2: float, n_time_steps: int) -> dict[str, t
     """
     Returns pre-computed schedules for DDPM sampling, training process.
     """
-    assert beta1 < beta2 < 1.0, "beta1 and beta2 must be in ]0, 1["
+    assert 0.0 < beta1 < beta2 < 1.0, "Condition 0.0 < 'beta 1' < 'beta 2' < 1.0 not fulfilled"
 
     beta_t = (beta2 - beta1) * torch.arange(0, n_time_steps + 1, dtype=torch.float32) / n_time_steps + beta1
     sqrt_beta_t = torch.sqrt(beta_t)
@@ -67,16 +67,18 @@ class SurrogateDataset(Dataset):
 
     TODO: Accomodate for discrete parameters
     """
-
     def __init__(
             self,
             input_df: pd.DataFrame,
             parameter_key: str = "Parameters",
             context_key: str = "Context",
-            reco_loss_key: str = "Loss"
+            reco_loss_key: str = "Loss",
+            device: str = "cuda",
+            norm_reco_loss: bool = True
             ):
         """
-        Initializes the Surrogate model with the provided DataFrame and keys.
+        Initializes the Surrogate model with the provided DataFrame and keys. All inputs must be
+        unnormalized and will be kept as such. Normalization for training is left to the caller.
 
         Args:
         ----
@@ -88,34 +90,35 @@ class SurrogateDataset(Dataset):
             reco_loss_key (str, optional): The key for the reconstruction loss column in the DataFrame.
                 Defaults to "Loss".
         """
-
         self.df = input_df
-        self.parameters = self.df[parameter_key].to_numpy("float32")
-        self.context = self.df[context_key].to_numpy("float32")
-        self.reconstructed = self.df[reco_loss_key].to_numpy("float32")
+        self.parameters = self.df[parameter_key].to_numpy(np.float32)
+        self.context = self.df[context_key].to_numpy(np.float32)
+        self.reconstructed = self.df[reco_loss_key].to_numpy(np.float32)
+        self.norm_reco_loss = norm_reco_loss
 
-        self.shape = (
+        assert np.all(self.reconstructed >= 0.0), "Reconstruction Loss must only have positive entries"
+
+        self.shape: List[int] = (
             self.parameters.shape[1],
             self.context.shape[1],
             self.reconstructed.shape[1]
         )
-        self.means = [
+        self.means: List[np.float32] = [
             np.mean(self.parameters, axis=0),
             np.mean(self.context, axis=0),
             np.mean(self.reconstructed, axis=0)
         ]
-        self.stds = [
-            np.std(self.parameters, axis=0) + 1e-3,
-            np.std(self.context, axis=0) + 1e-3,
-            np.std(self.reconstructed, axis=0) + 1e-3
+        self.stds: List[np.float32] = [
+            np.std(self.parameters, axis=0) + 1e-10,
+            np.std(self.context, axis=0) + 1e-10,
+            np.std(self.reconstructed, axis=0) + 1e-10
         ]
+        self.c_means = [torch.tensor(a).to(device) for a in self.means]
+        self.c_stds = [torch.tensor(a).to(device) for a in self.stds]
 
-        self.parameters = (self.parameters - self.means[0]) / self.stds[0]
-        self.context = (self.context - self.means[1]) / self.stds[1]
-        self.reconstructed = (self.reconstructed - self.means[2]) / self.stds[2]
+        if self.norm_reco_loss is True:
+            self.reconstructed = self.normalise_reconstructed(self.reconstructed)
 
-        self.c_means = [torch.tensor(a).to('cuda') for a in self.means]
-        self.c_stds = [torch.tensor(a).to('cuda') for a in self.stds]
         self.df = self.filter_infs_and_nans(self.df)
 
     def filter_infs_and_nans(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -125,34 +128,51 @@ class SurrogateDataset(Dataset):
         df = df.dropna(axis=0, ignore_index=True)
         return df
 
-    def unnormalise_target(self, target):
+    def unnormalise_features(self, target: torch.Tensor, index: int) -> torch.Tensor:
+        ''' Return the physically meaningful target from the normalised target
+        Index:
+            0 -> Parameters
+            1 -> Context
+            2 -> Reconstructed
         '''
-        receives back the physically meaningful target from the normalised target
-        '''
-        return target * self.c_stds[2] + self.c_means[2]
+        assert index in [0, 1, 2]
+        if index == 2:
+            return self.unnormalise_reconstructed(target)
+        elif index == 0 or index == 1:
+            return target * self.c_stds[index] + self.c_means[index]
 
-    def normalise_target(self, target):
+    def normalise_features(self, target: torch.Tensor, index: int) -> torch.Tensor:
+        ''' Normalize a feature
+        Index:
+            0 -> Parameters
+            1 -> Context
+            2 -> Reconstructed
         '''
-        normalises the target
-        '''
-        return (target - self.c_means[2]) / self.c_stds[2]
+        assert index in [0, 1, 2]
+        if index == 2:
+            return self.normalise_reconstructed(target)
+        elif index == 0 or index == 1:
+            return (target - self.c_means[index]) / self.c_stds[index]
 
-    def unnormalise_detector(self, detector):
-        '''
-        receives back the physically meaningful detector from the normalised detector
-        '''
-        return detector * self.c_stds[1] + self.c_means[1]
-    
-    def normalise_detector(self, detector):
-        '''
-        normalises the detector
-        '''
-        return (detector - self.c_means[1]) / self.c_stds[1]
+    def normalise_reconstructed(
+            self,
+            target: torch.Tensor | np.ndarray
+            ) -> torch.Tensor | np.ndarray:
+        """ Normalize the Reconstruction Loss. Important if the Loss is highly negatively skewed.
+        Currently, no normalization is applied
+        """
+        return target
 
-    def __getitem__(self, idx):
+    def unnormalise_reconstructed(
+            self,
+            target: torch.Tensor | np.ndarray
+            ) -> torch.Tensor | np.ndarray:
+        return target
+
+    def __getitem__(self, idx: int):
         return self.parameters[idx], self.context[idx], self.reconstructed[idx]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.reconstructed)
 
 
@@ -161,11 +181,6 @@ class Surrogate(torch.nn.Module):
     The surrogate model itself can be very simple. It is just a feed-forward model but used as a diffusion model.
 
     Attributes:
-        num_parameters (int): Number of parameters.
-        num_context (int): Number of context features.
-        num_reconstructed (int): Number of reconstructed features.
-
-        n_time_steps (int): Number of time steps for the diffusion process.
         betas (Tuple[float]): Tuple containing the start and end beta values for the diffusion process.
         t_is (torch.Tensor): Tensor containing time steps normalized by the number of time steps.
 
@@ -208,15 +223,16 @@ class Surrogate(torch.nn.Module):
         self.num_context = num_context
         self.num_reconstructed = num_reconstructed
         self.layers = torch.nn.Sequential(
-            torch.nn.Linear(self.num_parameters + self.num_context + self.num_reconstructed + 1, 100),
+            torch.nn.Linear(self.num_parameters + self.num_context + self.num_reconstructed + 1, 200),
             torch.nn.ELU(),
-            torch.nn.Linear(100, 100),
+            torch.nn.Linear(200, 100),
             torch.nn.ELU(),
             torch.nn.Linear(100, 100),
             torch.nn.ELU(),
             torch.nn.Linear(100, num_reconstructed),
         )
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
+        self.surrogate_loss = []
         self.n_time_steps = n_time_steps
         self.device = torch.device('cuda')
         self.t_is = torch.tensor([i / self.n_time_steps for i in range(self.n_time_steps + 1)]).to(self.device)
@@ -231,10 +247,18 @@ class Surrogate(torch.nn.Module):
             reconstructed: torch.Tensor,
             time_step: torch.Tensor
             ):
-        """ Concatenate the detector parameters and the input then apply the model layers
+        """ When sampling forward, 'parameters' has only one entry, therefore it is broadcast to
+        the shape of 'context'.
         """
+        assert (
+            context.shape[0] == reconstructed.shape[0]
+        ), "Context and Reconstructed inputs have unequal lengths"
+
+        if parameters.shape[0] == 1:
+            parameters = parameters.repeat(context.shape[0], 1)
+
         return self.layers(torch.cat([parameters, context, reconstructed, time_step.view(-1, 1)], dim=1))
-    
+
     def to(self, device: str = None):
         if device is None:
             device = self.device
@@ -244,9 +268,13 @@ class Surrogate(torch.nn.Module):
         self.sqrtab = self.sqrtab.to(device)
         self.sqrtmab = self.sqrtmab.to(device)
         return self
-    
-    def create_noisy_input(self, x: torch.Tensor):
-        """ Add gaussian noise to a tensor.
+
+    def create_noisy_input(
+            self,
+            x: torch.Tensor,
+            scale: float = 1.0
+            ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """ Add gaussian noise to a tensor. Scale the noise with 'scale', by default the noise is N(0, 1).
 
         Args:
             x (torch.Tensor): The input tensor to which noise will be added.
@@ -258,7 +286,7 @@ class Surrogate(torch.nn.Module):
                 - torch.Tensor: The time steps used for generating the noise.
         """
         _ts = torch.randint(1, self.n_time_steps + 1, (x.shape[0],)).to(self.device)  # t ~ Uniform(0, n_time_steps)
-        noise = torch.randn_like(x)  # eps ~ N(0, 1)
+        noise = scale * torch.randn_like(x)  # eps ~ N(0, 1)
 
         x_t = self.sqrtab[_ts, None] * x + self.sqrtmab[_ts, None] * noise
         return x_t, noise, _ts
@@ -282,7 +310,6 @@ class Surrogate(torch.nn.Module):
             predicted_reco = (
                 self.oneover_sqrta[i] * (predicted_reco - eps * self.mab_over_sqrtmab[i]) + self.sqrt_beta_t[i] * z
             )
-
         return predicted_reco
 
     def train_model(
@@ -295,7 +322,6 @@ class Surrogate(torch.nn.Module):
         """ Train the Surrogate Diffusion model. The training loop includes the added
         noise.
         """
-
         train_loader = DataLoader(surrogate_dataset, batch_size=batch_size, shuffle=True)
         self.optimizer.lr = lr
         self.to(self.device)
@@ -305,19 +331,26 @@ class Surrogate(torch.nn.Module):
         for epoch in range(n_epochs):
 
             for batch_idx, (parameters, context, reconstructed) in enumerate(train_loader):
-                parameters = parameters.to(self.device)
-                reconstructed = reconstructed.to(self.device)
-                context = context.to(self.device)
+                parameters: torch.Tensor = parameters.to(self.device)
+                reconstructed: torch.Tensor = reconstructed.to(self.device)
+                context: torch.Tensor = context.to(self.device)
 
                 reco_noisy, noise, time_step = self.create_noisy_input(reconstructed)
-                model_out = self(parameters, context, reco_noisy, time_step / self.n_time_steps)
+                model_out: torch.Tensor = self(parameters, context, reco_noisy, time_step / self.n_time_steps)
 
                 loss: torch.Tensor = self.loss_mse(noise, model_out)
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
 
-            print(f'Surrogate Epoch: {epoch} \tLoss: {loss.item():.8f}')
+            print(
+                f"Surrogate Epoch: {epoch}",
+                f"Loss: {loss.item():.5f}",
+                f"Prediction: {self.sample_forward(parameters, context).mean().item():.5f}",
+                f"Reconstructed: {reconstructed.mean().item():.5f}",
+                sep="\t"
+            )
+            self.surrogate_loss.append(loss.item())
 
         self.eval()
         return loss.item()
@@ -326,7 +359,7 @@ class Surrogate(torch.nn.Module):
             self,
             dataset: SurrogateDataset,
             batch_size: int,
-            oversample=1,
+            oversample: int = 1,
             ):
         """
         Applies the model to the given dataset in batches and returns the results.
@@ -356,7 +389,6 @@ class Surrogate(torch.nn.Module):
                 context = context.to(self.device)
 
                 reco_surrogate = self.sample_forward(parameters, context)
-                reco_surrogate = dataset.unnormalise_target(reco_surrogate)
 
                 start_inject_index = i_o * len(dataset) + batch_idx * batch_size
                 end_inject_index = i_o * len(dataset) + (batch_idx + 1) * batch_size
