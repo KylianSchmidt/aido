@@ -4,7 +4,7 @@ import sys
 
 import numpy as np
 import pandas as pd
-from G4Calo import G4System, GeometryDescriptor
+from G4Calo import GeometryDescriptor, run_batch
 
 
 class Simulation():
@@ -59,27 +59,19 @@ class Simulation():
                 )
 
     def run_simulation(self) -> pd.DataFrame:
-        rng_seed = self.parameter_dict["metadata"]["rng_seed"]
-        assert rng_seed is not None, "RNG Seed in Simulation Parameter is None!"
-        rng = np.random.default_rng(rng_seed)
-        seed_1 = rng.integers(low=0, high=9_999_999)
-        seed_2 = rng.integers(low=0, high=9_999_999)
-
-        G4System.init(self.cw)
-        G4System.applyUICommand("/control/verbose 0")
-        G4System.applyUICommand("/run/verbose 0")
-        G4System.applyUICommand("/event/verbose 0")
-        G4System.applyUICommand("/tracking/verbose 0")
-        G4System.applyUICommand("/process/verbose 0")
-        G4System.applyUICommand("/run/quiet true")
-        G4System.applyUICommand(f"/random/setSeeds {seed_1} {seed_2}")
-
         dfs = []
         particles = {'pi+': 0.211, 'gamma': 0.22}
 
         for particle in particles.items():
             name, pid = particle
-            df: pd.DataFrame = G4System.run_batch(int(self.n_events_per_var / len(particles)), name, 1., 20.)
+            df: pd.DataFrame = run_batch(
+                gd=self.cw,
+                nEvents=int(self.n_events_per_var / len(particles)),
+                particleSpec=name,
+                minEnergy_GeV=1.,
+                maxEnergy_GeV=20.,
+                no_mp=True
+            )
             df = df.assign(true_pid=np.full(len(df), pid, dtype='float32'))
             dfs.append(df)
 

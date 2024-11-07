@@ -14,7 +14,7 @@ class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
 
     def simulate(self, parameter_dict_path: str, sim_output_path: str):
         os.system(
-            f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base.sif python3 \
+            f"singularity exec -B /work,/ceph /ceph/kschmidt/singularity_cache/minicalosim_latest.sif python3 \
             examples/calo_opt/simulation.py {parameter_dict_path} {sim_output_path}"
         )
         return None
@@ -109,7 +109,7 @@ class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
         TODO Change to the dockerhub version when deploying to production.
         """
         os.system(
-            f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/ml_base.sif python3 \
+            f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/minicalosim_latest.sif python3 \
             examples/calo_opt/reco_script.py {reco_input_path} {reco_output_path}"
         )
         os.system("rm *.pkl")
