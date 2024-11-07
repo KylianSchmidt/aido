@@ -104,18 +104,19 @@ class Simulation():
         return cw
 
 
-parameter_dict_file_path = sys.argv[1]
-output_path = sys.argv[2]
+if __name__ == "__main__":
+    parameter_dict_file_path = sys.argv[1]
+    output_path = sys.argv[2]
 
-with open(parameter_dict_file_path, "r") as file:
-    parameter_dict = json.load(file)
+    with open(parameter_dict_file_path, "r") as file:
+        parameter_dict = json.load(file)
 
-generator = Simulation(parameter_dict)
-df = generator.run_simulation()
+    generator = Simulation(parameter_dict)
+    df = generator.run_simulation()
 
-for column in df.columns:
-    if df[column].dtype == "awkward":
-        df[column] = df[column].to_list()
+    for column in df.columns:
+        if df[column].dtype == "awkward":
+            df[column] = df[column].to_list()
 
-df.to_parquet(output_path)
-os.system("rm ./*.pkl")
+    df.to_parquet(output_path)
+    os.system("rm ./*.pkl")
