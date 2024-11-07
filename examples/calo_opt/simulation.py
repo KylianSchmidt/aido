@@ -59,6 +59,12 @@ class Simulation():
                 )
 
     def run_simulation(self) -> pd.DataFrame:
+        rng_seed = self.parameter_dict["metadata"]["rng_seed"]
+        assert rng_seed is not None, "RNG Seed in Simulation Parameter is None!"
+        rng = np.random.default_rng(rng_seed)
+        seed_1 = rng.integers(low=0, high=9_999_999)
+        seed_2 = rng.integers(low=0, high=9_999_999)
+
         G4System.init(self.cw)
         G4System.applyUICommand("/control/verbose 0")
         G4System.applyUICommand("/run/verbose 0")
@@ -66,6 +72,7 @@ class Simulation():
         G4System.applyUICommand("/tracking/verbose 0")
         G4System.applyUICommand("/process/verbose 0")
         G4System.applyUICommand("/run/quiet true")
+        G4System.applyUICommand(f"/random/setSeeds {seed_1} {seed_2}")
 
         dfs = []
         particles = {'pi+': 0.211, 'gamma': 0.22}

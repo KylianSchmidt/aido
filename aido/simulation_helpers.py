@@ -251,6 +251,7 @@ class SimulationParameterDictionary:
         """
         self.iteration: int = 0
         self.creation_time = str(datetime.datetime.now())
+        self.rng_seed: int | None = None
         self.description = ""
         self.parameter_list = parameter_list
         self.parameter_dict = self.to_dict(serialized=False)
@@ -415,19 +416,27 @@ class SimulationParameterDictionary:
 
     @property
     def metadata(self) -> Dict[str, int | str]:
-        return {"iteration": self.iteration, "creation_time": self.creation_time, "description": self.description}
+        return {
+            "iteration": self.iteration,
+            "creation_time": self.creation_time,
+            "rng_seed": self.rng_seed,
+            "description": self.description
+        }
+
+    @metadata.setter
+    def metadata(self, new_metadata_dict: Dict[str, int | str]):
+        for name, value in new_metadata_dict.items():
+            if name in self.metadata:
+                self.__setattr__(name, value)
 
     @classmethod
     def from_dict(cls, parameter_dict: Dict):
         """Create an instance from dictionary
         TODO Make sure it is a serialized dict, not a dict of SimulationParameters
         """
-        metadata: Dict = parameter_dict.pop("metadata")
+        metadata = parameter_dict.pop("metadata")
         instance = cls([SimulationParameter.from_dict(parameter) for parameter in parameter_dict.values()])
-
-        for name, value in metadata.items():
-            instance.__setattr__(name, value)
-
+        instance.metadata = metadata
         return instance
 
     @classmethod
@@ -477,7 +486,7 @@ class SimulationParameterDictionary:
             ]
 
         if rng_seed is None:
-            rng_seed = int(time.time()) + os.getpid()
+            rng_seed = int(1000.0 * time.time()) + os.getpid()
 
         rng = np.random.default_rng(rng_seed)
         new_parameter_list = copy.deepcopy(self.parameter_list)  # Prevents the modification of this instance
@@ -492,4 +501,7 @@ class SimulationParameterDictionary:
             elif isinstance(parameter.current_value, float) and parameter.optimizable:
                 parameter.current_value = generate_continuous(parameter)
 
-        return type(self)(new_parameter_list)
+        new_instance = type(self)(new_parameter_list)
+        new_instance.metadata = self.metadata
+        new_instance.rng_seed = rng_seed
+        return new_instance
