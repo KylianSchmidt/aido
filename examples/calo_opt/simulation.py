@@ -70,7 +70,8 @@ class Simulation():
                 particleSpec=name,
                 minEnergy_GeV=1.,
                 maxEnergy_GeV=20.,
-                no_mp=True
+                no_mp=True,
+                manual_seed=self.parameter_dict["metadata"]["rng_seed"]
             )
             df = df.assign(true_pid=np.full(len(df), pid, dtype='float32'))
             dfs.append(df)
