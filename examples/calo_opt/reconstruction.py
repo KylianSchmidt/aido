@@ -164,7 +164,7 @@ class Reconstruction(torch.nn.Module):
 
         for epoch in range(n_epochs):
     
-            for (detector_parameters, x, y) in train_loader:
+            for batch_idx, (detector_parameters, x, y) in enumerate(train_loader):
                 detector_parameters = detector_parameters.to(self.device)
                 x: torch.Tensor = x.to(self.device)
                 y: torch. Tensor = y.to(self.device)
@@ -189,7 +189,7 @@ class Reconstruction(torch.nn.Module):
         (the batch size is a hyperparameter).
         """
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
-        results = None
+        results = torch.zeros(len(dataset))
         loss_array = torch.zeros(len(dataset))
         mean_loss = 0.
 
@@ -206,10 +206,7 @@ class Reconstruction(torch.nn.Module):
             loss = loss_per_event.mean()
             mean_loss += loss.item()
 
-            if results is None:
-                results = torch.zeros(len(dataset), y_pred.shape[1])
-
-            results[batch_idx * batch_size: (batch_idx + 1) * batch_size] = y_pred
+            results[batch_idx * batch_size: (batch_idx + 1) * batch_size] = y_pred.flatten()
             loss_array[batch_idx * batch_size: (batch_idx + 1) * batch_size] = loss_per_event
 
         mean_loss /= len(data_loader)
