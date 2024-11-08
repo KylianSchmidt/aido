@@ -7,7 +7,7 @@ import aido
 def sim_param_dict() -> aido.SimulationParameterDictionary:
     return aido.SimulationParameterDictionary([
         aido.SimulationParameter("absorber_thickness", 10.0, min_value=0.5, max_value=40.0),
-        aido.SimulationParameter("absorber_material", "LEAD", discrete_values=["LEAD", "TUNGSTEN"]),
+        aido.SimulationParameter("absorber_material", "LEAD", discrete_values=["LEAD", "TUNGSTEN", "BREAD", "WOOD"]),
         aido.SimulationParameter("energy", 1000, optimizable=False),
         aido.SimulationParameter("num_absorber_plates", 2, discrete_values=list(range(0, 5))),
     ])
@@ -31,12 +31,12 @@ def test_update_metadata(sim_param_dict: aido.SimulationParameterDictionary):
 
 
 def test_to_df(sim_param_dict: aido.SimulationParameterDictionary):
-    sim_param_dict.to_df(types="all", one_hot=True)
-    sim_param_dict.to_df(types="discrete", one_hot=True)
+    sim_param_dict.to_df(types="all", display_discrete="as_one_hot")
+    sim_param_dict.to_df(types="discrete", display_discrete="as_one_hot")
     with pytest.raises(ValueError):
-        sim_param_dict.to_df(types="continuous", one_hot=True)
+        sim_param_dict.to_df(types="continuous", display_discrete="as_one_hot")
     with pytest.raises(NotImplementedError):
-        sim_param_dict.get_current_values(format="list", one_hot=True)
+        sim_param_dict.get_current_values(format="list", display_discrete="as_one_hot")
 
 
 def test_cost() -> None:
@@ -54,4 +54,15 @@ def test_weighted_cost() -> None:
         aido.SimulationParameter(
             "foo", "a", discrete_values=["a", "b"], cost=[1.8, 0.5]
         ).weighted_cost == 0.5 * 1.8 + 0.5 * 0.5
+    )
+
+
+def test_display_discrete(sim_param_dict: aido.SimulationParameterDictionary) -> None:
+    df = sim_param_dict.to_df(display_discrete="as_one_hot")
+    df["absorber_material_LEAD"][0] == 1.0
+    df["absorber_material_TUNGSTEN"][0] == 0.0
+
+    df = sim_param_dict.to_df(display_discrete="as_probabilities")
+    df["absorber_material_LEAD"][0] == (
+        df["absorber_material_TUNGSTEN"][0] == 1.0 / len(sim_param_dict["absorber_material"].discrete_values)
     )

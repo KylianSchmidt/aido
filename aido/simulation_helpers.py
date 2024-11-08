@@ -301,7 +301,7 @@ class SimulationParameterDictionary:
             self,
             df_length: int | None = 1,
             include_non_optimizables: bool = False,
-            one_hot: bool = False,
+            display_discrete: Literal["default", "as_probabilities", "as_one_hot"] = "default",
             types: Literal["all", "continuous", "discrete"] = "all",
             **kwargs
             ) -> pd.DataFrame:
@@ -312,8 +312,13 @@ class SimulationParameterDictionary:
             df_length (int): The length of the DataFrame to be created. Default is None.
             include_non_optimizables (bool): Whether to include non-optimizable parameters in the
                 df. Defaults to False.
-            one_hot (bool): Format discrete parameters as one-hot encoded categoricals. Relevant for
-                training with discrete parameters. Defaults to False
+            display_discrete (Literal):
+                - 'default': Simply write the current value of the Parameter (default)
+                - 'as_probabilities': Write the probability of each category (from the list of available
+                    discrete parameter).
+                - 'as_one_hot':Write the current value as a one-hot encoded array. All categories are set
+                    to zero except for the 'current_value' which is set to one.
+                    Ref. https://pytorch.org/docs/stable/generated/torch.nn.functional.one_hot.html
             types (str): Choose what kind of parameters will be added to the pd.DataFrame. All includes
                 all parameters, continuous only those with no 'discrete_values' and discrete only
                 those with 'discrete_values'.
@@ -326,7 +331,7 @@ class SimulationParameterDictionary:
             kwargs["index"] = range(df_length)
 
         return pd.DataFrame(
-            self.get_current_values("dict", include_non_optimizables, one_hot=one_hot, types=types),
+            self.get_current_values("dict", include_non_optimizables, display_discrete=display_discrete, types=types),
             **kwargs,
         )
 
@@ -334,15 +339,15 @@ class SimulationParameterDictionary:
             self,
             format: Literal["list", "dict"] = "dict",
             include_non_optimizables: bool = False,
-            one_hot: bool = False,
+            display_discrete: Literal["default", "as_probabilities", "as_one_hot"] = "default",
             types: Literal["all", "continuous", "discrete"] = "all",
             ) -> List | Dict:
-        if format == "list" and one_hot:
+        if format == "list" and display_discrete != "default":
             raise NotImplementedError("One-Hot Encoding is only available with the 'list' format")
-        if types == "continuous" and one_hot:
+        if types == "continuous" and display_discrete != "default":
             raise ValueError(
                 "Continuous parameters can not be displayed as one-hot encoded, only discrete parameters."
-                "Setting types == 'continuous' and one_hot=True are incompatible"
+                "Setting types == 'continuous' and 'display_discrete' other than 'default' are incompatible"
             )
 
         def get_parameters() -> Iterator[SimulationParameter]:
@@ -364,10 +369,14 @@ class SimulationParameterDictionary:
             current_values = {}
 
             for parameter in get_parameters():
-                if parameter.discrete_values and one_hot is True:
+                if parameter.discrete_values and not display_discrete == "default":
 
-                    for index, val in enumerate(parameter.probabilities):
-                        current_values[f"{parameter.name}_{parameter.discrete_values[index]}"] = val
+                    for index, val in enumerate(parameter.discrete_values):
+                        key = f"{parameter.name}_{parameter.discrete_values[index]}"
+                        if display_discrete == "as_probabilities":
+                            current_values[key] = parameter.probabilities[index]
+                        elif display_discrete == "as_one_hot":
+                            current_values[key] = 1 if val == parameter.current_value else 0
                 else:
                     current_values[parameter.name] = parameter.current_value
 
