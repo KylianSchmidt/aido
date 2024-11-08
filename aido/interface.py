@@ -10,11 +10,13 @@ class AIDOBaseUserInterface(ABC):
 
     @abstractmethod
     def simulate(self, parameter_dict_path: str, sim_output_path: str) -> None:
-        """ Starts the simulation process. We recommend starting a container and passing the arguments
+        """ This method must be implemented
+
+        Starts the simulation process. We recommend starting a container and passing the arguments
         from the command line.
-        
+
         Open the parameter dict using:
-            
+
             parameter_dict = json.load(parameter_dict_path)
 
         Access its items by name and the key 'current_value':

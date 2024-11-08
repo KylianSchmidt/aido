@@ -105,11 +105,19 @@ class Optimizer(torch.nn.Module):
             lr: float,
             additional_constraints: None | Callable[[SimulationParameterDictionary], float | torch.Tensor] = None,
             ) -> Tuple[SimulationParameterDictionary, bool]:
-        """ Perform the optimization step. First, the ParameterModules forward() method generates new parameters.
-        Second, the Surrogate Model computes the corresponding Reconstruction Loss (based on its interpolation).
-        The Optimizer Loss is the Sum of the Reconstruction Loss, user-defined Parameter Loss (e.g. cost constraints)
-        and the Parameter Box Loss (which ensures that the Parameters stay within acceptable boundaries during
-        training). Fourth, the optimizer applies backprogation and updates the current ParameterDict
+        """ Perform the optimization step.
+
+        1. The ParameterModule().forward() method generates new parameters.
+        2. The Surrogate Model computes the corresponding Reconstruction Loss (based on its interpolation).
+        3. The Optimizer Loss is the Sum of the Reconstruction Loss, user-defined Parameter Loss
+            (e.g. cost constraints) and the Parameter Box Loss (which ensures that the Parameters stay
+            within acceptable boundaries during training).
+        4. The optimizer applies backprogation and updates the current ParameterDict
+
+        Return:
+        ------
+            SimulationParameterDictionary
+            bool
         """
         self.optimizer.lr = lr
         self.surrogate_model.eval()
