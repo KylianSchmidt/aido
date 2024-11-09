@@ -114,15 +114,6 @@ class Reconstruction(torch.nn.Module):
         self.n_input_features = num_input_features
         self.n_target_features = num_target_features
         self.n_context_features = num_context_features
-
-        self.pre_processing_layers = torch.nn.Sequential(
-            torch.nn.Linear(self.n_parameters, 100),
-            torch.nn.ELU(),
-            torch.nn.Linear(100, 100),
-            torch.nn.ELU(),
-            torch.nn.Linear(100, num_input_features),
-            torch.nn.ReLU()
-        )
         self.layers = torch.nn.Sequential(
             torch.nn.Linear(num_parameters + num_input_features, 200),
             torch.nn.ELU(),
@@ -138,7 +129,6 @@ class Reconstruction(torch.nn.Module):
     def forward(self, parameters, x) -> torch.Tensor:
         """ Concatenate the detector parameters and the input
         """
-        x = self.pre_processing_layers(parameters) * x
         x = torch.cat([parameters, x], dim=1)
         return self.layers(x)
 

@@ -62,7 +62,7 @@ class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
         parameter_dict = aido.SimulationParameterDictionary.from_json(parameter_dict_path)
 
         df_combined_dict = {
-            "Parameters": parameter_dict.to_df(len(input_df), one_hot=True),
+            "Parameters": parameter_dict.to_df(len(input_df), display_discrete="as_one_hot"),
             "Inputs": expand_columns(input_df[input_keys]),
             "Targets": expand_columns(input_df[target_keys]),
             "Context": expand_columns(input_df[context_keys])

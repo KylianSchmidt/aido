@@ -50,7 +50,7 @@ if __name__ == "__main__":
     reco_model.train_model(reco_dataset, batch_size=128, n_epochs=n_epochs_main // 2, lr=0.0003)
     reco_result, reco_loss, _ = reco_model.apply_model_in_batches(reco_dataset, batch_size=128)
 
-    reconstructed_df = pd.DataFrame({"Reco_results": reco_result})
+    reconstructed_df = pd.DataFrame({"true_energy": reco_result})
     reconstructed_df = pd.concat({"Reconstructed": reconstructed_df}, axis=1)
     loss_df = pd.DataFrame({"Reco_loss": reco_loss.tolist()})
     loss_df = pd.concat({"Loss": loss_df}, axis=1)
