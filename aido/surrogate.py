@@ -161,13 +161,19 @@ class SurrogateDataset(Dataset):
         """ Normalize the Reconstruction Loss. Important if the Loss is highly negatively skewed.
         Currently, no normalization is applied
         """
-        return target
+        if isinstance(target, torch.Tensor):
+            return torch.log(target + 1e-10)
+        elif isinstance(target, np.ndarray):
+            return np.log(target + 1e-10)
 
     def unnormalise_reconstructed(
             self,
             target: torch.Tensor | np.ndarray
             ) -> torch.Tensor | np.ndarray:
-        return target
+        if isinstance(target, torch.Tensor):
+            return torch.exp(target)
+        elif isinstance(target, np.ndarray):
+            return np.exp(target)
 
     def __getitem__(self, idx: int):
         return self.parameters[idx], self.context[idx], self.reconstructed[idx]
@@ -360,6 +366,7 @@ class Surrogate(torch.nn.Module):
             dataset: SurrogateDataset,
             batch_size: int,
             oversample: int = 1,
+            unnormalise_results: bool = True
             ):
         """
         Applies the model to the given dataset in batches and returns the results.
@@ -394,4 +401,6 @@ class Surrogate(torch.nn.Module):
                 end_inject_index = i_o * len(dataset) + (batch_idx + 1) * batch_size
                 results[start_inject_index: end_inject_index] = reco_surrogate.detach().to('cpu')
 
+        if unnormalise_results:
+            results = dataset.unnormalise_reconstructed(results)
         return results

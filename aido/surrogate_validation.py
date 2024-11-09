@@ -36,8 +36,8 @@ class SurrogateValidation():
                 parameters,
                 context
             )
+            surrogate_output = dataset.unnormalise_reconstructed(surrogate_output)
             surrogate_output = surrogate_output.detach().cpu().numpy().flatten()
-            surrogate_output = dataset.unnormalise_features(surrogate_output, index=2)
             surrogate_reconstructed_array[batch_idx * batch_size: (batch_idx + 1) * batch_size] = surrogate_output
             print(f"Validation batch {batch_idx} / {len(data_loader)}", end="\r")
 
@@ -52,20 +52,20 @@ if __name__ == "__main__":
 
         surrogate = Surrogate(*surrogate_dataset.shape)
 
-        n_epochs_pre = 5
-        n_epochs_main = 100
+        n_epochs_pre = 20
+        n_epochs_main = 200
         pre_train(surrogate, surrogate_dataset, n_epochs_pre)
         surrogate.train_model(
             surrogate_dataset,
-            batch_size=1024,
-            n_epochs=n_epochs_main // 2,
+            batch_size=256,
+            n_epochs=n_epochs_main,
             lr=0.005
         )
         surrogate_loss = surrogate.train_model(
             surrogate_dataset,
-            batch_size=1024,
+            batch_size=256,
             n_epochs=n_epochs_main,
-            lr=0.0003
+            lr=0.001
         )
 
         best_surrogate_loss = 1e10
@@ -78,16 +78,16 @@ if __name__ == "__main__":
                 print("Surrogate Re-Training")
                 pre_train(surrogate, surrogate_dataset, n_epochs_pre)
                 surrogate.train_model(
-                    surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 5, lr=0.005)
+                    surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.005)
                 surrogate.train_model(
-                    surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
+                    surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.005)
                 surrogate.train_model(
-                    surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
+                    surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0003)
                 surrogate.train_model(
-                    surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0001)
+                    surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0001)
 
         validator = SurrogateValidation(surrogate)
-        output_df = validator.validate(surrogate_dataset)
+        output_df = validator.validate(surrogate_dataset, batch_size=20)
         output_df.to_parquet(".validation_df")
 
     else:
@@ -96,7 +96,7 @@ if __name__ == "__main__":
 
     bins = np.linspace(-5, 20, 200 + 1)
     plt.hist(output_df["Loss"]["Reco_loss"], bins=bins, label="Reco", histtype="step")
-    plt.hist(output_df["Loss"]["Surrogate"], bins=bins, label="Surrogate", histtype="step")
+    plt.hist(output_df["Loss"]["Surrogate"] - 1e-10, bins=bins, label="Surrogate", histtype="step")
     plt.xlim(bins[0], bins[-1])
     plt.xlabel("Loss")
     plt.legend()

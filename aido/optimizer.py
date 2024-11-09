@@ -131,7 +131,7 @@ class Optimizer(torch.nn.Module):
             stop_epoch = False
 
             for batch_idx, (parameters, context, reconstructed) in enumerate(data_loader):
-                context = context.to(self.device)
+                context: torch.Tensor = context.to(self.device)
 
                 parameters_batch = self.parameter_module()
                 self.parameter_dict.update_current_values(self.parameter_module.physical_values(format="dict"))
@@ -141,7 +141,7 @@ class Optimizer(torch.nn.Module):
                     parameters_batch,
                     context
                 )
-                loss = surrogate_output.mean()
+                loss = dataset.unnormalise_reconstructed(surrogate_output).mean()
                 surrogate_loss_detached = loss.item()
                 loss += self.other_constraints(additional_constraints)
                 loss += self.loss_box_constraints()
