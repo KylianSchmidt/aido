@@ -9,4 +9,6 @@ build
 *.aido*
 *.json
 *pkl
-docs
+docs/_build/
+docs/.doctrees/
+docs/.DS_Store
