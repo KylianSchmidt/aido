@@ -33,7 +33,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
 if __name__ == "__main__":
 
-    sigma = 1.0
+    sigma = 0.25
     parameters = aido.SimulationParameterDictionary([
         aido.SimulationParameter("thickness_absorber_0", 10.0, min_value=0.1, sigma=sigma),
         aido.SimulationParameter("thickness_scintillator_0", 5.0, min_value=1.0, sigma=sigma),
@@ -72,14 +72,17 @@ if __name__ == "__main__":
         parameters=parameters,
         user_interface=UIFullCalorimeter,
         simulation_tasks=20,
-        max_iterations=2,
+        max_iterations=20,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241107",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241109_3",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model
             Using boosted parameter dict output by optimizer
             Reduced sigma
+            One-Hot parameters in Reco and Surrogate
+            Made reco results 1d (temporary!)
+            Normalized reco loss in surrogate
         """
     )
     os.system("rm *.root")
