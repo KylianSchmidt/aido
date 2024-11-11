@@ -74,7 +74,7 @@ if __name__ == "__main__":
         simulation_tasks=20,
         max_iterations=20,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241109_3",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241111",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model
@@ -83,6 +83,7 @@ if __name__ == "__main__":
             One-Hot parameters in Reco and Surrogate
             Made reco results 1d (temporary!)
             Normalized reco loss in surrogate
+            Separetely decrease the learning of discrete parameters
         """
     )
     os.system("rm *.root")

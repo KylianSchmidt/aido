@@ -24,7 +24,8 @@ class Optimizer(torch.nn.Module):
             self,
             surrogate_model: Surrogate,
             starting_parameter_dict: SimulationParameterDictionary,
-            lr: float = 0.001,
+            continuous_lr: float = 1e-3,
+            discrete_lr: float = 1e-3,
             batch_size: int = 128,
             ):
         """
@@ -32,7 +33,10 @@ class Optimizer(torch.nn.Module):
         Args:
             surrogate_model (Surrogate): The surrogate model to be optimized.
             starting_parameter_dict (Dict): A dictionary containing the initial parameters.
-            lr (float, optional): Learning rate for the optimizer. Defaults to 0.001.
+            continuous_lr (float, optional): Learning rate of the optimizer for continuous parameters.
+                Defaults to 0.001.
+            discrete_lr (float, optional): Learning rate of the optimizer for discrete parameters.
+                Defaults to 0.001.
             batch_size (int, optional): Batch size for the optimizer. Defaults to 128.
 
         TODO Surrogate Model is not needed at instantiation, can be moved to optimize() method
@@ -42,7 +46,8 @@ class Optimizer(torch.nn.Module):
         self.surrogate_model = surrogate_model
         self.starting_parameter_dict = starting_parameter_dict
         self.parameter_dict = self.starting_parameter_dict
-        self.lr = lr
+        self.continuous_lr = continuous_lr
+        self.discrete_lr = discrete_lr
         self.batch_size = batch_size
         self.device = torch.device("cuda")
 
@@ -51,7 +56,12 @@ class Optimizer(torch.nn.Module):
         self.parameter_box = self.parameter_module.constraints
         self.covariance = self.parameter_module.covariance
         self.to(self.device)
-        self.optimizer = torch.optim.Adam(self.parameter_module.parameters(), lr=self.lr)
+        self.optimizer = torch.optim.Adam(
+            [
+                {"params": self.parameter_module.discrete.parameters(), "lr": self.discrete_lr},
+                {"params": self.parameter_module.continuous.parameters(), "lr": self.continuous_lr},
+            ],
+        )
 
     def to(self, device: str | torch.device, **kwargs):
         """ Move all Tensors and modules to 'device'.
@@ -102,7 +112,6 @@ class Optimizer(torch.nn.Module):
             dataset: SurrogateDataset,
             batch_size: int,
             n_epochs: int,
-            lr: float,
             additional_constraints: None | Callable[[SimulationParameterDictionary], float | torch.Tensor] = None,
             ) -> Tuple[SimulationParameterDictionary, bool]:
         """ Perform the optimization step.
@@ -119,7 +128,6 @@ class Optimizer(torch.nn.Module):
             SimulationParameterDictionary
             bool
         """
-        self.optimizer.lr = lr
         self.surrogate_model.eval()
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         self.optimizer_loss = []

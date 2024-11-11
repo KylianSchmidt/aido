@@ -90,13 +90,12 @@ def training_loop(
     if os.path.isfile(optimizer_previous_path):
         optimizer = torch.load(optimizer_previous_path)
     else:
-        optimizer = Optimizer(surrogate, parameter_dict)
+        optimizer = Optimizer(surrogate, parameter_dict, continuous_lr=0.01, discrete_lr=1e-6)
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,
         batch_size=512,
         n_epochs=40,
-        lr=0.02,
         additional_constraints=constraints
     )
     if not is_optimal:

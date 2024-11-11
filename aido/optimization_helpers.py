@@ -141,12 +141,12 @@ class ParameterModule(torch.nn.ModuleDict):
         return torch.unsqueeze(torch.concat([parameter() for parameter in self.values()]), 0)
 
     @property
-    def discrete(self) -> None:
-        return super().__init__(self.parameters_discrete)
+    def discrete(self) -> torch.nn.ModuleDict:
+        return torch.nn.ModuleDict(self.parameters_discrete)
 
     @property
-    def continuous(self) -> None:
-        return super().__init__(self.parameters_continuous)
+    def continuous(self) -> torch.nn.ModuleDict:
+        return torch.nn.ModuleDict(self.parameters_continuous)
 
     def tensor(self, parameter_types: Literal["all", "discrete", "continuous"] = "all"):
         types = {
