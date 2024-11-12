@@ -1,6 +1,10 @@
+import glob
 import os
+import re
 
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import torch
 from calo_opt.interface_simple import AIDOUserInterfaceExample  # Import your derived class
 
@@ -29,6 +33,185 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
         max_cost = parameter_dict["max_cost"].current_value
         max_cost_penalty = torch.mean(2.0 / max_cost * torch.nn.ReLU()(torch.tensor(cost) - max_cost) ** 2)
         return detector_length_loss + max_cost_penalty
+    
+    def plot(self, parameter_dict: aido.SimulationParameterDictionary) -> None:
+
+        def plot_energy_resolution_single(
+                iteration: int,
+                file_name: str | os.PathLike,
+                bins: np.ndarray,
+                color=None,
+                label: str | None = None,
+                ):
+            df = pd.read_parquet(file_name)
+            e_rec: pd.Series = df["Reconstructed"]["true_energy"] - df["Targets"]["true_energy"]
+            plt.hist(
+                e_rec,
+                bins=bins,
+                color=color,
+                histtype="step",
+                label=label,
+                density=False
+            )
+            plt.ylabel(f"Counts / ({(bins[1] - bins[0]):.2f} GeV)")
+            plt.xlabel("Energy resolution [GeV]")
+        
+        def plot_energy_resolution_all():
+            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/reco_output_df")
+            cmap = plt.get_cmap('coolwarm', len(dirs))
+            fig, ax = plt.subplots(figsize=(8, 6))
+            bins = np.linspace(-20, 20, 80 + 1)
+
+            for file_name in dirs:
+                iteration = int(re.search(r"iteration=(\d+)", file_name).group(1))
+                plot_energy_resolution_single(
+                    iteration=iteration,
+                    file_name=file_name,
+                    bins=bins,
+                    color=cmap(iteration),
+                    label=(f"Iteration {iteration:3d}" if iteration % 20 == 0 or iteration == len(dirs) - 1 else None))
+
+            handles, labels = ax.get_legend_handles_labels()
+            labels, handles = zip(*sorted(zip(labels, handles)))
+            ax.legend(handles, labels)
+            plt.savefig(os.path.join(self.results_dir, "plots/energy_resolution_all"))
+            plt.close()
+
+        def plot_energy_resolution_first_and_last():
+            fig, ax = plt.subplots(figsize=(8, 6))
+            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/reco_output_df")
+            cmap = plt.get_cmap('coolwarm', len(dirs))
+            bins = np.linspace(-20, 20, 80 + 1)
+
+            for file_name in dirs:
+                iteration = int(re.search(r"iteration=(\d+)", file_name).group(1))
+
+                if iteration == 0 or iteration == len(dirs) - 1:
+                    df = pd.read_parquet(file_name)
+                    e_rec = (df["Targets"] - df["Reconstructed"])
+                    e_rec_binned, *_ = plt.hist(
+                        e_rec,
+                        bins=bins,
+                        color=cmap(iteration),
+                        histtype="step",
+                        label=f"Iteration {iteration:3d}",
+                    )
+                    ax = aido.Plotting.fwhm(bins, e_rec_binned, ax=ax)
+            plt.legend()
+            plt.savefig(os.path.join(self.results_dir, "plots/energy_resolution_first_and_last"))
+            plt.close()
+
+        def plot_calorimeter_sideview():
+            df_list = []
+            df_materials_list = []
+            parameter_dir = os.path.join(self.results_dir, "/parameters/")
+
+            for file_name in os.listdir(parameter_dir):
+                param_dict = aido.SimulationParameterDictionary.from_json(parameter_dir + file_name)
+                df_list.append(pd.DataFrame(
+                    param_dict.get_current_values(format="dict", types="continuous"),
+                    index=[param_dict.iteration],
+                ))
+                df_materials = pd.DataFrame(param_dict.get_probabilities()).drop(index=0)
+                df_materials.index = [param_dict.iteration]
+                df_materials_list.append(df_materials)
+
+            df: pd.DataFrame = pd.concat(df_list, axis=0).sort_index()
+            df_materials: pd.DataFrame = pd.concat(df_materials_list, axis=0).sort_index()
+            df_materials.columns = df.columns
+
+            fig, ax = plt.subplots(figsize=(10, 7))
+            absorber_cmap = plt.get_cmap("copper")
+            scintillator_cmap = plt.get_cmap("spring")
+
+            def get_color(label, prob):
+                if "absorber" in label:
+                    return absorber_cmap(prob)
+                if "scintillator" in label:
+                    return scintillator_cmap(prob)
+                else:
+                    return "white"
+
+            for i in df.index:
+                bottom = 0
+                plt.gca().set_prop_cycle(None)
+
+                for column in df.columns:
+                    plt.bar(
+                        i,
+                        df[column][i],
+                        bottom=bottom,
+                        color=get_color(column, df_materials[column][i]),
+                        width=1,
+                        align="edge",
+                        label=column,
+                    )
+                    bottom += df[column][i]
+
+            handles, labels = plt.gca().get_legend_handles_labels()
+            by_label = dict(zip(labels, handles))
+            plt.legend(by_label.values(), by_label.keys(), loc="upper right", fontsize=10)
+            plt.ylabel("Longitudinal Calorimeter Composition [cm]")
+            plt.xlabel("Iteration")
+            plt.xlim(0, len(df))
+            plt.text(
+                0.01, 0.99,
+                "Detector Optimization",
+                transform=ax.transAxes, fontsize=16, fontweight='bold', va='top', ha='left'
+            )
+            plt.text(
+                0.01, 0.93,
+                "Stacked Calorimeter, Run 1\nParticles: " + r"$\pi^+\gamma, E=[1, 20]$" + " GeV",
+                transform=ax.transAxes, fontsize=12, va='top', ha='left'
+            )
+            cbar_absorber = plt.cm.ScalarMappable(cmap=absorber_cmap)
+            cbar_absorber.set_array([])
+            cbar1 = plt.colorbar(cbar_absorber, ax=ax, fraction=0.05)
+            cbar1.ax.invert_yaxis()  # Invert so Fe is high and Pb is low
+            cbar1.ax.set_yticks([0, 1])
+            cbar1.ax.set_yticklabels(['Pb', 'Fe'], rotation=90, va='center')  # Custom ticks
+
+            # Add colormap for "scintillator" with labels "Polystyrene" and "PbWO4"
+            cbar_scintillator = plt.cm.ScalarMappable(cmap=scintillator_cmap)
+            cbar_scintillator.set_array([])
+            cbar2 = plt.colorbar(cbar_scintillator, ax=ax, fraction=0.05, location='right')
+            cbar2.ax.invert_yaxis()
+            cbar2.ax.set_yticks([0, 1])
+            cbar2.ax.set_yticklabels(['PbWO4', 'Polystyrene'], rotation=90, va='center')  # Custom ticks
+
+            plt.savefig(os.path.join(self.results_dir, "plots/calorimeter_sideview"))
+            plt.close()
+
+        def plot_energy_resolution_evolution():
+            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/reco_output_df")
+            e_rec_array = np.full(len(dirs), 0.0)
+            bins = np.linspace(-20, 20, 80 + 1)
+
+            for file_name in dirs:
+                iteration = int(re.search(r"iteration=(\d+)", file_name).group(1))
+                df = pd.read_parquet(file_name)
+                e_rec: pd.Series = df["Reconstructed"]["true_energy"] - df["Targets"]["true_energy"]
+                e_rec_binned, *_ = plt.hist(
+                    e_rec,
+                    bins=bins
+                )
+                e_rec_array[iteration] = aido.Plotting.fwhm(bins, e_rec_binned)[0]
+
+            plt.close()
+            fig, ax = plt.subplots(figsize=(8.25, 7))
+            plt.plot(e_rec_array)
+            plt.xlabel("Iteration")
+            plt.ylabel("Energy Resolution [GeV]")
+            plt.xlim(0, len(e_rec_array))
+            plt.ylim(bottom=0)
+            plt.savefig(os.path.join(self.results_dir, "/plots/energy_resolution_evolution"))
+            plt.close()
+
+        plot_energy_resolution_all()
+        plot_energy_resolution_first_and_last()
+        plot_energy_resolution_evolution()
+        plot_calorimeter_sideview()
+        return None
 
 
 if __name__ == "__main__":
@@ -74,7 +257,7 @@ if __name__ == "__main__":
         simulation_tasks=20,
         max_iterations=20,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241111",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241112",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model
@@ -84,6 +267,7 @@ if __name__ == "__main__":
             Made reco results 1d (temporary!)
             Normalized reco loss in surrogate
             Separetely decrease the learning of discrete parameters
+            Set discrete learning rate a bit higher (1e-4)
         """
     )
     os.system("rm *.root")

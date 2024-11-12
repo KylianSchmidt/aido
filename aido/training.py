@@ -90,7 +90,7 @@ def training_loop(
     if os.path.isfile(optimizer_previous_path):
         optimizer = torch.load(optimizer_previous_path)
     else:
-        optimizer = Optimizer(surrogate, parameter_dict, continuous_lr=0.01, discrete_lr=1e-6)
+        optimizer = Optimizer(surrogate, parameter_dict, continuous_lr=0.01, discrete_lr=1e-4)
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,
