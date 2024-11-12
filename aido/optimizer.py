@@ -93,9 +93,9 @@ class Optimizer(torch.nn.Module):
 
     def other_constraints(
             self,
-            constraints_func: None | Callable[[SimulationParameterDictionary], float | torch.Tensor],
+            constraints_func: None | Callable[[SimulationParameterDictionary, Dict], torch.Tensor],
             parameter_dict_as_tensor: Dict[str, torch.nn.Parameter | torch.Tensor]
-            ) -> float:
+            ) -> torch.Tensor:
         """ Adds user-defined constraints defined in 'interface.py:AIDOUserInterface.constraints()'. If no constraints
         were added manually, this method defaults to calculating constraints based on the cost per parameter specified
         in ParameterDict. Returns a float or torch.Tensor which can be considered as a penalty loss.
@@ -111,7 +111,7 @@ class Optimizer(torch.nn.Module):
             dataset: SurrogateDataset,
             batch_size: int,
             n_epochs: int,
-            additional_constraints: None | Callable[[SimulationParameterDictionary], float | torch.Tensor] = None,
+            additional_constraints: None | Callable[[SimulationParameterDictionary, Dict], torch.Tensor] = None,
             ) -> Tuple[SimulationParameterDictionary, bool]:
         """ Perform the optimization step.
 
@@ -150,10 +150,11 @@ class Optimizer(torch.nn.Module):
                 )
                 loss = dataset.unnormalise_reconstructed(surrogate_output).mean()
                 surrogate_loss_detached = loss.item()
-                loss += self.other_constraints(
+                constraints_loss = self.other_constraints(
                     additional_constraints,
                     self.parameter_module.current_values()
                 )
+                loss += constraints_loss
                 loss += self.loss_box_constraints()
 
                 self.optimizer.zero_grad()
@@ -167,14 +168,14 @@ class Optimizer(torch.nn.Module):
 
                 self.optimizer.step()
                 epoch_loss += loss.item()
-                epoch_constraints_loss += self.other_constraints(additional_constraints)
+                epoch_constraints_loss += constraints_loss
 
                 if not self.parameter_module.check_parameters_are_local(self.parameter_module.tensor("continuous")):
                     stop_epoch = True
                     break
 
             print(f"Optimizer Epoch: {epoch} \tLoss: {surrogate_loss_detached:.5f} (reco)", end="\t")
-            print(f"+ {(self.other_constraints(additional_constraints)):.5f} (constraints)", end="\t")
+            print(f"+ {(constraints_loss.item()):.5f} (constraints)", end="\t")
             print(f"+ {(self.loss_box_constraints()):.5f} (boundaries)", end="\t")
             print(f"= {loss.item():.5f} (total)")
 

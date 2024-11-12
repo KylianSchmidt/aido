@@ -23,24 +23,25 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
         detector_length = 0.0
         cost = 0.0
+        device = parameter_dict_as_tensor["thickness_absorber_0"].device
 
         for i in range(3):
             for name in ["absorber", "scintillator"]:
-                cost += (
-                    parameter_dict[f"thickness_{name}_{i}"].current_value
-                    * parameter_dict_as_tensor[f"material_{name}_{i}"].dot(
-                        torch.Tensor(parameter_dict[f"material_{name}_{i}"].cost)
-                    )
-                )
-                detector_length += parameter_dict_as_tensor[f"thickness_{name}_{i}"]
+                layer_weighted_cost = torch.Tensor(parameter_dict[f"material_{name}_{i}"].cost)
+                layer_thickness = parameter_dict_as_tensor[f"thickness_{name}_{i}"]
+                layer_material = parameter_dict_as_tensor[f"material_{name}_{i}"]
 
-        detector_length_loss = torch.mean(
-            10.0 * torch.nn.ReLU()(detector_length - parameter_dict["max_length"].current_value) ** 2
-        )
+                cost += layer_thickness * layer_material.dot(layer_weighted_cost.to(device))
+                detector_length += layer_thickness
+
+        max_loss = parameter_dict["max_length"].current_value
         max_cost = parameter_dict["max_cost"].current_value
+        detector_length_penalty = torch.mean(
+            10.0 * torch.nn.ReLU()(detector_length - max_loss) ** 2
+        )
         max_cost_penalty = torch.mean(2.0 / max_cost * torch.nn.ReLU()(cost - max_cost) ** 2)
-        return detector_length_loss + max_cost_penalty
-    
+        return detector_length_penalty + max_cost_penalty
+
     def plot(self, parameter_dict: aido.SimulationParameterDictionary) -> None:
 
         def plot_energy_resolution_single(
