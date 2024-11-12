@@ -1,4 +1,4 @@
-from typing import Callable, Tuple
+from typing import Callable, Dict, Tuple
 
 import numpy as np
 import torch
@@ -93,7 +93,8 @@ class Optimizer(torch.nn.Module):
 
     def other_constraints(
             self,
-            constraints_func: None | Callable[[SimulationParameterDictionary], float | torch.Tensor]
+            constraints_func: None | Callable[[SimulationParameterDictionary], float | torch.Tensor],
+            parameter_dict_as_tensor: Dict[str, torch.nn.Parameter | torch.Tensor]
             ) -> float:
         """ Adds user-defined constraints defined in 'interface.py:AIDOUserInterface.constraints()'. If no constraints
         were added manually, this method defaults to calculating constraints based on the cost per parameter specified
@@ -102,9 +103,7 @@ class Optimizer(torch.nn.Module):
         if constraints_func is None:
             loss = self.parameter_module.cost_loss
         else:
-            loss = constraints_func(self.parameter_dict)
-        if isinstance(loss, torch.Tensor):
-            loss = loss.item()
+            loss = constraints_func(self.parameter_dict, parameter_dict_as_tensor)
         return loss
 
     def optimize(
@@ -151,7 +150,10 @@ class Optimizer(torch.nn.Module):
                 )
                 loss = dataset.unnormalise_reconstructed(surrogate_output).mean()
                 surrogate_loss_detached = loss.item()
-                loss += self.other_constraints(additional_constraints)
+                loss += self.other_constraints(
+                    additional_constraints,
+                    self.parameter_module.current_values()
+                )
                 loss += self.loss_box_constraints()
 
                 self.optimizer.zero_grad()

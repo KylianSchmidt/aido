@@ -1,6 +1,7 @@
 import glob
 import os
 import re
+from typing import Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,7 +15,11 @@ import aido
 class UIFullCalorimeter(AIDOUserInterfaceExample):
 
     @classmethod
-    def constraints(self, parameter_dict: aido.SimulationParameterDictionary) -> torch.Tensor:
+    def constraints(
+            self,
+            parameter_dict: aido.SimulationParameterDictionary,
+            parameter_dict_as_tensor: Dict[str, torch.Tensor]
+            ) -> torch.Tensor:
 
         detector_length = 0.0
         cost = 0.0
@@ -23,15 +28,17 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             for name in ["absorber", "scintillator"]:
                 cost += (
                     parameter_dict[f"thickness_{name}_{i}"].current_value
-                    * np.array(parameter_dict[f"material_{name}_{i}"].weighted_cost)
+                    * parameter_dict_as_tensor[f"material_{name}_{i}"].dot(
+                        torch.Tensor(parameter_dict[f"material_{name}_{i}"].cost)
+                    )
                 )
-                detector_length += parameter_dict[f"thickness_{name}_{i}"].current_value
+                detector_length += parameter_dict_as_tensor[f"thickness_{name}_{i}"]
 
         detector_length_loss = torch.mean(
-            10.0 * torch.nn.ReLU()(torch.tensor(detector_length - parameter_dict["max_length"].current_value)) ** 2
+            10.0 * torch.nn.ReLU()(detector_length - parameter_dict["max_length"].current_value) ** 2
         )
         max_cost = parameter_dict["max_cost"].current_value
-        max_cost_penalty = torch.mean(2.0 / max_cost * torch.nn.ReLU()(torch.tensor(cost) - max_cost) ** 2)
+        max_cost_penalty = torch.mean(2.0 / max_cost * torch.nn.ReLU()(cost - max_cost) ** 2)
         return detector_length_loss + max_cost_penalty
     
     def plot(self, parameter_dict: aido.SimulationParameterDictionary) -> None:
@@ -257,7 +264,7 @@ if __name__ == "__main__":
         simulation_tasks=20,
         max_iterations=20,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241112",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241112_2",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model
@@ -268,6 +275,7 @@ if __name__ == "__main__":
             Normalized reco loss in surrogate
             Separetely decrease the learning of discrete parameters
             Set discrete learning rate a bit higher (1e-4)
+            With correct gradients for the constraints
         """
     )
     os.system("rm *.root")

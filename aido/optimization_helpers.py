@@ -39,12 +39,12 @@ class OneHotEncoder(torch.nn.Module):
     @property
     def current_value(self) -> torch.Tensor:
         """ Returns the index corresponding to highest scoring entry """
-        return torch.argmax(self.logits.clone().detach())
+        return self.probabilities
 
     @property
     def physical_value(self) -> torch.Tensor:
         """ Returns the value of the highest scoring entry """
-        return self.discrete_values[self.current_value.item()]
+        return self.discrete_values[self.current_value.clone().detach().item()]
 
     @property
     def probabilities(self) -> torch.Tensor:
@@ -161,6 +161,9 @@ class ParameterModule(torch.nn.ModuleDict):
             return torch.tensor([])
         else:
             return torch.stack(tensor_list)
+        
+    def current_values(self) -> dict:
+        return {name: parameter.current_value for name, parameter in self.items()}
 
     def physical_values(self, format: Literal["list", "dict"] = "list") -> list | dict:
         if format == "list":
