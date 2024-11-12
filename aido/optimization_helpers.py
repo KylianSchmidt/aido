@@ -44,7 +44,7 @@ class OneHotEncoder(torch.nn.Module):
     @property
     def physical_value(self) -> torch.Tensor:
         """ Returns the value of the highest scoring entry """
-        return self.discrete_values[self.current_value.clone().detach().item()]
+        return self.discrete_values[torch.argmax(self.current_value.clone().detach()).item()]
 
     @property
     def probabilities(self) -> torch.Tensor:
