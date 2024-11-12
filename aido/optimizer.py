@@ -161,14 +161,13 @@ class Optimizer(torch.nn.Module):
                 loss.backward()
 
                 if np.isnan(loss.item()):
-                    # Save parameters, reset the optimizer as if it made a step but without updating the parameters
                     print("Optimizer: NaN loss, exiting.")
                     self.optimizer.step()
                     return self.starting_parameter_dict, False
 
                 self.optimizer.step()
                 epoch_loss += loss.item()
-                epoch_constraints_loss += constraints_loss
+                epoch_constraints_loss += constraints_loss.item()
 
                 if not self.parameter_module.check_parameters_are_local(self.parameter_module.tensor("continuous")):
                     stop_epoch = True
