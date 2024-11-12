@@ -78,6 +78,23 @@ class OptimizationTask(b2luigi.Task):
                     simulation_task_id=i,
                 )
 
+    def create_reco_path_dict(self):
+        return {
+            "own_path": str(self.get_output_file_name("reco_paths_dict")),
+            "surrogate_model_previous_path": f"{self.results_dir}/models/surrogate_{self.iteration - 1}.pt",
+            "optimizer_model_previous_path": f"{self.results_dir}/models/optimizer_{self.iteration - 1}.pt",
+            "surrogate_model_save_path": f"{self.results_dir}/models/surrogate_{self.iteration}.pt",
+            "optimizer_model_save_path": f"{self.results_dir}/models/optimizer_{self.iteration}.pt",
+            "current_parameter_dict": str(self.iter_start_param_dict_file_path),
+            "updated_parameter_dict": str(self.get_output_file_name("param_dict.json")),
+            "next_parameter_dict": f"{self.results_dir}/parameters/param_dict_iter_{self.iteration + 1}.json",
+            "reco_input_df": str(self.get_output_file_name("reco_input_df")),
+            "reco_output_df": str(self.get_output_file_name("reco_output_df")),
+            "optimizer_loss_save_path": f"{self.results_dir}/loss/optimizer/optimizer_loss_{self.iteration}",
+            "constraints_loss_save_path": f"{self.results_dir}/loss/constraints/constraints_loss_{self.iteration}",
+            "surrogate_loss_save_path": f"{self.results_dir}/loss/surrogate/surrogate_loss_{self.iteration}"
+        }
+
     def run(self) -> None:
         """ For each root file produced by the simulation Task, start a container with the reconstruction algorithm.
         Afterwards, the parameter dictionary used to generate these results are also passed as output
@@ -94,21 +111,7 @@ class OptimizationTask(b2luigi.Task):
         """
         parameter_dict_file_paths = self.get_input_file_names("param_dict.json")
         simulation_file_paths = self.get_input_file_names("simulation_output")
-        self.reco_paths_dict = {
-            "own_path": str(self.get_output_file_name("reco_paths_dict")),
-            "surrogate_model_previous_path": f"{self.results_dir}/models/surrogate_{self.iteration - 1}.pt",
-            "optimizer_model_previous_path": f"{self.results_dir}/models/optimizer_{self.iteration - 1}.pt",
-            "surrogate_model_save_path": f"{self.results_dir}/models/surrogate_{self.iteration}.pt",
-            "optimizer_model_save_path": f"{self.results_dir}/models/optimizer_{self.iteration}.pt",
-            "current_parameter_dict": str(self.iter_start_param_dict_file_path),
-            "updated_parameter_dict": str(self.get_output_file_name("param_dict.json")),
-            "next_parameter_dict": f"{self.results_dir}/parameters/param_dict_iter_{self.iteration + 1}.json",
-            "reco_input_df": str(self.get_output_file_name("reco_input_df")),
-            "reco_output_df": str(self.get_output_file_name("reco_output_df")),
-            "optimizer_loss_save_path": f"{self.results_dir}/loss/optimizer/optimizer_loss_{self.iteration}",
-            "constraints_loss_save_path": f"{self.results_dir}/loss/constraints/constraints_loss_{self.iteration}",
-            "surrogate_loss_save_path": f"{self.results_dir}/loss/surrogate/surrogate_loss_{self.iteration}"
-        }
+        self.reco_paths_dict = self.create_reco_path_dict()
         if os.path.isfile(self.next_param_dict_file):
             print(f"Iteration {self.iteration} has an updated parameter dict already and will be skipped")
             return None
