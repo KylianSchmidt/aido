@@ -1,3 +1,4 @@
+import os
 from abc import ABC, abstractmethod
 from typing import List
 
@@ -7,6 +8,9 @@ from aido.simulation_helpers import SimulationParameterDictionary
 
 
 class AIDOBaseUserInterface(ABC):
+
+    def __init__(self):
+        self.results_dir: str | os.PathLike
 
     @abstractmethod
     def simulate(self, parameter_dict_path: str, sim_output_path: str) -> None:
@@ -79,3 +83,11 @@ class AIDOBaseUserInterface(ABC):
         """
         loss = torch.Tensor([0.0])
         return loss
+
+    def plot(self, parameter_dict: SimulationParameterDictionary) -> None:
+        """ This method is optional
+
+        Use this method to execute code after each iteration. This can be anything used to track the
+        progress of the Optimization process.
+        """
+        return None

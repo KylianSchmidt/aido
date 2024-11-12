@@ -129,8 +129,11 @@ class OptimizationTask(b2luigi.Task):
 
         # Plot the evolution
         # TODO Make it accessible to the end user to add plotting scripts
-        if True:
-            Plotting.plot(results_dir=self.results_dir)
+        Plotting.plot(results_dir=self.results_dir)
+        try:
+            interface.plot(parameter_dict=new_param_dict)
+        except Exception as e:
+            print(f"The following Exception was raised during user-defined plotting:\n{e}")
 
 
 class AIDOMainTask(b2luigi.Task):
@@ -187,6 +190,7 @@ def start_scheduler(
 
     global interface  # Fix for b2luigi, as passing b2luigi.Parameter of non-serializable classes is not possible
     interface = user_interface
+    interface.results_dir = results_dir
 
     b2luigi.process(
         AIDOMainTask(
