@@ -86,11 +86,19 @@ class Plotting:
 
         if fig_savepath is not None:
             plt.figure(figsize=(8, 6), dpi=400)
-            plt.plot(df, label=df.columns)
+            cmap = plt.get_cmap("Set2")
 
             for i, col in enumerate(df.columns):
+                plt.plot(df[col], label=col, color=cmap(i))
+
                 if np.any(sigma[i]):
-                    plt.fill_between(df[col].index, df[col] - sigma[i], df[col] + sigma[i], alpha=0.5)
+                    plt.fill_between(
+                        df[col].index,
+                        df[col] - sigma[i],
+                        df[col] + sigma[i],
+                        alpha=0.5,
+                        color=cmap(i)
+                    )
 
             plt.legend()
             plt.xlabel("Iteration", loc="right")
@@ -189,9 +197,10 @@ class Plotting:
             df_optim, sigma = Plotting.parameter_evolution(None, results_dir=results_dir)
 
             plt.figure(figsize=(8, 6), dpi=400)
-            plt.plot(df_optim, label=df_optim.columns)
 
             for i, col in enumerate(df_optim.columns):
+                plt.plot(df_optim[col], label=col, color=cmap(i))
+
                 if np.any(sigma[i]):
                     plt.fill_between(
                         df_optim[col].index,
