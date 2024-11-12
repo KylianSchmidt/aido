@@ -273,10 +273,11 @@ class SimulationParameterDictionary:
     def __len__(self) -> int:
         return len(self.parameter_list)
 
-    def to_dict(self, serialized=True) -> Dict[str, SimulationParameter]:
+    def to_dict(self, serialized=True) -> Dict[str, SimulationParameter | Dict]:
         """Converts the parameter list to a dictionary.
 
-        :param serialized: A boolean indicating wh["current_value"]n-readable strings.\n
+        :param serialized: A boolean indicating whether to return a Dict of SimulationParameters or
+            a Dict of Dict (by serializing each SimulationParameter in turn)
             If False, the SimulationParameter objects will be included as is. This is used by this class to allow
                 dictionary-style access to the individual parameters\n
         :return: A dictionary where the keys are the names of the SimulationParameter objects and the values are either
