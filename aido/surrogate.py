@@ -210,7 +210,7 @@ class Surrogate(torch.nn.Module):
             num_parameters: int,
             num_context: int,
             num_reconstructed: int,
-            n_time_steps: int = 100,
+            n_time_steps: int = 500,
             betas: Tuple[float] = (1e-4, 0.02)
             ):
         """
@@ -231,13 +231,13 @@ class Surrogate(torch.nn.Module):
         self.layers = torch.nn.Sequential(
             torch.nn.Linear(self.num_parameters + self.num_context + self.num_reconstructed + 1, 200),
             torch.nn.ELU(),
-            torch.nn.Linear(200, 100),
+            torch.nn.Linear(200, 500),
             torch.nn.ELU(),
-            torch.nn.Linear(100, 100),
+            torch.nn.Linear(500, 200),
             torch.nn.ELU(),
-            torch.nn.Linear(100, num_reconstructed),
+            torch.nn.Linear(200, num_reconstructed),
         )
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
         self.surrogate_loss = []
         self.n_time_steps = n_time_steps
         self.device = torch.device('cuda')
