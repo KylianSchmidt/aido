@@ -1,6 +1,6 @@
 import os
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -11,7 +11,7 @@ from aido.simulation_helpers import SimulationParameterDictionary
 
 class _AIDOBaseUserInterface(ABC):
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.results_dir: str | os.PathLike
 
     def create_surrogate_dataset(
@@ -87,18 +87,22 @@ class AIDOBaseUserInterface(_AIDOBaseUserInterface):
         """
         raise NotImplementedError
 
-    def constraints(self, parameter_dict: SimulationParameterDictionary) -> torch.Tensor | float:
+    def constraints(
+            self,
+            parameter_dict: SimulationParameterDictionary,
+            parameter_dict_as_tensor: Dict[str, torch.Tensor]
+            ) -> torch.Tensor:
         """ This method is optional
 
         Use this method to compute additional constraints such as cost or dimensions using pytorch. The resulting
         Tensor must be one-dimensional and include gradients.
         """
-        loss = torch.Tensor([0.0])
-        return loss
+        constraints_loss = torch.Tensor([0.0])
+        constraints_loss: torch.Tensor
+        return constraints_loss
 
     def plot(self, parameter_dict: SimulationParameterDictionary) -> None:
         """ This method is optional
-
         Use this method to execute code after each iteration. This can be anything used to track the
         progress of the Optimization process.
         """

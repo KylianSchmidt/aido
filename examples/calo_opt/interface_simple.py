@@ -100,6 +100,9 @@ class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
 
         df: pd.DataFrame = pd.concat(df_list, axis=0, ignore_index=True)
         df = df.fillna(0)
+        df["Deposited_energy"] = (
+            df["Inputs"]["sensor_energy_0"] + df["Inputs"]["sensor_energy_1"] + df["Inputs"]["sensor_energy_2"]
+        ) / 1000.0
         df.to_parquet(reco_input_path, index=range(len(df)))
         return None
 

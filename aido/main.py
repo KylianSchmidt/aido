@@ -70,7 +70,7 @@ def optimize(
         results_dir (str): Indicates where to save the results. Useful when differentiating runs from
             each other.
         description (str, optional): Additional text associated with the run. Is saved in the parameter
-            json files under 'metadata:description"
+            json files under 'metadata.description"
     """
     if isinstance(parameters, list):
         parameters = SimulationParameterDictionary(parameters)

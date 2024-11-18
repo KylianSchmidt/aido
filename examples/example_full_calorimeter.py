@@ -1,7 +1,7 @@
 import glob
 import os
 import re
-from typing import Dict
+from typing import Dict, Iterable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -36,13 +36,24 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
         max_loss = parameter_dict["max_length"].current_value
         max_cost = parameter_dict["max_cost"].current_value
-        detector_length_penalty = torch.mean(
-            10.0 * torch.nn.ReLU()(detector_length - max_loss) ** 2
-        )
-        max_cost_penalty = torch.mean(2.0 / max_cost * torch.nn.ReLU()(cost - max_cost) ** 2)
+        detector_length_penalty = torch.mean(10.0 * torch.nn.ReLU()(detector_length - max_loss)**2)
+        max_cost_penalty = torch.mean(2.0 / max_cost * torch.nn.ReLU()(cost - max_cost)**2)
         return detector_length_penalty + max_cost_penalty
 
     def plot(self, parameter_dict: aido.SimulationParameterDictionary) -> None:
+
+        def add_plot_header(ax: plt.Axes) -> plt.Axes:
+            plt.text(
+                0.01, 0.99,
+                "Detector Optimization",
+                transform=ax.transAxes, fontsize=16, fontweight='bold', va='top', ha='left'
+            )
+            plt.text(
+                0.01, 0.93,
+                "Stacked Calorimeter, Run 1\nParticles: " + r"$\pi^+\gamma, E=[1, 20]$" + " GeV",
+                transform=ax.transAxes, fontsize=12, va='top', ha='left'
+            )
+            return ax
 
         def plot_energy_resolution_single(
                 iteration: int,
@@ -64,7 +75,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             plt.ylabel(f"Counts / ({(bins[1] - bins[0]):.2f} GeV)")
             plt.xlabel("Energy resolution [GeV]")
         
-        def plot_energy_resolution_all():
+        def plot_energy_resolution_all() -> None:
             dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/reco_output_df")
             cmap = plt.get_cmap('coolwarm', len(dirs))
             fig, ax = plt.subplots(figsize=(8, 6))
@@ -85,8 +96,9 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             plt.savefig(os.path.join(self.results_dir, "plots/energy_resolution_all"))
             plt.close()
 
-        def plot_energy_resolution_first_and_last():
+        def plot_energy_resolution_first_and_last() -> None:
             fig, ax = plt.subplots(figsize=(8, 6))
+            ax = add_plot_header(ax)
             dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/reco_output_df")
             cmap = plt.get_cmap('coolwarm', len(dirs))
             bins = np.linspace(-20, 20, 80 + 1)
@@ -106,13 +118,15 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
                     )
                     ax = aido.Plotting.fwhm(bins, e_rec_binned, ax=ax)
             plt.legend()
+            plt.xlabel(r"Energy Resolution $E_{\text{true}} - E_{\text{rec}}$ [GeV]")
+            plt.ylabel(f"Counts {(bins[1] - bins[0]):.2f}")
             plt.savefig(os.path.join(self.results_dir, "plots/energy_resolution_first_and_last"))
             plt.close()
 
-        def plot_calorimeter_sideview():
+        def plot_calorimeter_sideview() -> None:
             df_list = []
             df_materials_list = []
-            parameter_dir = os.path.join(self.results_dir, "/parameters/")
+            parameter_dir = os.path.join(self.results_dir, "parameters/")
 
             for file_name in os.listdir(parameter_dir):
                 param_dict = aido.SimulationParameterDictionary.from_json(parameter_dir + file_name)
@@ -129,10 +143,11 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             df_materials.columns = df.columns
 
             fig, ax = plt.subplots(figsize=(10, 7))
+            ax = add_plot_header(ax)
             absorber_cmap = plt.get_cmap("copper")
             scintillator_cmap = plt.get_cmap("spring")
 
-            def get_color(label, prob):
+            def get_color(label: str, prob: Iterable):
                 if "absorber" in label:
                     return absorber_cmap(prob)
                 if "scintillator" in label:
@@ -190,7 +205,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             plt.savefig(os.path.join(self.results_dir, "plots/calorimeter_sideview"))
             plt.close()
 
-        def plot_energy_resolution_evolution():
+        def plot_energy_resolution_evolution() -> None:
             dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/reco_output_df")
             e_rec_array = np.full(len(dirs), 0.0)
             bins = np.linspace(-20, 20, 80 + 1)
@@ -206,19 +221,21 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
                 e_rec_array[iteration] = aido.Plotting.fwhm(bins, e_rec_binned)[0]
 
             plt.close()
-            fig, ax = plt.subplots(figsize=(8.25, 7))
+            fig, ax = plt.subplots(figsize=(8, 6))
+            ax = add_plot_header(ax)
             plt.plot(e_rec_array)
             plt.xlabel("Iteration")
             plt.ylabel("Energy Resolution [GeV]")
             plt.xlim(0, len(e_rec_array))
             plt.ylim(bottom=0)
-            plt.savefig(os.path.join(self.results_dir, "/plots/energy_resolution_evolution"))
+            plt.savefig(os.path.join(self.results_dir, "plots/energy_resolution_evolution"))
             plt.close()
 
         plot_energy_resolution_all()
         plot_energy_resolution_first_and_last()
         plot_energy_resolution_evolution()
         plot_calorimeter_sideview()
+        plt.close("all")
         return None
 
 
@@ -226,8 +243,8 @@ if __name__ == "__main__":
 
     sigma = 0.25
     parameters = aido.SimulationParameterDictionary([
-        aido.SimulationParameter("thickness_absorber_0", 10.0, min_value=0.1, sigma=sigma),
-        aido.SimulationParameter("thickness_scintillator_0", 5.0, min_value=1.0, sigma=sigma),
+        aido.SimulationParameter("thickness_absorber_0", 40.0, min_value=1.0, sigma=sigma),
+        aido.SimulationParameter("thickness_scintillator_0", 5.0, min_value=5.0, sigma=sigma),
         aido.SimulationParameter("material_absorber_0", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
         aido.SimulationParameter(
             "material_scintillator_0",
@@ -235,8 +252,8 @@ if __name__ == "__main__":
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
             cost=[2500.0, 0.01]
         ),
-        aido.SimulationParameter("thickness_absorber_1", 15.0, min_value=0.1, sigma=sigma),
-        aido.SimulationParameter("thickness_scintillator_1", 10.0, min_value=1.0, sigma=sigma),
+        aido.SimulationParameter("thickness_absorber_1", 15.0, min_value=1.0, sigma=sigma),
+        aido.SimulationParameter("thickness_scintillator_1", 10.0, min_value=5.0, sigma=sigma),
         aido.SimulationParameter("material_absorber_1", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
         aido.SimulationParameter(
             "material_scintillator_1",
@@ -244,8 +261,8 @@ if __name__ == "__main__":
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
             cost=[2500.0, 0.01]
         ),
-        aido.SimulationParameter("thickness_absorber_2", 20.0, min_value=0.1, sigma=sigma),
-        aido.SimulationParameter("thickness_scintillator_2", 2.0, min_value=1.0, sigma=sigma),
+        aido.SimulationParameter("thickness_absorber_2", 20.0, min_value=1.0, sigma=sigma),
+        aido.SimulationParameter("thickness_scintillator_2", 5.0, min_value=5.0, sigma=sigma),
         aido.SimulationParameter("material_absorber_2", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
         aido.SimulationParameter(
             "material_scintillator_2",
@@ -263,9 +280,9 @@ if __name__ == "__main__":
         parameters=parameters,
         user_interface=UIFullCalorimeter,
         simulation_tasks=20,
-        max_iterations=20,
+        max_iterations=100,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241112_2",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241115_3",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model
@@ -277,6 +294,9 @@ if __name__ == "__main__":
             Separetely decrease the learning of discrete parameters
             Set discrete learning rate a bit higher (1e-4)
             With correct gradients for the constraints
+            Replaced empty events with bad reco loss (fixed)
+            Penalties for empty sensors
+            Longer Surrogate training
         """
     )
     os.system("rm *.root")
