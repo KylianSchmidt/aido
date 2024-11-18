@@ -189,12 +189,11 @@ class ParameterModule(torch.nn.ModuleDict):
         return sum(parameter.cost for parameter in self.values())
 
     def adjust_covariance(self, direction: torch.Tensor, min_scale=2.0):
-        return self.covariance
         """ Stretches the box_covariance of the generator in the directon specified as input.
         Direction is a vector in parameter space
         """
         parameter_direction_vector = direction.detach().cpu().numpy()
-        parameter_direction_length = np.linalg.norm(parameter_direction_vector) + 1E-6
+        parameter_direction_length = np.linalg.norm(parameter_direction_vector) + 1E-4
 
         scaling_factor = min_scale * np.max([1., 4. * parameter_direction_length])
         # Create the scaling adjustment matrix
@@ -205,7 +204,6 @@ class ParameterModule(torch.nn.ModuleDict):
         return np.diag(self.covariance)
 
     def check_parameters_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:
-        return True
         """ Assure that the predicted parameters by the optimizer are within the bounds of the covariance
         matrix spanned by the 'sigma' of each parameter.
         """
