@@ -1,3 +1,4 @@
+import datetime
 import sys
 
 import matplotlib.pyplot as plt
@@ -52,40 +53,21 @@ if __name__ == "__main__":
 
         surrogate = Surrogate(*surrogate_dataset.shape)
 
-        n_epochs_pre = 20
-        n_epochs_main = 200
+        n_epochs_pre = 50
+        n_epochs_main = 100
         pre_train(surrogate, surrogate_dataset, n_epochs_pre)
         surrogate.train_model(
             surrogate_dataset,
             batch_size=256,
             n_epochs=n_epochs_main,
-            lr=0.005
+            lr=0.0005
         )
         surrogate_loss = surrogate.train_model(
             surrogate_dataset,
             batch_size=256,
             n_epochs=n_epochs_main,
-            lr=0.001
+            lr=0.0001
         )
-
-        best_surrogate_loss = 1e10
-
-        while surrogate_loss < 4.0 * best_surrogate_loss:
-
-            if surrogate_loss < best_surrogate_loss:
-                break
-            else:
-                print("Surrogate Re-Training")
-                pre_train(surrogate, surrogate_dataset, n_epochs_pre)
-                surrogate.train_model(
-                    surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.005)
-                surrogate.train_model(
-                    surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.005)
-                surrogate.train_model(
-                    surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0003)
-                surrogate.train_model(
-                    surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0001)
-
         validator = SurrogateValidation(surrogate)
         output_df = validator.validate(surrogate_dataset, batch_size=20)
         output_df.to_parquet(".validation_df")
@@ -94,13 +76,14 @@ if __name__ == "__main__":
         output_df = pd.read_parquet(".validation_df")
         print("Validation DataFrame found")
 
-    bins = np.linspace(-5, 20, 200 + 1)
-    plt.hist(output_df["Loss"]["Reco_loss"], bins=bins, label="Reco", histtype="step")
-    plt.hist(output_df["Loss"]["Surrogate"] - 1e-10, bins=bins, label="Surrogate", histtype="step")
+    bins = np.linspace(-10, 10, 100 + 1)
+    plt.hist(np.log(output_df["Loss"]["Reco_loss"] + 10e-10), bins=bins, label="Reco", histtype="step")
+    plt.hist(np.log(output_df["Loss"]["Surrogate"] + 10e-10), bins=bins, label="Surrogate", histtype="step")
     plt.xlim(bins[0], bins[-1])
     plt.xlabel("Loss")
+    plt.ylabel(f"Counts / {(bins[1] - bins[0]):.2f}")
     plt.legend()
-    plt.savefig(".validation")
+    plt.savefig(f".validation_{datetime.datetime.now()}.png")
     plt.close()
 
     bins = np.linspace(-10, 10, 100 + 1)
