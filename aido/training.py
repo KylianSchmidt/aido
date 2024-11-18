@@ -21,16 +21,16 @@ def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     model.to('cuda')
 
     print('Surrogate: Pre-Training 0')
-    model.train_model(dataset, batch_size=256, n_epochs=10, lr=0.03)
+    model.train_model(dataset, batch_size=1000, n_epochs=50, lr=0.1)
 
     print('Surrogate: Pre-Training 1')
-    model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.01)
+    model.train_model(dataset, batch_size=500, n_epochs=n_epochs, lr=0.05)
 
     print('Surrogate: Pre-Training 2')
-    model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.001)
+    model.train_model(dataset, batch_size=500, n_epochs=n_epochs, lr=0.01)
 
     print('Surrogate: Pre-Training 3')
-    model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.001)
+    model.train_model(dataset, batch_size=200, n_epochs=n_epochs, lr=0.005)
 
 
 def training_loop(
@@ -54,7 +54,7 @@ def training_loop(
 
     parameter_dict = SimulationParameterDictionary.from_json(parameter_dict_input_path)
 
-    n_epochs_pre = 5
+    n_epochs_pre = 50
     n_epochs_main = 100
 
     # Surrogate:
@@ -66,11 +66,10 @@ def training_loop(
         surrogate = Surrogate(*surrogate_dataset.shape)
 
     print("Surrogate Pre-Training")
-    if parameter_dict.iteration < 5:
-        pre_train(surrogate, surrogate_dataset, n_epochs_pre)
+    pre_train(surrogate, surrogate_dataset, n_epochs_pre)
     print("Surrogate Training")
-    surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.005)
-    surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0003)
+    surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0005)
+    surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0001)
 
     best_surrogate_loss = 1e10
 
@@ -90,7 +89,7 @@ def training_loop(
     if os.path.isfile(optimizer_previous_path):
         optimizer = torch.load(optimizer_previous_path)
     else:
-        optimizer = Optimizer(surrogate, parameter_dict, continuous_lr=0.01, discrete_lr=1e-4)
+        optimizer = Optimizer(surrogate, parameter_dict, continuous_lr=0.01, discrete_lr=5e-3)
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,
