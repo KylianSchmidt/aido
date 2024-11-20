@@ -54,10 +54,5 @@ if __name__ == "__main__":
     reconstructed_df = pd.concat({"Reconstructed": reconstructed_df}, axis=1)
     loss_df = pd.DataFrame({"Reco_loss": reco_loss.tolist()})
     loss_df = pd.concat({"Loss": loss_df}, axis=1)
-    mask_empty_events = simulation_df["Deposited_energy"] <= 0.1
-    loss_df.loc[mask_empty_events, ("Loss", "Reco_loss")] = 20.0  # dont encourage empty events
-    for sensor_idx in [0, 1, 2]:
-        mask_empty_sensor = simulation_df["Inputs"][f"sensor_energy_{sensor_idx}"] == 0.0
-        loss_df.loc[mask_empty_sensor, ("Loss", "Reco_loss")] += 5
     output_df: pd.DataFrame = pd.concat([reco_dataset.df, reconstructed_df, loss_df], axis=1)
     output_df.to_parquet(output_df_path)
