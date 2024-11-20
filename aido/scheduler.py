@@ -1,7 +1,7 @@
 import inspect
 import json
 import os
-from typing import Generator
+from typing import Dict, Generator
 
 import b2luigi
 
@@ -13,12 +13,13 @@ from aido.training import training_loop
 
 class SimulationTask(b2luigi.Task):
     iteration = b2luigi.IntParameter()
+    validation = b2luigi.BoolParameter()
     simulation_task_id = b2luigi.IntParameter()
-    iter_start_param_dict_file_path = b2luigi.PathParameter(hashed=True, significant=False)
+    start_param_dict_filepath = b2luigi.PathParameter(hashed=True, significant=False)
 
     def output(self) -> Generator:
-        yield self.add_to_output("simulation_output")
         yield self.add_to_output("param_dict.json")
+        yield self.add_to_output("simulation_output")
 
     def run(self) -> None:
         """ Workflow:
@@ -28,7 +29,7 @@ class SimulationTask(b2luigi.Task):
         output_path = self.get_output_file_name("simulation_output")
         output_parameter_dict_path = self.get_output_file_name("param_dict.json")
 
-        start_parameters = SimulationParameterDictionary.from_json(self.iter_start_param_dict_file_path)
+        start_parameters = SimulationParameterDictionary.from_json(self.start_param_dict_filepath)
 
         if self.simulation_task_id == 0:
             parameters = start_parameters
@@ -40,6 +41,70 @@ class SimulationTask(b2luigi.Task):
         interface.simulate(output_parameter_dict_path, output_path)
 
 
+class ReconstructionTask(b2luigi.Task):
+    iteration = b2luigi.IntParameter()
+    num_simulation_tasks = b2luigi.IntParameter(significant=False)
+    start_param_dict_filepath = b2luigi.PathParameter(hashed=True, significant=False)
+
+    def requires(self) -> Generator:
+
+        for i in range(self.num_simulation_tasks):
+            yield self.clone(
+                SimulationTask,
+                iteration=self.iteration,
+                validation=False,
+                simulation_task_id=i,
+                start_param_dict_filepath=self.start_param_dict_filepath,
+            )
+
+    def output(self) -> Generator:
+        yield self.add_to_output("reco_input_df")  # Technically not an output file
+        yield self.add_to_output("reco_output_df")
+
+    def run(self) -> None:
+        interface.merge(
+            parameter_dict_file_paths=self.get_input_file_names("param_dict.json"),
+            simulation_file_paths=self.get_input_file_names("simulation_output"),
+            reco_input_path=self.get_output_file_name("reco_input_df")
+        )
+        interface.reconstruct(
+            reco_input_path=self.get_output_file_name("reco_input_df"),
+            reco_output_path=self.get_output_file_name("reco_output_df")
+        )
+
+
+class ValidationTask(b2luigi.Task):
+    iteration = b2luigi.IntParameter()
+    num_simulation_tasks = b2luigi.IntParameter(significant=False)
+    start_param_dict_filepath = b2luigi.PathParameter(hashed=True, significant=False)
+
+    def requires(self) -> Generator:
+
+        for i in range(self.num_simulation_tasks):
+            yield self.clone(
+                SimulationTask,
+                iteration=self.iteration,
+                validation=True,
+                simulation_task_id=i,
+                start_param_dict_filepath=self.start_param_dict_filepath,
+            )
+
+    def output(self) -> Generator:
+        yield self.add_to_output("validation_input_df")  # Technically not an output file
+        yield self.add_to_output("validation_output_df")
+
+    def run(self) -> None:
+        interface.merge(
+            parameter_dict_file_paths=self.get_input_file_names("param_dict.json"),
+            simulation_file_paths=self.get_input_file_names("simulation_output"),
+            reco_input_path=self.get_output_file_name("validation_input_df")
+        )
+        interface.reconstruct(
+            reco_input_path=self.get_output_file_name("validation_input_df"),
+            reco_output_path=self.get_output_file_name("validation_output_df")
+        )
+
+
 class OptimizationTask(b2luigi.Task):
     """ This Task requires n='num_simulation_tasks' of StartSimulationTask before running. If the output of
     this Task exists, then it will be completely skipped.
@@ -48,54 +113,40 @@ class OptimizationTask(b2luigi.Task):
     """
     iteration = b2luigi.IntParameter()
     num_simulation_tasks = b2luigi.IntParameter(significant=False)
-    iter_start_param_dict_file_path = b2luigi.PathParameter(hashed=True, significant=False)
+    start_param_dict_filepath = b2luigi.PathParameter(hashed=True, significant=False)
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def output(self) -> Generator:
-        """
-        'reco_output_df': store the output of the reconstruction model
-        'reconstruction_input_file_path': the simulation output files are kept
-            in this file to be passed to the reconstruction model
-        'param_dict.json': parameter dictionary file path
-        """
-        yield self.add_to_output("reco_output_df")
-        yield self.add_to_output("reco_input_df")  # Not an output file
         yield self.add_to_output("param_dict.json")
         yield self.add_to_output("reco_paths_dict")
 
     def requires(self) -> Generator:
-        """ Create Tasks for each set of simulation parameters. The seed 'num_simulation_tasks' ensures that
-        b2luigi does not skip any Task due to duplicates.
-
-        TODO Have the parameters from the previous iteration and pass them to each sub-task
-        TODO Check that the param_dict of is of the same shape as the previous one (in case the user changes
-        something in the SPD and then continues training)
-        """
-        
         self.next_param_dict_file = f"{self.results_dir}/parameters/param_dict_iter_{self.iteration + 1}.json"
 
         if not os.path.isfile(self.next_param_dict_file):
+            yield ReconstructionTask(
+                iteration=self.iteration,
+                num_simulation_tasks=self.num_simulation_tasks,
+                start_param_dict_filepath=self.start_param_dict_filepath
+            )
+            yield ValidationTask(
+                iteration=self.iteration,
+                num_simulation_tasks=self.num_simulation_tasks,
+                start_param_dict_filepath=self.start_param_dict_filepath
+            )
 
-            for i in range(self.num_simulation_tasks):
-                yield self.clone(
-                    SimulationTask,
-                    iteration=self.iteration,
-                    iter_start_param_dict_file_path=self.iter_start_param_dict_file_path,
-                    simulation_task_id=i,
-                )
-
-    def create_reco_path_dict(self):
+    def create_reco_path_dict(self) -> Dict:
         return {
             "own_path": str(self.get_output_file_name("reco_paths_dict")),
             "surrogate_model_previous_path": f"{self.results_dir}/models/surrogate_{self.iteration - 1}.pt",
             "optimizer_model_previous_path": f"{self.results_dir}/models/optimizer_{self.iteration - 1}.pt",
             "surrogate_model_save_path": f"{self.results_dir}/models/surrogate_{self.iteration}.pt",
             "optimizer_model_save_path": f"{self.results_dir}/models/optimizer_{self.iteration}.pt",
-            "current_parameter_dict": str(self.iter_start_param_dict_file_path),
+            "current_parameter_dict": str(self.start_param_dict_filepath),
             "updated_parameter_dict": str(self.get_output_file_name("param_dict.json")),
             "next_parameter_dict": f"{self.results_dir}/parameters/param_dict_iter_{self.iteration + 1}.json",
-            "reco_input_df": str(self.get_output_file_name("reco_input_df")),
-            "reco_output_df": str(self.get_output_file_name("reco_output_df")),
+            "reco_output_df": str(self.get_input_file_names("reco_output_df")[0]),
+            "validation_output_df": str(self.get_input_file_names("validation_output_df")[0]),
             "optimizer_loss_save_path": f"{self.results_dir}/loss/optimizer/optimizer_loss_{self.iteration}",
             "constraints_loss_save_path": f"{self.results_dir}/loss/constraints/constraints_loss_{self.iteration}",
             "surrogate_loss_save_path": f"{self.results_dir}/loss/surrogate/surrogate_loss_{self.iteration}"
@@ -115,19 +166,14 @@ class OptimizationTask(b2luigi.Task):
         Next parameter dict is the location of the next iteration's parameter dict, if already exists, the
             whole Tasks is skipped. Otherwise, the updated parameter dict is saved in this location
         """
-        parameter_dict_file_paths = self.get_input_file_names("param_dict.json")
-        simulation_file_paths = self.get_input_file_names("simulation_output")
         self.reco_paths_dict = self.create_reco_path_dict()
+
         if os.path.isfile(self.next_param_dict_file):
             print(f"Iteration {self.iteration} has an updated parameter dict already and will be skipped")
             return None
 
         with open(self.reco_paths_dict["own_path"], "w") as file:
             json.dump(self.reco_paths_dict, file)
-
-        # Run the reconstruction algorithm
-        interface.merge(parameter_dict_file_paths, simulation_file_paths, self.reco_paths_dict["reco_input_df"])
-        interface.reconstruct(self.reco_paths_dict["reco_input_df"], self.reco_paths_dict["reco_output_df"])
 
         # Run surrogate and optimizer model
         training_loop(self.reco_paths_dict["own_path"], interface.constraints)
@@ -153,7 +199,7 @@ class AIDOMainTask(b2luigi.Task):
     """
     num_max_iterations = b2luigi.IntParameter(significant=False)
     num_simulation_tasks = b2luigi.IntParameter(significant=False)
-    start_param_dict_file_path = b2luigi.PathParameter(hashed=True)
+    start_param_dict_filepath = b2luigi.PathParameter(hashed=True)
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def run(self) -> Generator:
@@ -161,7 +207,7 @@ class AIDOMainTask(b2luigi.Task):
             yield OptimizationTask(
                 iteration=iteration,
                 num_simulation_tasks=self.num_simulation_tasks,
-                iter_start_param_dict_file_path=f"{self.results_dir}/parameters/param_dict_iter_{iteration}.json",
+                start_param_dict_filepath=f"{self.results_dir}/parameters/param_dict_iter_{iteration}.json",
                 results_dir=self.results_dir
             )
 
@@ -182,9 +228,9 @@ def start_scheduler(
     os.makedirs(f"{results_dir}/loss/optimizer", exist_ok=True)
     os.makedirs(f"{results_dir}/loss/constraints", exist_ok=True)
     os.makedirs(f"{results_dir}/loss/surrogate", exist_ok=True)
-    start_param_dict_file_path = f"{results_dir}/parameters/param_dict_iter_0.json"
+    start_param_dict_filepath = f"{results_dir}/parameters/param_dict_iter_0.json"
 
-    parameters.to_json(start_param_dict_file_path)
+    parameters.to_json(start_param_dict_filepath)
 
     assert (
         parameters.get_current_values("list") != []
@@ -203,7 +249,7 @@ def start_scheduler(
 
     b2luigi.process(
         AIDOMainTask(
-            start_param_dict_file_path=start_param_dict_file_path,
+            start_param_dict_filepath=start_param_dict_filepath,
             num_simulation_tasks=simulation_tasks,
             num_max_iterations=max_iterations,
             results_dir=results_dir
