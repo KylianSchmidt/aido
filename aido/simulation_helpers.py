@@ -87,9 +87,7 @@ class SimulationParameter:
         def check_sigma() -> None:
             if discrete_values is None and optimizable:
                 if sigma is not None:
-                    assert (
-                        isinstance(sigma, float) and sigma > 0.0
-                    ), "Sigma parameter must be a positive float"
+                    assert sigma > 0.0, "Sigma parameter must be a positive float"
             else:
                 assert (
                     sigma is None
