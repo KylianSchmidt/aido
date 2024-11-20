@@ -66,3 +66,35 @@ def test_display_discrete(sim_param_dict: aido.SimulationParameterDictionary) ->
     df["absorber_material_LEAD"][0] == (
         df["absorber_material_TUNGSTEN"][0] == 1.0 / len(sim_param_dict["absorber_material"].discrete_values)
     )
+
+
+def test_sigma_mode() -> None:
+    sim_param_dict = aido.SimulationParameter("foo", 0.0)
+    assert sim_param_dict.sigma_mode == "flat"
+
+    sim_param_dict = aido.SimulationParameter("foo", 0.0, sigma_mode="scale")
+    assert sim_param_dict.sigma_mode == "scale"
+
+    aido.SimulationParameter.set_sigma_mode("scale")
+    sim_param_dict = aido.SimulationParameter("bar", 0.0)
+    assert sim_param_dict.sigma_mode == "scale"
+
+
+def test_sigma() -> None:
+    sim_param_dict = aido.SimulationParameter("foo", 0.0)
+    assert sim_param_dict.sigma == 0.5
+
+    sim_param_dict = aido.SimulationParameter("foo", 4.0, sigma_mode="scale")
+    assert sim_param_dict.sigma == 2.0
+
+    sim_param_dict = aido.SimulationParameter("foo", "LEAD", discrete_values=["LEAD"])
+    assert sim_param_dict.sigma is None
+
+    sim_param_dict = aido.SimulationParameter("foo", 1, discrete_values=[1, 2])
+    assert sim_param_dict.sigma is None
+
+    sim_param_dict = aido.SimulationParameter("foo", 0.0, sigma=0.1)
+    assert sim_param_dict.sigma == 0.1
+
+    sim_param_dict = aido.SimulationParameter("foo", 2.0, sigma_mode="scale", sigma=0.1)
+    assert sim_param_dict.sigma == 0.2

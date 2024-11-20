@@ -10,6 +10,10 @@ import pandas as pd
 class SimulationParameter:
     """Base class for all parameters used in the simulation
     """
+    config = {
+        "sigma": 0.5,
+        "sigma_mode": "flat"
+    }
 
     def __init__(
             self,
@@ -21,6 +25,7 @@ class SimulationParameter:
             min_value: float | None = None,
             max_value: float | None = None,
             sigma: float | None = None,
+            sigma_mode: Literal["flat", "scale"] | None = None,
             discrete_values: Iterable | None = None,
             probabilities: Iterable[float] | None = None,
             cost: float | Iterable | None = None
@@ -31,12 +36,17 @@ class SimulationParameter:
         ----
             name (str): The name of the parameter.
             starting_value (Any): The starting value of the parameter.
-            current_value (Any, optional): The current value of the parameter. Defaults to None.
+            current_value (Any, optional): The current value of the parameter. Defaults to None, in which case
+                it set to the starting value instead.
             units (str, optional): The units of the parameter. Defaults to None.
             optimizable (bool, optional): Whether the parameter is optimizable. Defaults to True.
             min_value (float, optional): The minimum value of the parameter. Defaults to None.
             max_value (float, optional): The maximum value of the parameter. Defaults to None.
-            sigma (float, optional): The standard deviation of the parameter. Defaults to None.
+            sigma (float, optional): The standard deviation of the parameter. Defaults to 0.5 for continuous
+            (float) parameters and remains None otherwise.
+            sigma_mode (str, optional): Whether to set the sampling distribution standard deviation to sigma ("flat")
+                or scale sigma with the current value ("scale"). Defaults to "flat". If "sigma" is not defined,
+                this parameter has not action. Can be changed class-wide using the cls.set_sigma_mode() classmethod.
             discrete_values (Iterable, optional): The allowed discrete values of the parameter. Defaults to None.
             probabilities (Iterable[float], optional): A list of the same length as 'discrete_values' used to
                 sample from 'discrete_values', if set to None, an equally-distributed array is created.
@@ -45,78 +55,85 @@ class SimulationParameter:
                 Defaults to None. For discrete parameters, this parameter must be an Iterable (e.g. list) of the
                 same length as 'discrete_values'.
         """
-        assert isinstance(name, str), "Name must be a string"
+        def check_boundaries() -> None:
+            assert (
+                isinstance(min_value, type(starting_value)) or min_value is None
+                ), "Only float parameters are allowed to have lower bounds"
 
+            assert (
+                isinstance(max_value, type(starting_value)) or max_value is None
+            ), "Only float parameters are allowed to have upper bounds"
+
+        def check_discrete_parameters() -> None:
+            assert (
+                isinstance(self._current_value, float) is True or (discrete_values is not None or optimizable is False)
+            ), "Specify discrete values when the parameter is not a float, but is optimizable"
+
+            if discrete_values is not None:
+                if optimizable is False:
+                    raise AssertionError(
+                        "Non-optimizable parameters are excluded from requiring allowed discrete values"
+                    )
+                assert (
+                    self._current_value in discrete_values
+                ), "Current value must be included in the list of allowed discrete values"
+                assert (
+                    starting_value in discrete_values
+                ), "Starting value must be included in the list of allowed discrete values"
+                assert (
+                    min_value is None and max_value is None
+                ), "Not allowed to specify min and max value for parameter with discrete values"
+
+        def check_sigma() -> None:
+            if discrete_values is None and optimizable:
+                if sigma is not None:
+                    assert (
+                        isinstance(sigma, float) and sigma > 0.0
+                    ), "Sigma parameter must be a positive float"
+            else:
+                assert (
+                    sigma is None
+                ), "Unable to asign standard deviation to discrete or non-optimizable parameter."
+
+        def check_cost() -> None:
+            if cost is None:
+                pass
+            elif self.discrete_values:
+                assert (
+                    isinstance(cost, Iterable)
+                ), "Parameter 'cost' must be an iterable of the same length as 'discrete_values'"
+                assert (
+                    len(cost) == len(self.discrete_values)
+                ), f"Length of 'cost' ({len(cost)}) is different"
+                f"from that of 'discrete_values' ({len(self.discrete_values)})"
+                assert (
+                    (isinstance(cost_item, float) and cost_item > 0.0 for cost_item in cost)
+                ), "Entries of argument 'cost' must be positive floats"
+            elif self.discrete_values is None:
+                assert (
+                    isinstance(cost, float) and cost > 0.0
+                ), "Cost argument must be a positive float for continuous parameters."
+
+        assert isinstance(name, str), "Name must be a string"
         self.name = name
+
+        check_boundaries()
         self._starting_value = starting_value
         self._optimizable = optimizable
-        self.sigma = sigma
         self.units = units
-
-        assert (
-            isinstance(min_value, type(starting_value)) or min_value is None
-            ), "Only float parameters are allowed to have lower bounds"
-
-        assert (
-            isinstance(max_value, type(starting_value)) or max_value is None
-        ), "Only float parameters are allowed to have upper bounds"
-
         self.min_value = min_value
         self.max_value = max_value
+        self._current_value = current_value if current_value is not None else starting_value
 
-        if current_value is not None:
-            self._current_value = current_value
-        else:
-            self._current_value = starting_value
-
-        assert (
-            isinstance(self._current_value, float) is True or (discrete_values is not None or optimizable is False)
-        ), "Specify discrete values when the parameter is not a float, but is optimizable"
-
+        check_discrete_parameters()
         self.discrete_values = discrete_values
+        self.probabilities = probabilities if discrete_values is not None else None
 
-        if self.discrete_values is not None:
-            if optimizable is False:
-                raise AssertionError("Non-optimizable parameters are excluded from requiring allowed discrete values")
-            assert (
-                self._current_value in self.discrete_values
-            ), "Current value must be included in the list of allowed discrete values"
-            assert (
-                starting_value in self.discrete_values
-            ), "Starting value must be included in the list of allowed discrete values"
-            assert (
-                self.min_value is None and self.max_value is None
-            ), "Not allowed to specify min and max value for parameter with discrete values"
-            if probabilities is None:
-                self.probabilities = np.full(len(self.discrete_values), 1.0 / len(self.discrete_values))
-            else:
-                self.probabilities = probabilities
+        check_sigma()
+        self._sigma = sigma
+        self.sigma_mode = sigma_mode or self.config["sigma_mode"]
 
-        if sigma is None:
-            if discrete_values is None and optimizable is True:
-                self.sigma = 0.1 * self.current_value
-        else:
-            assert (
-                isinstance(sigma, float) and discrete_values is None and optimizable is True
-            ), "Unable to asign standard deviation to discrete or non-optimizable parameter."
-
-        if cost is None:
-            pass
-        elif self.discrete_values:
-            assert (
-                isinstance(cost, Iterable)
-            ), "Parameter 'cost' must be an iterable of the same length as 'discrete_values'"
-            assert (
-                len(cost) == len(self.discrete_values)
-            ), f"Length of 'cost' ({len(cost)}) is different"
-            f"from that of 'discrete_values' ({len(self.discrete_values)})"
-            assert (
-                (isinstance(cost_item, float) and cost_item > 0.0 for cost_item in cost)
-            ), "Entries of argument 'cost' must be positive floats"
-        elif self.discrete_values is None:
-            assert (
-                isinstance(cost, float) and cost > 0.0
-            ), "Cost argument must be a positive float for continuous parameters."
+        check_cost()
         self.cost = cost
 
     def __str__(self) -> str:
@@ -136,6 +153,16 @@ class SimulationParameter:
     def from_dict(cls, attribute_dict: Dict):
         """Create from dictionary"""
         return cls(**attribute_dict)
+    
+    @classmethod
+    def set_config(cls, key: str, value: Any) -> None:
+        if key in cls.config:
+            cls.config[key] = value
+
+    @classmethod
+    def set_sigma_mode(cls, mode: Literal["flat", "scale"]) -> None:
+        assert mode in ["flat", "scale"], "Options are 'flat' or 'scale'."
+        cls.config["sigma_mode"] = mode
 
     @property
     def current_value(self) -> Any:
@@ -163,13 +190,27 @@ class SimulationParameter:
     @property
     def optimizable(self) -> bool:
         return self._optimizable
+    
+    @property
+    def sigma(self) -> float | None:
+        sigma_value = self._sigma or self.config["sigma"]
+        if self.discrete_values is not None or not self.optimizable:
+            return None
+        if self.sigma_mode == "scale":
+            return sigma_value * self.current_value
+        elif self.sigma_mode == "flat":
+            return sigma_value
 
     @property
     def probabilities(self) -> List[float]:
         return self._probabilities
 
     @probabilities.setter
-    def probabilities(self, value: Iterable[float]):
+    def probabilities(self, value: Iterable[float] | None):
+        if self.discrete_values is None:
+            return None
+        if value is None:
+            value = np.full(len(self.discrete_values), 1.0 / len(self.discrete_values))
         assert (
             len(value) == len(self.discrete_values)
         ), f"Length of 'probabilities' ({len(value)}) must match length"
@@ -464,10 +505,7 @@ class SimulationParameterDictionary:
         ----
         rng_seed (int | None): Optional seed for the random number generator. If an integer is provided,
             the random number generator is initialized with that seed to ensure reproducibility. If None,
-            a pseudo-random seed is generated based on the current time and the process ID, ensuring that
-            each execution results in different random values:
-
-            rng_seed = int(time.time()) + os.getpid()
+            a pseudo-random seed is generated by numpy.random.default_rng()
         """
 
         def generate_continuous(parameter: SimulationParameter, retries: int = 100):
