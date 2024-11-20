@@ -29,7 +29,13 @@ class SimulationTask(b2luigi.Task):
         output_parameter_dict_path = self.get_output_file_name("param_dict.json")
 
         start_parameters = SimulationParameterDictionary.from_json(self.iter_start_param_dict_file_path)
-        parameters = start_parameters.generate_new()
+
+        if self.simulation_task_id == 0:
+            parameters = start_parameters
+            parameters.rng_seed = start_parameters.generate_new().rng_seed
+        else:
+            parameters = start_parameters.generate_new()
+
         parameters.to_json(output_parameter_dict_path)
         interface.simulate(output_parameter_dict_path, output_path)
 
