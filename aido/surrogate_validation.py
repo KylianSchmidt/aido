@@ -1,5 +1,5 @@
 import datetime
-import sys
+import os
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,7 +7,6 @@ import pandas as pd
 from torch.utils.data import DataLoader
 
 from aido.surrogate import Surrogate, SurrogateDataset
-from aido.training import pre_train
 
 
 class SurrogateValidation():
@@ -24,7 +23,7 @@ class SurrogateValidation():
             batch_size: int = 512
             ):
         data_loader = DataLoader(dataset, batch_size=batch_size)
-        output_df = dataset.df
+        validation_df = dataset.df
         surrogate_reconstructed_array = np.full(len(dataset), -1.0)
 
         for batch_idx, (parameters, context, reconstructed) in enumerate(data_loader):
@@ -43,53 +42,25 @@ class SurrogateValidation():
             print(f"Validation batch {batch_idx} / {len(data_loader)}", end="\r")
 
         print(f"Validation batch {len(data_loader)} / {len(data_loader)}. Done")
-        output_df[("Loss", "Surrogate")] = surrogate_reconstructed_array
-        return output_df
+        validation_df[("Loss", "Surrogate")] = surrogate_reconstructed_array
+        return validation_df
+    
+    @classmethod
+    def plot(cls, validation_df: pd.DataFrame, fig_savepath: os.PathLike | str):
+        bins = np.linspace(-5, 5, 100 + 1)
+        plt.hist(np.log(validation_df["Loss"]["Reco_loss"] + 10e-10), bins=bins, label="Reco", histtype="step")
+        plt.hist(np.log(validation_df["Loss"]["Surrogate"] + 10e-10), bins=bins, label="Surrogate", histtype="step")
+        plt.xlim(bins[0], bins[-1])
+        plt.xlabel("Loss")
+        plt.ylabel(f"Counts / {(bins[1] - bins[0]):.2f}")
+        plt.legend()
+        plt.savefig(os.path.join(fig_savepath, f"validation_loss_{datetime.datetime.now()}.png"))
+        plt.close()
 
-
-if __name__ == "__main__":
-    if len(sys.argv) == 2:
-        surrogate_dataset = SurrogateDataset(pd.read_parquet(sys.argv[1]), norm_reco_loss=True)
-
-        surrogate = Surrogate(*surrogate_dataset.shape)
-
-        n_epochs_pre = 50
-        n_epochs_main = 100
-        pre_train(surrogate, surrogate_dataset, n_epochs_pre)
-        surrogate.train_model(
-            surrogate_dataset,
-            batch_size=256,
-            n_epochs=n_epochs_main,
-            lr=0.0005
-        )
-        surrogate_loss = surrogate.train_model(
-            surrogate_dataset,
-            batch_size=256,
-            n_epochs=n_epochs_main,
-            lr=0.0001
-        )
-        validator = SurrogateValidation(surrogate)
-        output_df = validator.validate(surrogate_dataset, batch_size=20)
-        output_df.to_parquet(".validation_df")
-
-    else:
-        output_df = pd.read_parquet(".validation_df")
-        print("Validation DataFrame found")
-
-    bins = np.linspace(-10, 10, 100 + 1)
-    plt.hist(np.log(output_df["Loss"]["Reco_loss"] + 10e-10), bins=bins, label="Reco", histtype="step")
-    plt.hist(np.log(output_df["Loss"]["Surrogate"] + 10e-10), bins=bins, label="Surrogate", histtype="step")
-    plt.xlim(bins[0], bins[-1])
-    plt.xlabel("Loss")
-    plt.ylabel(f"Counts / {(bins[1] - bins[0]):.2f}")
-    plt.legend()
-    plt.savefig(f".validation_{datetime.datetime.now()}.png")
-    plt.close()
-
-    bins = np.linspace(-10, 10, 100 + 1)
-    plt.hist(output_df["Loss"]["Reco_loss"] - output_df["Loss"]["Surrogate"], bins=bins)
-    plt.xlabel("Surrogate Accuracy")
-    plt.xlim(bins[0], bins[-1])
-    plt.savefig(".accuracy")
-    plt.close()
-    print("Validation Plots Saved")
+        bins = np.linspace(-10, 10, 100 + 1)
+        plt.hist(validation_df["Loss"]["Reco_loss"] - validation_df["Loss"]["Surrogate"], bins=bins)
+        plt.xlabel("Surrogate Accuracy")
+        plt.xlim(bins[0], bins[-1])
+        plt.savefig(os.path.join(fig_savepath, f"validation_accuracy_{datetime.datetime.now()}.png"))
+        plt.close()
+        print("Validation Plots Saved")

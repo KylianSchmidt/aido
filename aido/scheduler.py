@@ -43,6 +43,7 @@ class SimulationTask(b2luigi.Task):
 
 class ReconstructionTask(b2luigi.Task):
     iteration = b2luigi.IntParameter()
+    validation = b2luigi.BoolParameter()
     num_simulation_tasks = b2luigi.IntParameter(significant=False)
     start_param_dict_filepath = b2luigi.PathParameter(hashed=True, significant=False)
 
@@ -52,56 +53,29 @@ class ReconstructionTask(b2luigi.Task):
             yield self.clone(
                 SimulationTask,
                 iteration=self.iteration,
-                validation=False,
+                validation=self.validation,
                 simulation_task_id=i,
                 start_param_dict_filepath=self.start_param_dict_filepath,
             )
 
     def output(self) -> Generator:
-        yield self.add_to_output("reco_input_df")  # Technically not an output file
-        yield self.add_to_output("reco_output_df")
+        if self.validation:
+            yield self.add_to_output("validation_input_df")
+            yield self.add_to_output("validation_output_df")
+        else:
+            yield self.add_to_output("reco_input_df")
+            yield self.add_to_output("reco_output_df")
 
     def run(self) -> None:
+        output_type = "reco" if not self.validation else "validation"
         interface.merge(
             parameter_dict_file_paths=self.get_input_file_names("param_dict.json"),
             simulation_file_paths=self.get_input_file_names("simulation_output"),
-            reco_input_path=self.get_output_file_name("reco_input_df")
+            reco_input_path=self.get_output_file_name(f"{output_type}_input_df")
         )
         interface.reconstruct(
-            reco_input_path=self.get_output_file_name("reco_input_df"),
-            reco_output_path=self.get_output_file_name("reco_output_df")
-        )
-
-
-class ValidationTask(b2luigi.Task):
-    iteration = b2luigi.IntParameter()
-    num_simulation_tasks = b2luigi.IntParameter(significant=False)
-    start_param_dict_filepath = b2luigi.PathParameter(hashed=True, significant=False)
-
-    def requires(self) -> Generator:
-
-        for i in range(self.num_simulation_tasks):
-            yield self.clone(
-                SimulationTask,
-                iteration=self.iteration,
-                validation=True,
-                simulation_task_id=i,
-                start_param_dict_filepath=self.start_param_dict_filepath,
-            )
-
-    def output(self) -> Generator:
-        yield self.add_to_output("validation_input_df")  # Technically not an output file
-        yield self.add_to_output("validation_output_df")
-
-    def run(self) -> None:
-        interface.merge(
-            parameter_dict_file_paths=self.get_input_file_names("param_dict.json"),
-            simulation_file_paths=self.get_input_file_names("simulation_output"),
-            reco_input_path=self.get_output_file_name("validation_input_df")
-        )
-        interface.reconstruct(
-            reco_input_path=self.get_output_file_name("validation_input_df"),
-            reco_output_path=self.get_output_file_name("validation_output_df")
+            reco_input_path=self.get_output_file_name(f"{output_type}_input_df"),
+            reco_output_path=self.get_output_file_name(f"{output_type}_output_df")
         )
 
 
@@ -124,19 +98,17 @@ class OptimizationTask(b2luigi.Task):
         self.next_param_dict_file = f"{self.results_dir}/parameters/param_dict_iter_{self.iteration + 1}.json"
 
         if not os.path.isfile(self.next_param_dict_file):
-            yield ReconstructionTask(
-                iteration=self.iteration,
-                num_simulation_tasks=self.num_simulation_tasks,
-                start_param_dict_filepath=self.start_param_dict_filepath
-            )
-            yield ValidationTask(
-                iteration=self.iteration,
-                num_simulation_tasks=self.num_simulation_tasks,
-                start_param_dict_filepath=self.start_param_dict_filepath
-            )
+            for validation in [False, True]:
+                yield ReconstructionTask(
+                    iteration=self.iteration,
+                    validation=validation,
+                    num_simulation_tasks=self.num_simulation_tasks,
+                    start_param_dict_filepath=self.start_param_dict_filepath
+                )
 
     def create_reco_path_dict(self) -> Dict:
         return {
+            "results_dir": str(self.results_dir),
             "own_path": str(self.get_output_file_name("reco_paths_dict")),
             "surrogate_model_previous_path": f"{self.results_dir}/models/surrogate_{self.iteration - 1}.pt",
             "optimizer_model_previous_path": f"{self.results_dir}/models/optimizer_{self.iteration - 1}.pt",
@@ -224,7 +196,7 @@ def start_scheduler(
     os.makedirs(f"{results_dir}", exist_ok=True)
     os.makedirs(f"{results_dir}/parameters", exist_ok=True)
     os.makedirs(f"{results_dir}/models", exist_ok=True)
-    os.makedirs(f"{results_dir}/plots", exist_ok=True)
+    os.makedirs(f"{results_dir}/plots/validation", exist_ok=True)
     os.makedirs(f"{results_dir}/loss/optimizer", exist_ok=True)
     os.makedirs(f"{results_dir}/loss/constraints", exist_ok=True)
     os.makedirs(f"{results_dir}/loss/surrogate", exist_ok=True)

@@ -76,7 +76,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             plt.xlabel("Energy resolution [GeV]")
         
         def plot_energy_resolution_all() -> None:
-            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/reco_output_df")
+            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
             cmap = plt.get_cmap('coolwarm', len(dirs))
             fig, ax = plt.subplots(figsize=(8, 6))
             bins = np.linspace(-20, 20, 80 + 1)
@@ -99,7 +99,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
         def plot_energy_resolution_first_and_last() -> None:
             fig, ax = plt.subplots(figsize=(8, 6))
             ax = add_plot_header(ax)
-            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/reco_output_df")
+            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
             cmap = plt.get_cmap('coolwarm', len(dirs))
             bins = np.linspace(-20, 20, 80 + 1)
 
@@ -206,7 +206,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             plt.close()
 
         def plot_energy_resolution_evolution() -> None:
-            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/reco_output_df")
+            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
             e_rec_array = np.full(len(dirs), 0.0)
             bins = np.linspace(-20, 20, 80 + 1)
 
@@ -241,9 +241,9 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
 if __name__ == "__main__":
 
-    sigma = 0.25
+    sigma = 1.5
     parameters = aido.SimulationParameterDictionary([
-        aido.SimulationParameter("thickness_absorber_0", 40.0, min_value=1.0, sigma=sigma),
+        aido.SimulationParameter("thickness_absorber_0", 20.0, min_value=1.0, sigma=sigma),
         aido.SimulationParameter("thickness_scintillator_0", 5.0, min_value=5.0, sigma=sigma),
         aido.SimulationParameter("material_absorber_0", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
         aido.SimulationParameter(
@@ -252,7 +252,7 @@ if __name__ == "__main__":
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
             cost=[2500.0, 0.01]
         ),
-        aido.SimulationParameter("thickness_absorber_1", 15.0, min_value=1.0, sigma=sigma),
+        aido.SimulationParameter("thickness_absorber_1", 10.0, min_value=1.0, max_value=20.0, sigma=sigma),
         aido.SimulationParameter("thickness_scintillator_1", 10.0, min_value=5.0, sigma=sigma),
         aido.SimulationParameter("material_absorber_1", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
         aido.SimulationParameter(
@@ -261,7 +261,7 @@ if __name__ == "__main__":
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
             cost=[2500.0, 0.01]
         ),
-        aido.SimulationParameter("thickness_absorber_2", 20.0, min_value=1.0, sigma=sigma),
+        aido.SimulationParameter("thickness_absorber_2", 1.0, min_value=1.0, max_value=20.0, sigma=sigma),
         aido.SimulationParameter("thickness_scintillator_2", 5.0, min_value=5.0, sigma=sigma),
         aido.SimulationParameter("material_absorber_2", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
         aido.SimulationParameter(
@@ -279,10 +279,10 @@ if __name__ == "__main__":
     aido.optimize(
         parameters=parameters,
         user_interface=UIFullCalorimeter,
-        simulation_tasks=20,
-        max_iterations=100,
-        threads=20,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241115_3",
+        simulation_tasks=10,
+        max_iterations=300,
+        threads=10,
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241120_3",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model
@@ -297,6 +297,10 @@ if __name__ == "__main__":
             Replaced empty events with bad reco loss (fixed)
             Penalties for empty sensors
             Longer Surrogate training
+            Add true energy to context and removed penalties from loss
+            Add deposited energy to Context
+            Increased sigma
+            Add validation Tasks
         """
     )
     os.system("rm *.root")

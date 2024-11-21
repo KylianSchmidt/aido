@@ -169,7 +169,10 @@ class Optimizer(torch.nn.Module):
                 epoch_loss += loss.item()
                 epoch_constraints_loss += constraints_loss.item()
 
-                if not self.parameter_module.check_parameters_are_local(self.parameter_module.tensor("continuous")):
+                if not self.parameter_module.check_parameters_are_local(
+                    self.parameter_module.tensor("continuous"),
+                    scale=0.8
+                ):
                     stop_epoch = True
                     break
 

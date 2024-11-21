@@ -155,7 +155,7 @@ class Plotting:
     def simulation_samples(
             fig_savepath: str | os.PathLike | None = "/plots/simulation_samples",
             results_dir: str = "./results/",
-            sampled_param_dict_filepath: str | os.PathLike = "/task_outputs/iteration=*/"
+            sampled_param_dict_filepath: str | os.PathLike = "/task_outputs/iteration=*/validation=False"
             ) -> Tuple[pd.DataFrame, np.ndarray]:
         """ Generate a DataFrame of simulation parameters and their values for each iteration and task.
         Args:

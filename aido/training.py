@@ -10,6 +10,7 @@ import torch
 from aido.optimizer import Optimizer
 from aido.simulation_helpers import SimulationParameterDictionary
 from aido.surrogate import Surrogate, SurrogateDataset
+from aido.surrogate_validation import SurrogateValidation
 
 
 def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
@@ -41,7 +42,9 @@ def training_loop(
         with open(reco_file_paths_dict, "r") as file:
             reco_file_paths_dict = json.load(file)
 
+    results_dir = reco_file_paths_dict["results_dir"]
     output_df_path = reco_file_paths_dict["reco_output_df"]
+    validation_df_path = reco_file_paths_dict["validation_output_df"]
     parameter_dict_input_path = reco_file_paths_dict["current_parameter_dict"]
     parameter_dict_output_path = reco_file_paths_dict["updated_parameter_dict"]
     surrogate_previous_path = reco_file_paths_dict["surrogate_model_previous_path"]
@@ -67,6 +70,16 @@ def training_loop(
 
     print("Surrogate Pre-Training")
     pre_train(surrogate, surrogate_dataset, n_epochs_pre)
+
+    print("Surrogate Validation")
+    surrogate_validation_dataset = SurrogateDataset(pd.read_parquet(validation_df_path), norm_reco_loss=True)
+    surrogate_validator = SurrogateValidation(surrogate)
+    validation_df = surrogate_validator.validate(surrogate_validation_dataset)
+    surrogate_validator.plot(
+        validation_df,
+        fig_savepath=os.path.join(results_dir, "plots", "validation"),
+        )
+
     print("Surrogate Training")
     surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0005)
     surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0001)
