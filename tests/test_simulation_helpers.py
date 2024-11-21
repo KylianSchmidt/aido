@@ -81,6 +81,7 @@ def test_sigma_mode() -> None:
 
 
 def test_sigma() -> None:
+    aido.SimulationParameter.set_sigma_mode("flat")
     sim_param_dict = aido.SimulationParameter("foo", 0.0)
     assert sim_param_dict.sigma == 0.5
 
