@@ -83,8 +83,8 @@ class Optimizer(torch.nn.Module):
         if len(self.parameter_box) != 0:
             parameters_continuous_tensor = self.parameter_module.tensor("continuous")
             return (
-                torch.mean(0.5 * torch.nn.ReLU()(self.parameter_box[:, 0] - parameters_continuous_tensor)**2)
-                + torch.mean(0.5 * torch.nn.ReLU()(- self.parameter_box[:, 1] + parameters_continuous_tensor)**2)
+                torch.mean(0.5 * torch.nn.ReLU()(self.parameter_box[:, 0] - parameters_continuous_tensor))**2
+                + torch.mean(0.5 * torch.nn.ReLU()(- self.parameter_box[:, 1] + parameters_continuous_tensor))**2
             )
         else:
             return torch.Tensor([0.0])
@@ -143,7 +143,7 @@ class Optimizer(torch.nn.Module):
                 self.parameter_dict.update_probabilities(self.parameter_module.get_probabilities())
                 self.parameter_dict.to_json(
                     f"/work/kschmidt/aido/parameters_optimizer/param_opt_epoch_{epoch}_batch_{batch_idx}.json"
-                )
+                )  # TODO rm
 
                 surrogate_output = self.surrogate_model.sample_forward(
                     parameters_batch,
