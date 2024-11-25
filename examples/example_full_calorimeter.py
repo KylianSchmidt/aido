@@ -243,7 +243,7 @@ if __name__ == "__main__":
 
     sigma = 1.5
     parameters = aido.SimulationParameterDictionary([
-        aido.SimulationParameter("thickness_absorber_0", 20.0, min_value=1.0, sigma=sigma),
+        aido.SimulationParameter("thickness_absorber_0", 2.0, min_value=1.0, sigma=sigma),
         aido.SimulationParameter("thickness_scintillator_0", 5.0, min_value=5.0, sigma=sigma),
         aido.SimulationParameter("material_absorber_0", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
         aido.SimulationParameter(
@@ -252,7 +252,7 @@ if __name__ == "__main__":
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
             cost=[2500.0, 0.01]
         ),
-        aido.SimulationParameter("thickness_absorber_1", 10.0, min_value=1.0, max_value=20.0, sigma=sigma),
+        aido.SimulationParameter("thickness_absorber_1", 2.0, min_value=1.0, max_value=20.0, sigma=sigma),
         aido.SimulationParameter("thickness_scintillator_1", 10.0, min_value=5.0, sigma=sigma),
         aido.SimulationParameter("material_absorber_1", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
         aido.SimulationParameter(
@@ -282,7 +282,7 @@ if __name__ == "__main__":
         simulation_tasks=10,
         max_iterations=300,
         threads=10,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241120_3",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241125",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model

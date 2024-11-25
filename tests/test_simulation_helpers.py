@@ -23,6 +23,11 @@ def test_generate_new(sim_param_dict: aido.SimulationParameterDictionary):
     sim_param_dict_3 = sim_param_dict.generate_new()
     assert isinstance(sim_param_dict_2.rng_seed, int)
     assert sim_param_dict_2.rng_seed != sim_param_dict_3.rng_seed
+    sim_param_dict_4 = sim_param_dict.generate_new(discrete_index=0)
+    assert sim_param_dict_4["absorber_material"].current_value == "LEAD"
+    sim_param_dict_4 = sim_param_dict.generate_new(discrete_index=1)
+    assert sim_param_dict_4["absorber_material"].current_value == "TUNGSTEN"
+    sim_param_dict.generate_new(discrete_index=6)
 
 
 def test_update_metadata(sim_param_dict: aido.SimulationParameterDictionary):

@@ -56,12 +56,10 @@ class Optimizer(torch.nn.Module):
         self.parameter_box = self.parameter_module.constraints
         self.covariance = self.parameter_module.covariance
         self.to(self.device)
-        self.optimizer = torch.optim.Adam(
-            [
-                {"params": self.parameter_module.discrete.parameters(), "lr": self.discrete_lr},
-                {"params": self.parameter_module.continuous.parameters(), "lr": self.continuous_lr},
-            ],
-        )
+        self.optimizer = torch.optim.Adam([
+            {"params": self.parameter_module.discrete.parameters(), "lr": self.discrete_lr},
+            {"params": self.parameter_module.continuous.parameters(), "lr": self.continuous_lr},
+        ])
 
     def to(self, device: str | torch.device, **kwargs):
         """ Move all Tensors and modules to 'device'.
@@ -137,16 +135,20 @@ class Optimizer(torch.nn.Module):
             epoch_constraints_loss = 0.0
             stop_epoch = False
 
-            for batch_idx, (parameters, context, reconstructed) in enumerate(data_loader):
+            for batch_idx, (_parameters, context, targets, _reconstructed) in enumerate(data_loader):
                 context: torch.Tensor = context.to(self.device)
-
+                targets: torch.Tensor = targets.to(self.device)
                 parameters_batch = self.parameter_module()
                 self.parameter_dict.update_current_values(self.parameter_module.physical_values(format="dict"))
                 self.parameter_dict.update_probabilities(self.parameter_module.get_probabilities())
+                self.parameter_dict.to_json(
+                    f"/work/kschmidt/aido/parameters_optimizer/param_opt_epoch_{epoch}_batch_{batch_idx}.json"
+                )
 
                 surrogate_output = self.surrogate_model.sample_forward(
                     parameters_batch,
-                    context
+                    context,
+                    targets
                 )
                 loss = dataset.unnormalise_reconstructed(surrogate_output).mean()
                 surrogate_loss_detached = loss.item()

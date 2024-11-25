@@ -1,6 +1,7 @@
 import sys
 
 import pandas as pd
+import torch
 
 from aido.surrogate import Surrogate, SurrogateDataset
 from aido.surrogate_validation import SurrogateValidation
@@ -36,3 +37,22 @@ if __name__ == "__main__":
         print("Validation DataFrame found")
 
     SurrogateValidation.plot(validation_df, ".")
+
+    surrogate: Surrogate = torch.load("results_full_calorimeter/results_20241125/models/surrogate_1.pt")
+
+    training_dataset = SurrogateDataset(pd.read_parquet(
+        "results_full_calorimeter/results_20241125/task_outputs/iteration=1/validation=False/reco_output_df"
+    ))
+    validation_dataset = SurrogateDataset(
+        pd.read_parquet(
+            "results_full_calorimeter/results_20241125/task_outputs/iteration=1/validation=True/validation_output_df"
+        ),
+        means=training_dataset.means,
+        stds=training_dataset.stds
+    )
+
+    validator = SurrogateValidation(surrogate)
+    validation_df = validator.validate(validation_dataset, batch_size=20)
+    validation_df.to_parquet(".validation_df")
+
+    SurrogateValidation.plot(validation_df, "./validation_plots/")

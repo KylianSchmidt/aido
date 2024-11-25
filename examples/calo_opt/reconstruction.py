@@ -46,7 +46,9 @@ class ReconstructionDataset(Dataset):
             np.std(self.context, axis=0) + 1e-10
         ]
 
+        self.parameters = (self.parameters - self.means[0]) / self.stds[0]
         self.inputs = (self.inputs - self.means[1]) / self.stds[1]
+        self.targets = (self.targets - self.means[2]) / self.stds[2]
         self.context = (self.context - self.means[3]) / self.stds[3]
 
         self.c_means = [torch.tensor(a).to('cuda') for a in self.means]
@@ -117,11 +119,7 @@ class Reconstruction(torch.nn.Module):
         self.layers = torch.nn.Sequential(
             torch.nn.Linear(num_parameters + num_input_features, 200),
             torch.nn.ELU(),
-            torch.nn.Linear(200, 100),
-            torch.nn.ELU(),
-            torch.nn.Linear(100, 100),
-            torch.nn.ELU(),
-            torch.nn.Linear(100, num_target_features),
+            torch.nn.Linear(200, num_target_features),
         )
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
         self.device = torch.device('cuda')
@@ -143,11 +141,14 @@ class Reconstruction(torch.nn.Module):
         y_pred = torch.where(torch.isnan(y_pred), torch.zeros_like(y_pred), y_pred)
         y_pred = torch.where(torch.isinf(y_pred), torch.zeros_like(y_pred), y_pred)
 
-        return ((y_pred - y)**2 / (torch.abs(y) + 1.)).flatten()
+        return torch.abs(y_pred - y)
 
     def train_model(self, dataset: ReconstructionDataset, batch_size: int, n_epochs: int, lr: float):
+        print(f"Reconstruction Training: {lr=}, {batch_size=}")
         train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-        self.optimizer.lr = lr
+
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = lr
 
         self.to(self.device)
         self.train()
@@ -155,12 +156,12 @@ class Reconstruction(torch.nn.Module):
         for epoch in range(n_epochs):
     
             for batch_idx, (detector_parameters, x, y) in enumerate(train_loader):
-                detector_parameters = detector_parameters.to(self.device)
+                detector_parameters: torch.Tensor = detector_parameters.to(self.device)
                 x: torch.Tensor = x.to(self.device)
-                y: torch. Tensor = y.to(self.device)
-                y_pred = self(detector_parameters, x)
+                y: torch.Tensor = y.to(self.device)
+                y_pred: torch.Tensor = self(detector_parameters, x)
                 loss_per_event = self.loss(y_pred, y)
-                loss = loss_per_event.mean()
+                loss = loss_per_event.clone().mean()
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
@@ -193,11 +194,11 @@ class Reconstruction(torch.nn.Module):
             y_pred: torch.Tensor = self(detector_parameters, x)
 
             loss_per_event = self.loss(y_pred, y)
-            loss = loss_per_event.mean()
+            loss = loss_per_event.clone().mean()
             mean_loss += loss.item()
 
-            results[batch_idx * batch_size: (batch_idx + 1) * batch_size] = y_pred.flatten()
-            loss_array[batch_idx * batch_size: (batch_idx + 1) * batch_size] = loss_per_event
+            results[batch_idx * batch_size: (batch_idx + 1) * batch_size] = dataset.unnormalise_target(y_pred.flatten())
+            loss_array[batch_idx * batch_size: (batch_idx + 1) * batch_size] = loss_per_event.flatten()
 
         mean_loss /= len(data_loader)
         results = results.detach().cpu().numpy()

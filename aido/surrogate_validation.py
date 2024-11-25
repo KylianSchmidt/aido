@@ -26,15 +26,16 @@ class SurrogateValidation():
         validation_df = dataset.df
         surrogate_reconstructed_array = np.full(len(dataset), -1.0)
 
-        for batch_idx, (parameters, context, reconstructed) in enumerate(data_loader):
-
-            context = context.to(self.device)
-            reconstructed = reconstructed.to(self.device)
+        for batch_idx, (parameters, context, targets, reconstructed) in enumerate(data_loader):
             parameters = parameters.to(self.device)
+            context = context.to(self.device)
+            targets = targets.to(self.device)
+            reconstructed = reconstructed.to(self.device)
 
             surrogate_output = self.surrogate_model.sample_forward(
                 parameters,
-                context
+                context,
+                targets
             )
             surrogate_output = dataset.unnormalise_reconstructed(surrogate_output)
             surrogate_output = surrogate_output.detach().cpu().numpy().flatten()
@@ -48,8 +49,11 @@ class SurrogateValidation():
     @classmethod
     def plot(cls, validation_df: pd.DataFrame, fig_savepath: os.PathLike | str):
         bins = np.linspace(-5, 5, 100 + 1)
-        plt.hist(np.log(validation_df["Loss"]["Reco_loss"] + 10e-10), bins=bins, label="Reco", histtype="step")
-        plt.hist(np.log(validation_df["Loss"]["Surrogate"] + 10e-10), bins=bins, label="Surrogate", histtype="step")
+        val_loss = validation_df["Loss"]["Reco_loss"]
+        surr_reco_loss = validation_df["Loss"]["Surrogate"]
+
+        plt.hist(np.log(val_loss + 10e-10), bins=bins, label="Reco", histtype="step")
+        plt.hist(np.log(surr_reco_loss + 10e-10), bins=bins, label="Surrogate", histtype="step")
         plt.xlim(bins[0], bins[-1])
         plt.xlabel("Loss")
         plt.ylabel(f"Counts / {(bins[1] - bins[0]):.2f}")
@@ -58,7 +62,10 @@ class SurrogateValidation():
         plt.close()
 
         bins = np.linspace(-10, 10, 100 + 1)
-        plt.hist(validation_df["Loss"]["Reco_loss"] - validation_df["Loss"]["Surrogate"], bins=bins)
+        plt.hist(
+            (val_loss - surr_reco_loss),
+            bins=bins
+        )
         plt.xlabel("Surrogate Accuracy")
         plt.xlim(bins[0], bins[-1])
         plt.savefig(os.path.join(fig_savepath, f"validation_accuracy_{datetime.datetime.now()}.png"))

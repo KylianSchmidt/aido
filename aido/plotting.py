@@ -155,6 +155,7 @@ class Plotting:
     def simulation_samples(
             fig_savepath: str | os.PathLike | None = "/plots/simulation_samples",
             results_dir: str = "./results/",
+            parameter_dir: str = "/parameters/",
             sampled_param_dict_filepath: str | os.PathLike = "/task_outputs/iteration=*/validation=False"
             ) -> Tuple[pd.DataFrame, np.ndarray]:
         """ Generate a DataFrame of simulation parameters and their values for each iteration and task.
@@ -163,6 +164,7 @@ class Plotting:
                 Defaults to "./results/plots/simulation_samples".
             sampled_param_dict_filepath (str | os.PathLike, optional): Path to the sampled parameter dictionary files.
                 Defaults to "./results/task_outputs/simulation_task*".
+            parameter_dir (str): Where the parameters are stored in the results folder. Defaults to 'parametersÄ.
         Returns:
             Tuple(pd.DataFrame, np.ndarray): A tuple containing the DataFrame of simulation parameters and a
                 numpy array of sigma values.
@@ -177,7 +179,7 @@ class Plotting:
 
         for iteration_dir in glob.glob(sampled_param_dict_filepath):
             
-            for simulation_dir in glob.glob(iteration_dir + "/simulation_task_id=*"):
+            for file_order, simulation_dir in enumerate(glob.glob(iteration_dir + "/simulation_task_id=*")):
 
                 df = SimulationParameterDictionary.from_json(
                     simulation_dir + "/param_dict.json"

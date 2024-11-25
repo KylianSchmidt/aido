@@ -46,7 +46,6 @@ def training_loop(
     output_df_path = reco_file_paths_dict["reco_output_df"]
     validation_df_path = reco_file_paths_dict["validation_output_df"]
     parameter_dict_input_path = reco_file_paths_dict["current_parameter_dict"]
-    parameter_dict_output_path = reco_file_paths_dict["updated_parameter_dict"]
     surrogate_previous_path = reco_file_paths_dict["surrogate_model_previous_path"]
     optimizer_previous_path = reco_file_paths_dict["optimizer_model_previous_path"]
     surrogate_save_path = reco_file_paths_dict["surrogate_model_save_path"]
@@ -57,52 +56,56 @@ def training_loop(
 
     parameter_dict = SimulationParameterDictionary.from_json(parameter_dict_input_path)
 
-    n_epochs_pre = 50
+    n_epochs_pre = 100
     n_epochs_main = 100
 
     # Surrogate:
     surrogate_dataset = SurrogateDataset(pd.read_parquet(output_df_path), norm_reco_loss=True)
 
-    if os.path.isfile(surrogate_previous_path):
-        surrogate = torch.load(surrogate_previous_path)
+    if os.path.isfile(surrogate_save_path):
+        surrogate = torch.load(surrogate_save_path)
     else:
-        surrogate = Surrogate(*surrogate_dataset.shape)
-
-    print("Surrogate Pre-Training")
-    pre_train(surrogate, surrogate_dataset, n_epochs_pre)
-
-    print("Surrogate Validation")
-    surrogate_validation_dataset = SurrogateDataset(pd.read_parquet(validation_df_path), norm_reco_loss=True)
-    surrogate_validator = SurrogateValidation(surrogate)
-    validation_df = surrogate_validator.validate(surrogate_validation_dataset)
-    surrogate_validator.plot(
-        validation_df,
-        fig_savepath=os.path.join(results_dir, "plots", "validation"),
-        )
-
-    print("Surrogate Training")
-    surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0005)
-    surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0001)
-
-    best_surrogate_loss = 1e10
-
-    while surrogate_loss < 4.0 * best_surrogate_loss:
-
-        if surrogate_loss < best_surrogate_loss:
-            break
+        if os.path.isfile(surrogate_previous_path):
+            surrogate: Surrogate = torch.load(surrogate_previous_path)
         else:
-            print("Surrogate Re-Training")
-            pre_train(surrogate, surrogate_dataset, n_epochs_pre)
-            surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 5, lr=0.005)
-            surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.005)
-            surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.0003)
-            surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.0001)
+            surrogate = Surrogate(*surrogate_dataset.shape)
+
+        pre_train(surrogate, surrogate_dataset, n_epochs_pre)
+
+        print("Surrogate Validation")
+        surrogate_validation_dataset = SurrogateDataset(pd.read_parquet(validation_df_path), norm_reco_loss=True)
+        surrogate_validator = SurrogateValidation(surrogate)
+        validation_df = surrogate_validator.validate(surrogate_validation_dataset)
+        surrogate_validator.plot(
+            validation_df,
+            fig_savepath=os.path.join(results_dir, "plots", "validation"),
+            )
+
+        print("Surrogate Training")
+        surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0005)
+        surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0001)
+
+        best_surrogate_loss = 1e10
+
+        while surrogate_loss < 4.0 * best_surrogate_loss:
+
+            if surrogate_loss < best_surrogate_loss:
+                break
+            else:
+                print("Surrogate Re-Training")
+                pre_train(surrogate, surrogate_dataset, n_epochs_pre)
+                surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 5, lr=0.005)
+                surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.005)
+                surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.0003)
+                surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.0001)
+        
+    torch.save(surrogate, surrogate_save_path)
 
     # Optimization
     if os.path.isfile(optimizer_previous_path):
-        optimizer = torch.load(optimizer_previous_path)
+        optimizer: Optimizer = torch.load(optimizer_previous_path)
     else:
-        optimizer = Optimizer(surrogate, parameter_dict, continuous_lr=0.01, discrete_lr=5e-3)
+        optimizer = Optimizer(surrogate, parameter_dict, continuous_lr=0.01, discrete_lr=0.01)
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,
@@ -112,8 +115,8 @@ def training_loop(
     )
     if not is_optimal:
         raise RuntimeError
-
-    updated_parameter_dict.to_json(parameter_dict_output_path)
+    else:
+        torch.save(optimizer, optimizer_save_path)
 
     pd.DataFrame(
         np.array(surrogate.surrogate_loss),
@@ -128,8 +131,7 @@ def training_loop(
         columns=["Constraints Loss"]
     ).to_csv(constraints_loss_save_path)
 
-    torch.save(surrogate, surrogate_save_path)
-    torch.save(optimizer, optimizer_save_path)
+    return updated_parameter_dict
 
 
 if __name__ == "__main__":

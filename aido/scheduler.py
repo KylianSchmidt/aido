@@ -35,7 +35,7 @@ class SimulationTask(b2luigi.Task):
             parameters = start_parameters
             parameters.rng_seed = start_parameters.generate_new().rng_seed
         else:
-            parameters = start_parameters.generate_new()
+            parameters = start_parameters.generate_new(discrete_index=self.simulation_task_id)
 
         parameters.to_json(output_parameter_dict_path)
         interface.simulate(output_parameter_dict_path, output_path)
@@ -91,7 +91,6 @@ class OptimizationTask(b2luigi.Task):
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def output(self) -> Generator:
-        yield self.add_to_output("param_dict.json")
         yield self.add_to_output("reco_paths_dict")
 
     def requires(self) -> Generator:
@@ -115,7 +114,6 @@ class OptimizationTask(b2luigi.Task):
             "surrogate_model_save_path": f"{self.results_dir}/models/surrogate_{self.iteration}.pt",
             "optimizer_model_save_path": f"{self.results_dir}/models/optimizer_{self.iteration}.pt",
             "current_parameter_dict": str(self.start_param_dict_filepath),
-            "updated_parameter_dict": str(self.get_output_file_name("param_dict.json")),
             "next_parameter_dict": f"{self.results_dir}/parameters/param_dict_iter_{self.iteration + 1}.json",
             "reco_output_df": str(self.get_input_file_names("reco_output_df")[0]),
             "validation_output_df": str(self.get_input_file_names("validation_output_df")[0]),
@@ -148,9 +146,7 @@ class OptimizationTask(b2luigi.Task):
             json.dump(self.reco_paths_dict, file)
 
         # Run surrogate and optimizer model
-        training_loop(self.reco_paths_dict["own_path"], interface.constraints)
-
-        new_param_dict = SimulationParameterDictionary.from_json(self.reco_paths_dict["updated_parameter_dict"])
+        new_param_dict = training_loop(self.reco_paths_dict["own_path"], interface.constraints)
         new_param_dict.iteration = self.iteration + 1
         new_param_dict.to_json(self.reco_paths_dict["next_parameter_dict"])
 

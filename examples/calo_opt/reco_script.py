@@ -14,16 +14,16 @@ def pre_train(model: Reconstruction, dataset: Dataset, n_epochs: int):
     model.to('cuda')
 
     print("Reconstruction: Pre-training 0")
-    model.train_model(dataset, batch_size=256, n_epochs=10, lr=0.03)
+    model.train_model(dataset, batch_size=100, n_epochs=2, lr=0.03)
 
     print("Reconstruction: Pre-training 1")
-    model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.01)
+    model.train_model(dataset, batch_size=200, n_epochs=n_epochs, lr=0.01)
 
     print("Reconstruction: Pre-training 2")
-    model.train_model(dataset, batch_size=512, n_epochs=n_epochs, lr=0.001)
+    model.train_model(dataset, batch_size=100, n_epochs=n_epochs, lr=0.001)
 
     print("Reconstruction: Pre-training 3")
-    model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.001)
+    model.train_model(dataset, batch_size=102, n_epochs=n_epochs, lr=0.001)
     model.to('cpu')
 
 
@@ -38,17 +38,17 @@ if __name__ == "__main__":
     reco_dataset = ReconstructionDataset(simulation_df)
     reco_model = Reconstruction(*reco_dataset.shape)
 
-    n_epochs_pre = 5
-    n_epochs_main = 50
+    n_epochs_pre = 100
+    n_epochs_main = 100
 
     pre_train(reco_model, reco_dataset, n_epochs_pre)
 
     # Reconstruction:
     reco_model.to('cuda')
-    reco_model.train_model(reco_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.003)
-    reco_model.train_model(reco_dataset, batch_size=128, n_epochs=n_epochs_main, lr=0.001)
-    reco_model.train_model(reco_dataset, batch_size=128, n_epochs=n_epochs_main // 2, lr=0.0005)
-    reco_result, reco_loss, _ = reco_model.apply_model_in_batches(reco_dataset, batch_size=128)
+    reco_model.train_model(reco_dataset, batch_size=50, n_epochs=n_epochs_main // 2, lr=0.003)
+    reco_model.train_model(reco_dataset, batch_size=102, n_epochs=n_epochs_main, lr=0.001)
+    reco_model.train_model(reco_dataset, batch_size=102, n_epochs=n_epochs_main, lr=0.0003)
+    reco_result, reco_loss, _ = reco_model.apply_model_in_batches(reco_dataset, batch_size=20)
 
     reconstructed_df = pd.DataFrame({"true_energy": reco_result})
     reconstructed_df = pd.concat({"Reconstructed": reconstructed_df}, axis=1)
@@ -56,3 +56,17 @@ if __name__ == "__main__":
     loss_df = pd.concat({"Loss": loss_df}, axis=1)
     output_df: pd.DataFrame = pd.concat([reco_dataset.df, reconstructed_df, loss_df], axis=1)
     output_df.to_parquet(output_df_path)
+
+    # validation
+    validation_df = pd.read_parquet(
+        "results_full_calorimeter/results_20241122/task_outputs/iteration=0/validation=True/validation_input_df"
+    )
+    validation_dataset = ReconstructionDataset(validation_df)
+    val_result, val_loss, _ = reco_model.apply_model_in_batches(validation_dataset, batch_size=128)
+
+    val_df = pd.DataFrame({"true_energy": val_result})
+    val_df = pd.concat({"Reconstructed": val_df}, axis=1)
+    val_loss_df = pd.DataFrame({"Reco_loss": val_loss.tolist()})
+    val_loss_df = pd.concat({"Loss": val_loss_df}, axis=1)
+    val_output_df: pd.DataFrame = pd.concat([validation_dataset.df, val_df, val_loss_df], axis=1)
+    val_output_df.to_parquet("validation_output_df")
