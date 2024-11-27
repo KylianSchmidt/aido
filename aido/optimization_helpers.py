@@ -84,16 +84,17 @@ class ContinuousParameter(torch.nn.Module):
         self.reset(parameter)
 
     def reset(self, parameter: SimulationParameter):
+        self.min_value = parameter.min_value or -10E10
+        self.max_value = parameter.max_value or +10E10
+        if parameter.sigma:
+            self.min_value = max(parameter.current_value - parameter.sigma, self.min_value)
+            self.max_value = min(parameter.current_value + parameter.sigma, self.max_value)
+
+        self.boundaries = torch.tensor(np.array([self.min_value, self.max_value], dtype="float32"))
+        self.parameter.data = torch.clamp(self.parameter.data, self.min_value, self.max_value)
         assert (
             torch.isclose(torch.tensor(parameter.current_value), torch.tensor(self.physical_value))
         ), f"Values are {parameter.current_value} != {self.physical_value} and {self.parameter}"
-        if parameter.sigma:
-            self.min_value = (parameter.current_value - parameter.sigma)
-            self.max_value = (parameter.current_value + parameter.sigma)
-        else:
-            self.min_value = parameter.min_value or -10E10
-            self.max_value = parameter.max_value or +10E10
-        self.boundaries = torch.tensor(np.array([self.min_value, self.max_value], dtype="float32"))
         self.sigma = np.array(parameter.sigma)
         self._cost = parameter.cost if parameter.cost is not None else 0.0
 

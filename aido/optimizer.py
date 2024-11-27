@@ -67,7 +67,6 @@ class Optimizer(torch.nn.Module):
         self.device = device if isinstance(device, torch.device) else torch.device(device)
         self.surrogate_model.to(self.device)
         self.starting_parameters_continuous = self.starting_parameters_continuous.to(self.device)
-        self.parameter_box = self.parameter_box.to(self.device)
         self.parameter_module = self.parameter_module.to(self.device)
         super().to(self.device, **kwargs)
         return self
