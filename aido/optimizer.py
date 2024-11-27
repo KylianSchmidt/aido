@@ -55,8 +55,6 @@ class Optimizer(torch.nn.Module):
 
         self.parameter_module = ParameterModule(self.parameter_dict)
         self.starting_parameters_continuous = self.parameter_module.tensor("continuous")
-        self.parameter_box = self.parameter_module.constraints
-        self.covariance = self.parameter_module.covariance
         self.to(self.device)
         self.optimizer = torch.optim.Adam([
             {"params": self.parameter_module.discrete.parameters(), "lr": self.discrete_lr},
@@ -151,9 +149,13 @@ class Optimizer(torch.nn.Module):
             return ((y_pred - y)**2 / (torch.abs(y) + 1.))
 
         self.parameter_module.reset_continuous_parameters(parameter_dict)
+        self.parameter_box = self.parameter_module.constraints.to(self.device)
+        self.covariance = self.parameter_module.covariance
         self.starting_parameters_continuous = self.parameter_module.tensor("continuous").clone().detach()
+
         self.surrogate_model.eval()
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
         self.optimizer_loss = []
         self.constraints_loss = []
 
