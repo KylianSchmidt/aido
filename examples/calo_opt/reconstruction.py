@@ -119,7 +119,11 @@ class Reconstruction(torch.nn.Module):
         self.layers = torch.nn.Sequential(
             torch.nn.Linear(num_parameters + num_input_features, 200),
             torch.nn.ELU(),
-            torch.nn.Linear(200, num_target_features),
+            torch.nn.Linear(200, 100),
+            torch.nn.ELU(),
+            torch.nn.Linear(100, 100),
+            torch.nn.ReLU(),
+            torch.nn.Linear(100, num_target_features),
         )
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
         self.device = torch.device('cuda')
@@ -141,7 +145,7 @@ class Reconstruction(torch.nn.Module):
         y_pred = torch.where(torch.isnan(y_pred), torch.zeros_like(y_pred), y_pred)
         y_pred = torch.where(torch.isinf(y_pred), torch.zeros_like(y_pred), y_pred)
 
-        return torch.abs(y_pred - y)
+        return ((y_pred - y)**2 / (torch.abs(y) + 1.))
 
     def train_model(self, dataset: ReconstructionDataset, batch_size: int, n_epochs: int, lr: float):
         print(f"Reconstruction Training: {lr=}, {batch_size=}")

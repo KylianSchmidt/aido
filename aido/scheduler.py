@@ -92,6 +92,7 @@ class OptimizationTask(b2luigi.Task):
 
     def output(self) -> Generator:
         yield self.add_to_output("reco_paths_dict")
+        yield self.add_to_output("param_dict.json")
 
     def requires(self) -> Generator:
         self.next_param_dict_file = f"{self.results_dir}/parameters/param_dict_iter_{self.iteration + 1}.json"
@@ -150,6 +151,7 @@ class OptimizationTask(b2luigi.Task):
         new_param_dict.iteration = self.iteration + 1
         # TODO Change datetime too
         new_param_dict.to_json(self.reco_paths_dict["next_parameter_dict"])
+        new_param_dict.to_json(self.get_output_file_name("param_dict.json"))
 
         # Plot the evolution
         Plotting.plot(results_dir=self.results_dir)

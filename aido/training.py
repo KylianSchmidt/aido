@@ -22,16 +22,16 @@ def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     model.to('cuda')
 
     print('Surrogate: Pre-Training 0')
-    model.train_model(dataset, batch_size=1000, n_epochs=50, lr=0.1)
+    model.train_model(dataset, batch_size=128, n_epochs=50, lr=0.01)
 
     print('Surrogate: Pre-Training 1')
-    model.train_model(dataset, batch_size=500, n_epochs=n_epochs, lr=0.05)
+    model.train_model(dataset, batch_size=128, n_epochs=n_epochs, lr=0.001)
 
     print('Surrogate: Pre-Training 2')
-    model.train_model(dataset, batch_size=500, n_epochs=n_epochs, lr=0.01)
+    model.train_model(dataset, batch_size=500, n_epochs=n_epochs, lr=0.001)
 
     print('Surrogate: Pre-Training 3')
-    model.train_model(dataset, batch_size=200, n_epochs=n_epochs, lr=0.005)
+    model.train_model(dataset, batch_size=2048, n_epochs=n_epochs, lr=0.001)
 
 
 def training_loop(
@@ -60,7 +60,9 @@ def training_loop(
     n_epochs_main = 100
 
     # Surrogate:
-    surrogate_dataset = SurrogateDataset(pd.read_parquet(output_df_path), norm_reco_loss=True)
+    surrogate_dataset = SurrogateDataset(
+        pd.read_parquet(output_df_path),
+    )
 
     if os.path.isfile(surrogate_save_path):
         surrogate = torch.load(surrogate_save_path)
@@ -73,7 +75,7 @@ def training_loop(
         pre_train(surrogate, surrogate_dataset, n_epochs_pre)
 
         print("Surrogate Validation")
-        surrogate_validation_dataset = SurrogateDataset(pd.read_parquet(validation_df_path), norm_reco_loss=True)
+        surrogate_validation_dataset = SurrogateDataset(pd.read_parquet(validation_df_path))
         surrogate_validator = SurrogateValidation(surrogate)
         validation_df = surrogate_validator.validate(surrogate_validation_dataset)
         surrogate_validator.plot(
@@ -82,8 +84,8 @@ def training_loop(
             )
 
         print("Surrogate Training")
-        surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0005)
-        surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main, lr=0.0001)
+        surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
+        surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
 
         best_surrogate_loss = 1e10
 
@@ -109,9 +111,11 @@ def training_loop(
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,
+        parameter_dict,
         batch_size=512,
         n_epochs=40,
-        additional_constraints=constraints
+        additional_constraints=constraints,
+        parameter_optimizer_savepath=os.path.join(results_dir, "models", "parameter_optimizer_df")
     )
     if not is_optimal:
         raise RuntimeError

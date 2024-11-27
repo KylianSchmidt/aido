@@ -73,9 +73,8 @@ class SurrogateDataset(Dataset):
             parameter_key: str = "Parameters",
             context_key: str = "Context",
             target_key: str = "Targets",
-            reco_loss_key: str = "Loss",
+            reconstructed_key: str = "Reconstructed",
             device: str = "cuda",
-            norm_reco_loss: bool = True,
             means: List[np.float32] | None = None,
             stds: List[np.float32] | None = None
             ):
@@ -92,20 +91,15 @@ class SurrogateDataset(Dataset):
                 Defaults to "Context".
             target_key (str, optional): The kry for the target column in the DataFrame.
                 Defaults to "Targets".
-            reco_loss_key (str, optional): The key for the reconstruction loss column in the DataFrame.
+            reconstructed_key (str, optional): The key for the reconstruction loss column in the DataFrame.
                 Defaults to "Loss".
             device (str): Torch device. Defaults to 'cuda'
-            norm_reco_loss (bool): Whether to normalize the Reconstruction Loss with a log(x + epsilon) transformation.
-                Defaults to 'True'.
         """
         self.df = input_df
         self.parameters = self.df[parameter_key].to_numpy(np.float32)
         self.context = self.df[context_key].to_numpy(np.float32)
         self.targets = self.df[target_key].to_numpy(np.float32)
-        self.reconstructed = self.df[reco_loss_key].to_numpy(np.float32)
-        self.norm_reco_loss = norm_reco_loss
-
-        assert np.all(self.reconstructed >= 0.0), "Reconstruction Loss must only have positive entries"
+        self.reconstructed = self.df[reconstructed_key].to_numpy(np.float32)
 
         self.shape: List[int] = (
             self.parameters.shape[1],
@@ -118,7 +112,6 @@ class SurrogateDataset(Dataset):
                 np.mean(self.parameters, axis=0),
                 np.mean(self.context, axis=0),
                 np.mean(self.targets, axis=0),
-                np.mean(self.reconstructed, axis=0)
             ]
         else:
             self.means = means
@@ -128,7 +121,6 @@ class SurrogateDataset(Dataset):
                 np.std(self.parameters, axis=0) + 1e-10,
                 np.std(self.context, axis=0) + 1e-10,
                 np.std(self.targets, axis=0) + 1e-10,
-                np.std(self.reconstructed, axis=0) + 1e-10
             ]
         else:
             self.stds = stds
@@ -136,11 +128,9 @@ class SurrogateDataset(Dataset):
         self.c_means = [torch.tensor(a).to(device) for a in self.means]
         self.c_stds = [torch.tensor(a).to(device) for a in self.stds]
 
-        if self.norm_reco_loss is True:
-            self.reconstructed = self.normalise_reconstructed(self.reconstructed)
-
         self.context = self.normalise_features(self.context, index=1)
         self.targets = self.normalise_features(self.targets, index=2)
+        self.reconstructed = self.normalise_features(self.reconstructed, index=2)
         self.df = self.filter_infs_and_nans(self.df)
 
     def filter_infs_and_nans(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -156,16 +146,11 @@ class SurrogateDataset(Dataset):
             0 -> Parameters
             1 -> Context
             2 -> Targets
-            3 -> Reconstructed
         '''
-        assert index in [0, 1, 2, 3]
-        if index == 3:
-            return self.unnormalise_reconstructed(target)
-        elif index in [0, 1, 2]:
-            if isinstance(target, torch.Tensor):
-                return target * self.c_stds[index] + self.c_means[index]
-            elif isinstance(target, np.ndarray):
-                return target * self.stds[index] + self.means[index]
+        if isinstance(target, torch.Tensor):
+            return target * self.c_stds[index] + self.c_means[index]
+        elif isinstance(target, np.ndarray):
+            return target * self.stds[index] + self.means[index]
 
     def normalise_features(self, target: torch.Tensor | np.ndarray, index: int) -> torch.Tensor | np.ndarray:
         ''' Normalize a feature
@@ -173,37 +158,11 @@ class SurrogateDataset(Dataset):
             0 -> Parameters
             1 -> Context
             2 -> Targets
-            3 -> Reconstructed
         '''
-        assert index in [0, 1, 2, 3]
-        if index == 3:
-            return self.normalise_reconstructed(target)
-        elif index in [0, 1, 2]:
-            if isinstance(target, torch.Tensor):
-                return (target - self.c_means[index]) / self.c_stds[index]
-            elif isinstance(target, np.ndarray):
-                return (target - self.means[index]) / self.stds[index]
-
-    def normalise_reconstructed(
-            self,
-            target: torch.Tensor | np.ndarray
-            ) -> torch.Tensor | np.ndarray:
-        """ Normalize the Reconstruction Loss. Important if the Loss is highly negatively skewed.
-        Currently, no normalization is applied
-        """
         if isinstance(target, torch.Tensor):
-            return torch.log(target + 1e-10)
+            return (target - self.c_means[index]) / self.c_stds[index]
         elif isinstance(target, np.ndarray):
-            return np.log(target + 1e-10)
-
-    def unnormalise_reconstructed(
-            self,
-            target: torch.Tensor | np.ndarray
-            ) -> torch.Tensor | np.ndarray:
-        if isinstance(target, torch.Tensor):
-            return torch.exp(target)
-        elif isinstance(target, np.ndarray):
-            return np.exp(target)
+            return (target - self.means[index]) / self.stds[index]
 
     def __getitem__(self, idx: int):
         return self.parameters[idx], self.context[idx], self.targets[idx], self.reconstructed[idx]
@@ -266,14 +225,14 @@ class Surrogate(torch.nn.Module):
                 + self.num_context
                 + self. num_targets
                 + self.num_reconstructed
-                + 1, 200
+                + 1, 100
             ),
             torch.nn.ELU(),
-            torch.nn.Linear(200, 500),
+            torch.nn.Linear(100, 100),
             torch.nn.ELU(),
-            torch.nn.Linear(500, 200),
+            torch.nn.Linear(100, 100),
             torch.nn.ELU(),
-            torch.nn.Linear(200, num_reconstructed),
+            torch.nn.Linear(100, num_reconstructed),
         )
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
         self.surrogate_loss = []
@@ -440,6 +399,7 @@ class Surrogate(torch.nn.Module):
                 targets: torch.Tensor = targets.to(self.device)
 
                 reco_surrogate = self.sample_forward(parameters, context, targets)
+                reco_surrogate = dataset.unnormalise_features(reco_surrogate, index=2)
 
                 start_inject_index = i_o * len(dataset) + batch_idx * batch_size
                 end_inject_index = i_o * len(dataset) + (batch_idx + 1) * batch_size

@@ -1,6 +1,8 @@
+import os
 from typing import Callable, Dict, Tuple
 
 import numpy as np
+import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
@@ -83,8 +85,8 @@ class Optimizer(torch.nn.Module):
         if len(self.parameter_box) != 0:
             parameters_continuous_tensor = self.parameter_module.tensor("continuous")
             return (
-                torch.mean(0.5 * torch.nn.ReLU()(self.parameter_box[:, 0] - parameters_continuous_tensor))**2
-                + torch.mean(0.5 * torch.nn.ReLU()(- self.parameter_box[:, 1] + parameters_continuous_tensor))**2
+                torch.mean(100 * torch.nn.ReLU()(self.parameter_box[:, 0] - parameters_continuous_tensor)**2)
+                + torch.mean(100 * torch.nn.ReLU()(- self.parameter_box[:, 1] + parameters_continuous_tensor)**2)
             )
         else:
             return torch.Tensor([0.0])
@@ -103,13 +105,33 @@ class Optimizer(torch.nn.Module):
         else:
             loss = constraints_func(self.parameter_dict, parameter_dict_as_tensor)
         return loss
+    
+    def save_parameters(
+            self,
+            epoch: int,
+            batch_index: int,
+            loss: float,
+            filepath: str | os.PathLike = "parameter_optimizer_df",
+            ) -> None:
+        df = self.parameter_dict.to_df()
+        df["Epoch"] = epoch
+        df["Batch"] = batch_index
+        df["Surrogate_Prediction"] = loss
+
+        if not os.path.exists(filepath):
+            df.to_parquet(filepath)
+        else:
+            updated_parameter_optimizer_df = pd.concat([pd.read_parquet(filepath), df], ignore_index=True)
+            updated_parameter_optimizer_df.to_parquet(filepath)
 
     def optimize(
             self,
             dataset: SurrogateDataset,
+            parameter_dict: SimulationParameterDictionary,
             batch_size: int,
             n_epochs: int,
             additional_constraints: None | Callable[[SimulationParameterDictionary, Dict], torch.Tensor] = None,
+            parameter_optimizer_savepath: str | os.PathLike | None = None
             ) -> Tuple[SimulationParameterDictionary, bool]:
         """ Perform the optimization step.
 
@@ -125,6 +147,11 @@ class Optimizer(torch.nn.Module):
             SimulationParameterDictionary
             bool
         """
+        def reco_loss(y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+            return ((y_pred - y)**2 / (torch.abs(y) + 1.))
+
+        self.parameter_module.reset_continuous_parameters(parameter_dict)
+        self.starting_parameters_continuous = self.parameter_module.tensor("continuous").clone().detach()
         self.surrogate_model.eval()
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         self.optimizer_loss = []
@@ -139,18 +166,17 @@ class Optimizer(torch.nn.Module):
                 context: torch.Tensor = context.to(self.device)
                 targets: torch.Tensor = targets.to(self.device)
                 parameters_batch = self.parameter_module()
-                self.parameter_dict.update_current_values(self.parameter_module.physical_values(format="dict"))
-                self.parameter_dict.update_probabilities(self.parameter_module.get_probabilities())
-                self.parameter_dict.to_json(
-                    f"/work/kschmidt/aido/parameters_optimizer/param_opt_epoch_{epoch}_batch_{batch_idx}.json"
-                )  # TODO rm
 
                 surrogate_output = self.surrogate_model.sample_forward(
                     parameters_batch,
                     context,
                     targets
                 )
-                loss = dataset.unnormalise_reconstructed(surrogate_output).mean()
+                surrogate_reconstruction_loss = reco_loss(
+                    dataset.unnormalise_features(surrogate_output, index=2),
+                    dataset.unnormalise_features(targets, index=2)
+                )
+                loss = surrogate_reconstruction_loss.mean()
                 surrogate_loss_detached = loss.item()
                 constraints_loss = self.other_constraints(
                     additional_constraints,
@@ -168,6 +194,11 @@ class Optimizer(torch.nn.Module):
                     return self.starting_parameter_dict, False
 
                 self.optimizer.step()
+
+                self.parameter_dict.update_current_values(self.parameter_module.physical_values(format="dict"))
+                self.parameter_dict.update_probabilities(self.parameter_module.get_probabilities())
+                self.save_parameters(epoch, batch_idx, surrogate_loss_detached, parameter_optimizer_savepath)
+
                 epoch_loss += loss.item()
                 epoch_constraints_loss += constraints_loss.item()
 
@@ -195,7 +226,7 @@ class Optimizer(torch.nn.Module):
             self.parameter_module.tensor("continuous").to(self.device)
             - self.starting_parameters_continuous.to(self.device)
             )
-        return self.boosted_parameter_dict, True
+        return self.parameter_dict, True
 
     @property
     def boosted_parameter_dict(self) -> SimulationParameterDictionary:

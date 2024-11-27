@@ -37,25 +37,25 @@ class SurrogateValidation():
                 context,
                 targets
             )
-            surrogate_output = dataset.unnormalise_reconstructed(surrogate_output)
+            surrogate_output = dataset.unnormalise_features(surrogate_output, index=2)
             surrogate_output = surrogate_output.detach().cpu().numpy().flatten()
             surrogate_reconstructed_array[batch_idx * batch_size: (batch_idx + 1) * batch_size] = surrogate_output
             print(f"Validation batch {batch_idx} / {len(data_loader)}", end="\r")
 
         print(f"Validation batch {len(data_loader)} / {len(data_loader)}. Done")
-        validation_df[("Loss", "Surrogate")] = surrogate_reconstructed_array
+        validation_df[("Surrogate")] = surrogate_reconstructed_array
         return validation_df
-    
+
     @classmethod
     def plot(cls, validation_df: pd.DataFrame, fig_savepath: os.PathLike | str):
-        bins = np.linspace(-5, 5, 100 + 1)
-        val_loss = validation_df["Loss"]["Reco_loss"]
-        surr_reco_loss = validation_df["Loss"]["Surrogate"]
+        bins = np.linspace(0, 20, 100 + 1)
+        val_reco = validation_df["Reconstructed"]["true_energy"]
+        surr_reco = validation_df["Surrogate"]
 
-        plt.hist(np.log(val_loss + 10e-10), bins=bins, label="Reco", histtype="step")
-        plt.hist(np.log(surr_reco_loss + 10e-10), bins=bins, label="Surrogate", histtype="step")
+        plt.hist(val_reco, bins=bins, label="Validation", histtype="step")
+        plt.hist(surr_reco, bins=bins, label="Surrogate", histtype="step")
         plt.xlim(bins[0], bins[-1])
-        plt.xlabel("Loss")
+        plt.xlabel("Predicted Energy")
         plt.ylabel(f"Counts / {(bins[1] - bins[0]):.2f}")
         plt.legend()
         plt.savefig(os.path.join(fig_savepath, f"validation_loss_{datetime.datetime.now()}.png"))
@@ -63,7 +63,7 @@ class SurrogateValidation():
 
         bins = np.linspace(-10, 10, 100 + 1)
         plt.hist(
-            (val_loss - surr_reco_loss),
+            (val_reco - surr_reco),
             bins=bins
         )
         plt.xlabel("Surrogate Accuracy")

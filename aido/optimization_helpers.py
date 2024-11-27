@@ -81,8 +81,18 @@ class ContinuousParameter(torch.nn.Module):
         super().__init__()
         self.starting_value = torch.tensor(parameter.current_value)
         self.parameter = torch.nn.Parameter(self.starting_value.clone(), requires_grad=True)
-        self.min_value = parameter.min_value if parameter.min_value is not None else -10E10
-        self.max_value = parameter.max_value if parameter.max_value is not None else +10E10
+        self.reset(parameter)
+
+    def reset(self, parameter: SimulationParameter):
+        assert (
+            torch.isclose(torch.tensor(parameter.current_value), torch.tensor(self.physical_value))
+        ), f"Values are {parameter.current_value} != {self.physical_value} and {self.parameter}"
+        if parameter.sigma:
+            self.min_value = (parameter.current_value - parameter.sigma)
+            self.max_value = (parameter.current_value + parameter.sigma)
+        else:
+            self.min_value = parameter.min_value or -10E10
+            self.max_value = parameter.max_value or +10E10
         self.boundaries = torch.tensor(np.array([self.min_value, self.max_value], dtype="float32"))
         self.sigma = np.array(parameter.sigma)
         self._cost = parameter.cost if parameter.cost is not None else 0.0
@@ -187,6 +197,10 @@ class ParameterModule(torch.nn.ModuleDict):
     @property
     def cost_loss(self) -> torch.Tensor:
         return sum(parameter.cost for parameter in self.values())
+    
+    def reset_continuous_parameters(self, parameter_dict: SimulationParameterDictionary):
+        for name, parameter in self.parameters_continuous.items():
+            parameter.reset(parameter_dict[name])
 
     def adjust_covariance(self, direction: torch.Tensor, min_scale=2.0):
         """ Stretches the box_covariance of the generator in the directon specified as input.

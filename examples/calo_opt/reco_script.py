@@ -14,16 +14,16 @@ def pre_train(model: Reconstruction, dataset: Dataset, n_epochs: int):
     model.to('cuda')
 
     print("Reconstruction: Pre-training 0")
-    model.train_model(dataset, batch_size=100, n_epochs=2, lr=0.03)
+    model.train_model(dataset, batch_size=256, n_epochs=2, lr=0.03)
 
     print("Reconstruction: Pre-training 1")
-    model.train_model(dataset, batch_size=200, n_epochs=n_epochs, lr=0.01)
+    model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.01)
 
     print("Reconstruction: Pre-training 2")
-    model.train_model(dataset, batch_size=100, n_epochs=n_epochs, lr=0.001)
+    model.train_model(dataset, batch_size=512, n_epochs=n_epochs, lr=0.001)
 
     print("Reconstruction: Pre-training 3")
-    model.train_model(dataset, batch_size=102, n_epochs=n_epochs, lr=0.001)
+    model.train_model(dataset, batch_size=1024, n_epochs=n_epochs, lr=0.001)
     model.to('cpu')
 
 
@@ -45,10 +45,10 @@ if __name__ == "__main__":
 
     # Reconstruction:
     reco_model.to('cuda')
-    reco_model.train_model(reco_dataset, batch_size=50, n_epochs=n_epochs_main // 2, lr=0.003)
-    reco_model.train_model(reco_dataset, batch_size=102, n_epochs=n_epochs_main, lr=0.001)
-    reco_model.train_model(reco_dataset, batch_size=102, n_epochs=n_epochs_main, lr=0.0003)
-    reco_result, reco_loss, _ = reco_model.apply_model_in_batches(reco_dataset, batch_size=20)
+    reco_model.train_model(reco_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.003)
+    reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.001)
+    reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
+    reco_result, reco_loss, _ = reco_model.apply_model_in_batches(reco_dataset, batch_size=128)
 
     reconstructed_df = pd.DataFrame({"true_energy": reco_result})
     reconstructed_df = pd.concat({"Reconstructed": reconstructed_df}, axis=1)
