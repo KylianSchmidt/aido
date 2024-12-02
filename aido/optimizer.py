@@ -149,7 +149,6 @@ class Optimizer(torch.nn.Module):
 
         self.parameter_module.reset_continuous_parameters(parameter_dict)
         self.parameter_box = self.parameter_module.constraints.to(self.device)
-        self.covariance = self.parameter_module.covariance
         self.starting_parameters_continuous = self.parameter_module.tensor("continuous").clone().detach()
 
         self.surrogate_model.eval()
@@ -223,10 +222,10 @@ class Optimizer(torch.nn.Module):
             if stop_epoch:
                 break
 
-        self.covariance = self.parameter_module.adjust_covariance(
+        self.parameter_dict.covariance = self.parameter_module.adjust_covariance(
             self.parameter_module.tensor("continuous").to(self.device)
             - self.starting_parameters_continuous.to(self.device)
-            )
+        ).astype(float)
         return self.parameter_dict, True
 
     @property

@@ -172,7 +172,7 @@ class ParameterModule(torch.nn.ModuleDict):
             return torch.tensor([])
         else:
             return torch.stack(tensor_list)
-        
+
     def current_values(self) -> dict:
         return {name: parameter.current_value for name, parameter in self.items()}
 
@@ -202,21 +202,20 @@ class ParameterModule(torch.nn.ModuleDict):
     def reset_continuous_parameters(self, parameter_dict: SimulationParameterDictionary):
         for name, parameter in self.parameters_continuous.items():
             parameter.reset(parameter_dict[name])
+        self.covariance = self.reset_covariance()
 
-    def adjust_covariance(self, direction: torch.Tensor, min_scale=2.0):
+    def adjust_covariance(self, direction: torch.Tensor):
         """ Stretches the box_covariance of the generator in the directon specified as input.
         Direction is a vector in parameter space
         """
-        parameter_direction_vector = direction.detach().cpu().numpy()
-        parameter_direction_length = np.linalg.norm(parameter_direction_vector) + 1E-4
-
-        scaling_factor = min_scale * np.max([1., 4. * parameter_direction_length])
-        # Create the scaling adjustment matrix
-        parameter_direction_normed = parameter_direction_vector / parameter_direction_length
-        M_scaled = (scaling_factor - 1) * np.outer(parameter_direction_normed, parameter_direction_normed)
-        # Adjust the original covariance matrix
-        self.covariance = np.diag(self.covariance**2) + M_scaled
-        return np.diag(self.covariance)
+        for index, parameter in enumerate(self.parameters_continuous.values()):
+            if direction[index] >= 0.9 * parameter.sigma:
+                parameter.sigma *= 1.5
+            elif direction[index] <= 0.2 * parameter.sigma:
+                parameter.sigma *= 0.95
+            else:
+                None
+        return self.reset_covariance()
 
     def check_parameters_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:
         """ Assure that the predicted parameters by the optimizer are within the bounds of the covariance
