@@ -200,7 +200,7 @@ class Surrogate(torch.nn.Module):
             num_context: int,
             num_targets: int,
             num_reconstructed: int,
-            n_time_steps: int = 300,
+            n_time_steps: int = 100,
             betas: Tuple[float] = (1e-4, 0.02)
             ):
         """
@@ -209,7 +209,9 @@ class Surrogate(torch.nn.Module):
             num_parameters (int): Number of input parameters.
             num_context (int): Number of context variables.
             num_reconstructed (int): Number of reconstructed variables.
-            n_time_steps (int, optional): Number of time steps for the DDPM schedule. Defaults to 100.
+            n_time_steps (int, optional): Number of time steps for the DDPM schedule. Defaults to 100. Setting
+                it higher might lead to divergence towards infinity which will register as NaN when reaching
+                float32 accuracy ~= 2e9.
             betas (Tuple[float], optional): Tuple containing the start and end values for the beta schedule.
                 Defaults to (1e-4, 0.02).
         """
@@ -405,6 +407,4 @@ class Surrogate(torch.nn.Module):
                 end_inject_index = i_o * len(dataset) + (batch_idx + 1) * batch_size
                 results[start_inject_index: end_inject_index] = reco_surrogate.detach().to('cpu')
 
-        if unnormalise_results:
-            results = dataset.unnormalise_reconstructed(results)
         return results

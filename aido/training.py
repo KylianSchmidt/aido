@@ -22,16 +22,19 @@ def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     model.to('cuda')
 
     print('Surrogate: Pre-Training 0')
-    model.train_model(dataset, batch_size=128, n_epochs=50, lr=0.01)
+    model.train_model(dataset, batch_size=256, n_epochs=10, lr=0.03)
 
     print('Surrogate: Pre-Training 1')
-    model.train_model(dataset, batch_size=128, n_epochs=n_epochs, lr=0.001)
+    model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.01)
 
     print('Surrogate: Pre-Training 2')
-    model.train_model(dataset, batch_size=500, n_epochs=n_epochs, lr=0.001)
+    model.train_model(dataset, batch_size=512, n_epochs=n_epochs, lr=0.001)
 
     print('Surrogate: Pre-Training 3')
-    model.train_model(dataset, batch_size=2048, n_epochs=n_epochs, lr=0.001)
+    model.train_model(dataset, batch_size=1024, n_epochs=n_epochs, lr=0.001)
+
+    print('Surrogate: Pre-Training 4')
+    model.train_model(dataset, batch_size=1024, n_epochs=n_epochs, lr=0.0003)
 
 
 def training_loop(
@@ -56,7 +59,7 @@ def training_loop(
 
     parameter_dict = SimulationParameterDictionary.from_json(parameter_dict_input_path)
 
-    n_epochs_pre = 100
+    n_epochs_pre = 30
     n_epochs_main = 100
 
     # Surrogate:
@@ -71,43 +74,28 @@ def training_loop(
             surrogate: Surrogate = torch.load(surrogate_previous_path)
         else:
             surrogate = Surrogate(*surrogate_dataset.shape)
+            pre_train(surrogate, surrogate_dataset, n_epochs_pre)
 
-        pre_train(surrogate, surrogate_dataset, n_epochs_pre)
+    print("Surrogate Training")
+    surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
+    surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
 
-        print("Surrogate Validation")
-        surrogate_validation_dataset = SurrogateDataset(pd.read_parquet(validation_df_path))
-        surrogate_validator = SurrogateValidation(surrogate)
-        validation_df = surrogate_validator.validate(surrogate_validation_dataset)
-        surrogate_validator.plot(
-            validation_df,
-            fig_savepath=os.path.join(results_dir, "plots", "validation"),
-            )
+    print("Surrogate Validation")
+    surrogate_validation_dataset = SurrogateDataset(pd.read_parquet(validation_df_path))
+    surrogate_validator = SurrogateValidation(surrogate)
+    validation_df = surrogate_validator.validate(surrogate_validation_dataset)
+    surrogate_validator.plot(
+        validation_df,
+        fig_savepath=os.path.join(results_dir, "plots", "validation"),
+        )
 
-        print("Surrogate Training")
-        surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
-        surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
-
-        best_surrogate_loss = 1e10
-
-        while surrogate_loss < 4.0 * best_surrogate_loss:
-
-            if surrogate_loss < best_surrogate_loss:
-                break
-            else:
-                print("Surrogate Re-Training")
-                pre_train(surrogate, surrogate_dataset, n_epochs_pre)
-                surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 5, lr=0.005)
-                surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.005)
-                surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.0003)
-                surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.0001)
-        
     torch.save(surrogate, surrogate_save_path)
 
     # Optimization
     if os.path.isfile(optimizer_previous_path):
         optimizer: Optimizer = torch.load(optimizer_previous_path)
     else:
-        optimizer = Optimizer(surrogate, parameter_dict, continuous_lr=0.01, discrete_lr=0.01)
+        optimizer = Optimizer(surrogate, parameter_dict, continuous_lr=0.02, discrete_lr=0.01)
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,
