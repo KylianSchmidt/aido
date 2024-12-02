@@ -38,16 +38,16 @@ if __name__ == "__main__":
     reco_dataset = ReconstructionDataset(simulation_df)
     reco_model = Reconstruction(*reco_dataset.shape)
 
-    n_epochs_pre = 100
+    n_epochs_pre = 30
     n_epochs_main = 100
 
     pre_train(reco_model, reco_dataset, n_epochs_pre)
 
     # Reconstruction:
     reco_model.to('cuda')
-    reco_model.train_model(reco_dataset, batch_size=256, n_epochs=n_epochs_main // 2, lr=0.003)
-    reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.001)
-    reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
+    reco_model.train_model(reco_dataset, batch_size=256, n_epochs=n_epochs_main // 4, lr=0.003)
+    reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
+    reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
     reco_result, reco_loss, _ = reco_model.apply_model_in_batches(reco_dataset, batch_size=128)
 
     reconstructed_df = pd.DataFrame({"true_energy": reco_result})
@@ -56,17 +56,3 @@ if __name__ == "__main__":
     loss_df = pd.concat({"Loss": loss_df}, axis=1)
     output_df: pd.DataFrame = pd.concat([reco_dataset.df, reconstructed_df, loss_df], axis=1)
     output_df.to_parquet(output_df_path)
-
-    # validation
-    validation_df = pd.read_parquet(
-        "results_full_calorimeter/results_20241122/task_outputs/iteration=0/validation=True/validation_input_df"
-    )
-    validation_dataset = ReconstructionDataset(validation_df)
-    val_result, val_loss, _ = reco_model.apply_model_in_batches(validation_dataset, batch_size=128)
-
-    val_df = pd.DataFrame({"true_energy": val_result})
-    val_df = pd.concat({"Reconstructed": val_df}, axis=1)
-    val_loss_df = pd.DataFrame({"Reco_loss": val_loss.tolist()})
-    val_loss_df = pd.concat({"Loss": val_loss_df}, axis=1)
-    val_output_df: pd.DataFrame = pd.concat([validation_dataset.df, val_df, val_loss_df], axis=1)
-    val_output_df.to_parquet("validation_output_df")

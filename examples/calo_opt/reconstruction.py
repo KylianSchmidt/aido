@@ -197,7 +197,7 @@ class Reconstruction(torch.nn.Module):
             y: torch.Tensor = y.to(self.device)
             y_pred: torch.Tensor = self(detector_parameters, x)
 
-            loss_per_event = self.loss(y_pred, y)
+            loss_per_event = self.loss(dataset.unnormalise_target(y_pred), dataset.unnormalise_target(y))
             loss = loss_per_event.clone().mean()
             mean_loss += loss.item()
 

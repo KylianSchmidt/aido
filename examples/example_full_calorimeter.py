@@ -280,10 +280,10 @@ if __name__ == "__main__":
     aido.optimize(
         parameters=parameters,
         user_interface=UIFullCalorimeter,
-        simulation_tasks=10,
+        simulation_tasks=20,
         max_iterations=100,
         threads=10,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241127_3",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241129",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model
@@ -303,6 +303,8 @@ if __name__ == "__main__":
             Increased sigma
             Add validation Tasks
             Changed Optimizer to compute reco loss itself
+            Improvements to the Surrogate model training
+            Actually implemented covariance box correctly
         """
     )
     os.system("rm *.root")
