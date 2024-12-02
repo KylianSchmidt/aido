@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 import aido
@@ -104,3 +105,16 @@ def test_sigma() -> None:
 
     sim_param_dict = aido.SimulationParameter("foo", 2.0, sigma_mode="scale", sigma=0.1)
     assert sim_param_dict.sigma == 0.2
+
+
+def test_set_sigma() -> None:
+    sim_param_dict = aido.SimulationParameterDictionary([
+        aido.SimulationParameter("foo", 3.14, sigma=0.1),
+        aido.SimulationParameter("bar", "LEAD", discrete_values=["LEAD", "BREAD"]),
+        aido.SimulationParameter("foo", 6.28, sigma=0.2),
+        aido.SimulationParameter("foo", 9.17, optimizable=False),
+        aido.SimulationParameter("foo", 10.0, sigma=1.0)
+    ])
+    assert np.all(sim_param_dict.covariance == np.diag([0.1, 0.2, 1]))
+    sim_param_dict.covariance = np.diag([5, 1, 2])
+    assert np.all(sim_param_dict.covariance == np.diag([5, 1, 2]))

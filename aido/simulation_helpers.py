@@ -199,6 +199,12 @@ class SimulationParameter:
         elif self.sigma_mode == "flat":
             return sigma_value
 
+    @sigma.setter
+    def sigma(self, value: float):
+        assert value > 0.0
+        assert self.discrete_values is None and self.optimizable
+        self._sigma = value
+
     @property
     def probabilities(self) -> List[float]:
         return self._probabilities
@@ -456,10 +462,18 @@ class SimulationParameterDictionary:
         covariance_matrix = []
 
         for parameter in self.parameter_list:
-            if parameter.optimizable is True:
+            if parameter.optimizable is True and parameter.discrete_values is None:
                 covariance_matrix.append(parameter.sigma)
 
         return np.diag(np.array(covariance_matrix))
+    
+    @covariance.setter
+    def covariance(self, new_covariance=np.ndarray) -> None:
+        i = 0
+        for parameter in self.parameter_list:
+            if parameter.optimizable is True and parameter.discrete_values is None:
+                parameter.sigma = new_covariance[i, i]
+                i += 1
 
     @property
     def metadata(self) -> Dict[str, int | str]:
