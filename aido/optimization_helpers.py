@@ -81,22 +81,18 @@ class ContinuousParameter(torch.nn.Module):
         super().__init__()
         self.starting_value = torch.tensor(parameter.current_value)
         self.parameter = torch.nn.Parameter(self.starting_value.clone(), requires_grad=True)
+        self.min_value = parameter.min_value or -10E10
+        self.max_value = parameter.max_value or +10E10
+        self.boundaries = torch.tensor(np.array([self.min_value, self.max_value], dtype="float32"))
+        self._cost = parameter.cost if parameter.cost is not None else 0.0
         self.reset(parameter)
 
     def reset(self, parameter: SimulationParameter):
-        self.min_value = parameter.min_value or -10E10
-        self.max_value = parameter.max_value or +10E10
-        if parameter.sigma:
-            self.min_value = max(parameter.current_value - parameter.sigma, self.min_value)
-            self.max_value = min(parameter.current_value + parameter.sigma, self.max_value)
-
-        self.boundaries = torch.tensor(np.array([self.min_value, self.max_value], dtype="float32"))
         self.parameter.data = torch.clamp(self.parameter.data, self.min_value, self.max_value)
         assert (
             torch.isclose(torch.tensor(parameter.current_value), torch.tensor(self.physical_value))
         ), f"Values are {parameter.current_value} != {self.physical_value} and {self.parameter}"
         self.sigma = np.array(parameter.sigma)
-        self._cost = parameter.cost if parameter.cost is not None else 0.0
 
     def forward(self) -> torch.Tensor:
         return torch.unsqueeze(self.parameter, 0)
@@ -140,6 +136,9 @@ class ParameterModule(torch.nn.ModuleDict):
         return super().values()
 
     def reset_covariance(self) -> np.ndarray:
+        """ Returns the current covariance matrix for all continuous parameters in order.
+        Covariance is a misnomer as we use the standard deviation and not the variance
+        """
         return np.diag(np.array(
             [parameter.sigma.item() for parameter in self.parameters_continuous.values()],
             dtype="float32"
@@ -165,6 +164,7 @@ class ParameterModule(torch.nn.ModuleDict):
             "discrete": self.parameters_discrete,
             "continuous": self.parameters_continuous
         }
+        assert parameter_types != "all", NotImplementedError("Not implemented yet due to dimension mismatch")
         module: dict[str, OneHotEncoder | ParameterModule] = types[parameter_types]
         tensor_list = [parameter.current_value for parameter in module.values()]
 
@@ -189,6 +189,9 @@ class ParameterModule(torch.nn.ModuleDict):
 
     @property
     def constraints(self) -> torch.Tensor:
+        """ A tensor of shape (P, 2) where P is the number of continuous parameters. In the second index,
+        the order is the same as in the ContinuousParameter class (min, max)
+        """
         tensor_list = [parameter.boundaries for parameter in self.parameters_continuous.values()]
         if tensor_list == []:
             return torch.tensor([])
@@ -204,17 +207,20 @@ class ParameterModule(torch.nn.ModuleDict):
             parameter.reset(parameter_dict[name])
         self.covariance = self.reset_covariance()
 
-    def adjust_covariance(self, direction: torch.Tensor):
+    def adjust_covariance(self, direction: torch.Tensor, min_scale: float = 2.0):
         """ Stretches the box_covariance of the generator in the directon specified as input.
         Direction is a vector in parameter space
         """
+        direction = direction.cpu().detach().numpy()
+        norm = np.linalg.norm(direction)
+        direction_normed = direction / (norm + 1e-4)
+
+        scale_factor = min_scale * max(1, 4 * norm)
+
         for index, parameter in enumerate(self.parameters_continuous.values()):
-            if direction[index] >= 0.9 * parameter.sigma:
-                parameter.sigma *= 1.5
-            elif direction[index] <= 0.2 * parameter.sigma:
-                parameter.sigma *= 0.95
-            else:
-                None
+            new_variance = parameter.sigma**2 * 1 + (scale_factor - 1) * (direction_normed[index]**2)
+            parameter.sigma = np.sqrt(new_variance)
+
         return self.reset_covariance()
 
     def check_parameters_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:
