@@ -81,10 +81,7 @@ class Optimizer(torch.nn.Module):
         """
         if len(self.parameter_box) != 0:
             parameters_continuous_tensor = self.parameter_module.tensor("continuous")
-            return (
-                torch.mean(100 * torch.nn.ReLU()(self.parameter_box[:, 0] - parameters_continuous_tensor)**2)
-                + torch.mean(100 * torch.nn.ReLU()(- self.parameter_box[:, 1] + parameters_continuous_tensor)**2)
-            )
+            return torch.mean(100 * torch.nn.ReLU()(- 1.5 / 1.1 - parameters_continuous_tensor)**2)
         else:
             return torch.Tensor([0.0])
 
@@ -118,8 +115,21 @@ class Optimizer(torch.nn.Module):
         if not os.path.exists(filepath):
             df.to_parquet(filepath)
         else:
-            updated_parameter_optimizer_df = pd.concat([pd.read_parquet(filepath), df], ignore_index=True)
-            updated_parameter_optimizer_df.to_parquet(filepath)
+            try:
+                updated_parameter_optimizer_df = pd.concat([pd.read_parquet(filepath), df], ignore_index=True)
+                updated_parameter_optimizer_df.to_parquet(filepath)
+            except KeyboardInterrupt:
+                print("Warning: Saving the Optimizer Parameters to file before stopping...")
+                updated_parameter_optimizer_df.to_parquet(filepath)
+                raise
+
+    def add_noise_to_grads(self, scale: float = 0.05) -> None:
+        with torch.no_grad():
+            for param in self.parameters():
+                param.grad += torch.randn_like(param) * scale
+
+    def print_grads(self) -> None:
+        print(f"Optimizer Gradients: {torch.cat([(param.grad.view(-1)) for param in self.parameters()])}")
 
     def optimize(
             self,
@@ -165,7 +175,7 @@ class Optimizer(torch.nn.Module):
             for batch_idx, (_parameters, context, targets, _reconstructed) in enumerate(data_loader):
                 context: torch.Tensor = context.to(self.device)
                 targets: torch.Tensor = targets.to(self.device)
-                parameters_batch = self.parameter_module()
+                parameters_batch: torch.Tensor = self.parameter_module()
 
                 surrogate_output = self.surrogate_model.sample_forward(
                     parameters_batch,
@@ -187,6 +197,8 @@ class Optimizer(torch.nn.Module):
 
                 self.optimizer.zero_grad()
                 loss.backward()
+                self.add_noise_to_grads()
+                self.print_grads()
 
                 if np.isnan(loss.item()):
                     print("Optimizer: NaN loss, exiting.")
