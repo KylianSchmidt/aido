@@ -76,9 +76,9 @@ def training_loop(
             surrogate = Surrogate(*surrogate_dataset.shape)
             pre_train(surrogate, surrogate_dataset, n_epochs_pre)
 
-    print("Surrogate Training")
-    surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
-    surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
+        print("Surrogate Training")
+        surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
+        surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
 
     print("Surrogate Validation")
     surrogate_validation_dataset = SurrogateDataset(pd.read_parquet(validation_df_path))
@@ -95,7 +95,7 @@ def training_loop(
     if os.path.isfile(optimizer_previous_path):
         optimizer: Optimizer = torch.load(optimizer_previous_path)
     else:
-        optimizer = Optimizer(surrogate, parameter_dict, continuous_lr=0.02, discrete_lr=0.01)
+        optimizer = Optimizer(surrogate, parameter_dict, continuous_lr=0.02, discrete_lr=0.02)
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,

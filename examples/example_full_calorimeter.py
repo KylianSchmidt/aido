@@ -242,9 +242,9 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 if __name__ == "__main__":
 
     sigma = 1.5
-    min_value = 0.1
+    min_value = 0.001
     parameters = aido.SimulationParameterDictionary([
-        aido.SimulationParameter("thickness_absorber_0", 10.0, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter("thickness_absorber_0", 35.0, min_value=min_value, sigma=sigma),
         aido.SimulationParameter("thickness_scintillator_0", 5.0, min_value=min_value, sigma=sigma),
         aido.SimulationParameter("material_absorber_0", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
         aido.SimulationParameter(
@@ -253,8 +253,8 @@ if __name__ == "__main__":
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
             cost=[2500.0, 0.01]
         ),
-        aido.SimulationParameter("thickness_absorber_1", 10.0, min_value=min_value, sigma=sigma),
-        aido.SimulationParameter("thickness_scintillator_1", 5.0, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter("thickness_absorber_1", 20.0, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter("thickness_scintillator_1", 10.0, min_value=min_value, sigma=sigma),
         aido.SimulationParameter("material_absorber_1", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
         aido.SimulationParameter(
             "material_scintillator_1",
@@ -262,8 +262,8 @@ if __name__ == "__main__":
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
             cost=[2500.0, 0.01]
         ),
-        aido.SimulationParameter("thickness_absorber_2", 10.0, min_value=min_value, sigma=sigma),
-        aido.SimulationParameter("thickness_scintillator_2", 5.0, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter("thickness_absorber_2", 20.0, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter("thickness_scintillator_2", 2.0, min_value=min_value, sigma=sigma),
         aido.SimulationParameter("material_absorber_2", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
         aido.SimulationParameter(
             "material_scintillator_2",
@@ -283,7 +283,7 @@ if __name__ == "__main__":
         simulation_tasks=20,
         max_iterations=100,
         threads=10,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241129",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241203",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model
