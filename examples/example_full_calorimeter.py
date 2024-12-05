@@ -283,7 +283,7 @@ if __name__ == "__main__":
         simulation_tasks=20,
         max_iterations=200,
         threads=10,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241205",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241205_3",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model
@@ -306,6 +306,7 @@ if __name__ == "__main__":
             Improvements to the Surrogate model training
             Actually implemented covariance box correctly
             Save reco model between iterations
+            Discrete LR = 0.001, gradients clamped at 0.01
         """
     )
     os.system("rm *.root")

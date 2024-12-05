@@ -129,6 +129,11 @@ class Optimizer(torch.nn.Module):
             for param in self.parameters():
                 param.grad += torch.randn_like(param) * scale
 
+    def clamp_discrete_parameters(self, max_grad: float = 0.001):
+        with torch.no_grad():
+            for param in self.parameter_module.discrete.parameters():
+                param.grad = torch.clamp(param.grad, min=-max_grad, max=max_grad)
+
     def print_grads(self) -> None:
         for name, param in self.named_parameters():
             if param.requires_grad and not name.startswith("surrogate_model"):
@@ -205,6 +210,7 @@ class Optimizer(torch.nn.Module):
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.add_noise_to_grads()
+                self.clamp_discrete_parameters(max_grad=0.01)
                 self.print_grads()
 
                 if np.isnan(loss.item()):
