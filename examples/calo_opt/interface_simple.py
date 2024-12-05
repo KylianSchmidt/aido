@@ -110,7 +110,7 @@ class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
         """
         os.system(
             f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/minicalosim_latest.sif python3 \
-            examples/calo_opt/reco_script.py {reco_input_path} {reco_output_path}"
+            examples/calo_opt/reco_script.py {reco_input_path} {reco_output_path} {self.results_dir}"
         )
         os.system("rm *.pkl")
         return None

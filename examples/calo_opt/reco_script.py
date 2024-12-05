@@ -1,6 +1,8 @@
+import os
 import sys
 
 import pandas as pd
+import torch
 from reconstruction import Reconstruction, ReconstructionDataset
 from torch.utils.data import Dataset
 
@@ -31,17 +33,22 @@ if __name__ == "__main__":
 
     input_df_path = sys.argv[1]
     output_df_path = sys.argv[2]
+    results_dir = sys.argv[3]
+
+    n_epochs_pre = 30
+    n_epochs_main = 100
 
     # Load the input df
     simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
 
     reco_dataset = ReconstructionDataset(simulation_df)
-    reco_model = Reconstruction(*reco_dataset.shape)
+    reco_model_previous_path = os.path.join(results_dir, "reco_model")
 
-    n_epochs_pre = 30
-    n_epochs_main = 100
-
-    pre_train(reco_model, reco_dataset, n_epochs_pre)
+    if os.path.exists(reco_model_previous_path):
+        reco_model = torch.load(reco_model_previous_path)
+    else:
+        reco_model = Reconstruction(*reco_dataset.shape)
+        pre_train(reco_model, reco_dataset, n_epochs_pre)
 
     # Reconstruction:
     reco_model.to('cuda')
@@ -56,3 +63,5 @@ if __name__ == "__main__":
     loss_df = pd.concat({"Loss": loss_df}, axis=1)
     output_df: pd.DataFrame = pd.concat([reco_dataset.df, reconstructed_df, loss_df], axis=1)
     output_df.to_parquet(output_df_path)
+
+    torch.save(reco_model, reco_model_previous_path)
