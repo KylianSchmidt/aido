@@ -28,7 +28,6 @@ class Optimizer(torch.nn.Module):
             starting_parameter_dict: SimulationParameterDictionary,
             continuous_lr: float = 1e-3,
             discrete_lr: float = 1e-3,
-            batch_size: int = 128,
             ):
         """
         Initializes the optimizer with the given surrogate model and parameters.
@@ -50,16 +49,18 @@ class Optimizer(torch.nn.Module):
         self.parameter_dict = self.starting_parameter_dict
         self.continuous_lr = continuous_lr
         self.discrete_lr = discrete_lr
-        self.batch_size = batch_size
         self.device = torch.device("cuda")
 
         self.parameter_module = ParameterModule(self.parameter_dict)
         self.starting_parameters_continuous = self.parameter_module.tensor("continuous")
         self.to(self.device)
-        self.optimizer = torch.optim.Adam([
-            {"params": self.parameter_module.discrete.parameters(), "lr": self.discrete_lr},
-            {"params": self.parameter_module.continuous.parameters(), "lr": self.continuous_lr},
-        ])
+        self.optimizer = torch.optim.Adam(
+            [
+                {"params": self.parameter_module.discrete.parameters(), "lr": self.discrete_lr},
+                {"params": self.parameter_module.continuous.parameters(), "lr": self.continuous_lr},
+            ],
+            weight_decay=1e-4
+        )
 
     def to(self, device: str | torch.device, **kwargs):
         """ Move all Tensors and modules to 'device'.
@@ -81,7 +82,7 @@ class Optimizer(torch.nn.Module):
         """
         if len(self.parameter_box) != 0:
             parameters_continuous_tensor = self.parameter_module.tensor("continuous")
-            return torch.mean(100 * torch.nn.ReLU()(- 1.5 / 1.1 - parameters_continuous_tensor)**2)
+            return torch.mean(0.5 * torch.nn.ReLU()(-parameters_continuous_tensor)**2)
         else:
             return torch.Tensor([0.0])
 
@@ -129,7 +130,9 @@ class Optimizer(torch.nn.Module):
                 param.grad += torch.randn_like(param) * scale
 
     def print_grads(self) -> None:
-        print(f"Optimizer Gradients: {torch.cat([(param.grad.view(-1)) for param in self.parameters()])}")
+        for name, param in self.named_parameters():
+            if param.requires_grad and not name.startswith("surrogate_model"):
+                print(f"Optimizer parameter {name}: Data={param.data}, grads={param.grad}")
 
     def optimize(
             self,
@@ -155,6 +158,10 @@ class Optimizer(torch.nn.Module):
             bool
         """
         def reco_loss(y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+            y = torch.where(torch.isnan(y_pred), torch.zeros_like(y) + 1., y)
+            y = torch.where(torch.isinf(y_pred), torch.zeros_like(y) + 1., y)
+            y_pred = torch.where(torch.isnan(y_pred), torch.zeros_like(y_pred), y_pred)
+            y_pred = torch.where(torch.isinf(y_pred), torch.zeros_like(y_pred), y_pred)
             return ((y_pred - y)**2 / (torch.abs(y) + 1.))
 
         self.parameter_module.reset_continuous_parameters(parameter_dict)

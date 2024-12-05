@@ -200,7 +200,7 @@ class Surrogate(torch.nn.Module):
             num_context: int,
             num_targets: int,
             num_reconstructed: int,
-            n_time_steps: int = 100,
+            n_time_steps: int = 50,
             betas: Tuple[float] = (1e-4, 0.02)
             ):
         """

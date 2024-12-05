@@ -59,8 +59,8 @@ def training_loop(
 
     parameter_dict = SimulationParameterDictionary.from_json(parameter_dict_input_path)
 
-    n_epochs_pre = 30
-    n_epochs_main = 100
+    n_epochs_pre = 24
+    n_epochs_main = 40
 
     # Surrogate:
     surrogate_dataset = SurrogateDataset(

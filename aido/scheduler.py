@@ -35,7 +35,7 @@ class SimulationTask(b2luigi.Task):
             parameters = start_parameters
             parameters.rng_seed = start_parameters.generate_new().rng_seed
         else:
-            parameters = start_parameters.generate_new(discrete_index=self.simulation_task_id)
+            parameters = start_parameters.generate_new()
 
         parameters.to_json(output_parameter_dict_path)
         interface.simulate(output_parameter_dict_path, output_path)
@@ -75,7 +75,7 @@ class ReconstructionTask(b2luigi.Task):
         )
         interface.reconstruct(
             reco_input_path=self.get_output_file_name(f"{output_type}_input_df"),
-            reco_output_path=self.get_output_file_name(f"{output_type}_output_df")
+            reco_output_path=self.get_output_file_name(f"{output_type}_output_df"),
         )
 
 

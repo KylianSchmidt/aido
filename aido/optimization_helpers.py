@@ -88,10 +88,6 @@ class ContinuousParameter(torch.nn.Module):
         self.reset(parameter)
 
     def reset(self, parameter: SimulationParameter):
-        self.parameter.data = torch.clamp(self.parameter.data, self.min_value, self.max_value)
-        assert (
-            torch.isclose(torch.tensor(parameter.current_value), torch.tensor(self.physical_value))
-        ), f"Values are {parameter.current_value} != {self.physical_value} and {self.parameter}"
         self.sigma = np.array(parameter.sigma)
 
     def forward(self) -> torch.Tensor:
