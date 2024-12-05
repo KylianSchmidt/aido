@@ -7,3 +7,4 @@
 [x] Line 99 in SimulationParameter is faulty when asigning int to sigma
 [ ] The boundaries that get enforced by "additional constraints" should be the min and max, not the sigma boundaries. They should remain totally unchecked during Optimization.
 [ ] File sizes can add up. Clean up the Simulation Files and Model saves once they are used.
+[ ] Allow for an extra validation step for the reconstruction algorithm for the end user. For example a separate Task that resimulates the same detector configurations and passes it to interface.
