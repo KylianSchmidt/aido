@@ -147,7 +147,11 @@ class OptimizationTask(b2luigi.Task):
             json.dump(self.reco_paths_dict, file)
 
         # Run surrogate and optimizer model
-        new_param_dict = training_loop(self.reco_paths_dict["own_path"], interface.constraints)
+        new_param_dict = training_loop(
+            reco_file_paths_dict=self.reco_paths_dict["own_path"],
+            reconstruction_loss_function=interface.loss,
+            constraints=interface.constraints
+        )
         new_param_dict.iteration = self.iteration + 1
         # TODO Change datetime too
         new_param_dict.to_json(self.reco_paths_dict["next_parameter_dict"])

@@ -39,6 +39,7 @@ def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
 
 def training_loop(
         reco_file_paths_dict: dict | str | os.PathLike,
+        reconstruction_loss_function: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         constraints: None | Callable[[SimulationParameterDictionary], float | torch.Tensor] = None
         ):
     if isinstance(reco_file_paths_dict, (str, os.PathLike)):
@@ -103,6 +104,7 @@ def training_loop(
         batch_size=512,
         n_epochs=40,
         additional_constraints=constraints,
+        reconstruction_loss=reconstruction_loss_function,
         parameter_optimizer_savepath=os.path.join(results_dir, "models", "parameter_optimizer_df")
     )
     if not is_optimal:

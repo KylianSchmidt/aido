@@ -133,7 +133,7 @@ class Reconstruction(torch.nn.Module):
         x = torch.cat([parameters, x], dim=1)
         return self.layers(x)
 
-    def loss(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def loss(self, y: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
         """ Remark: filters nans and in order to make it more stable.
         Uses an L2 loss with with 1/sqrt(E) weighting
 
@@ -163,7 +163,7 @@ class Reconstruction(torch.nn.Module):
                 x: torch.Tensor = x.to(self.device)
                 y: torch.Tensor = y.to(self.device)
                 y_pred: torch.Tensor = self(detector_parameters, x)
-                loss_per_event = self.loss(y_pred, y)
+                loss_per_event = self.loss(y, y_pred)
                 loss = loss_per_event.clone().mean()
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -196,7 +196,7 @@ class Reconstruction(torch.nn.Module):
             y: torch.Tensor = y.to(self.device)
             y_pred: torch.Tensor = self(detector_parameters, x)
 
-            loss_per_event = self.loss(dataset.unnormalise_target(y_pred), dataset.unnormalise_target(y))
+            loss_per_event = self.loss(dataset.unnormalise_target(y), dataset.unnormalise_target(y_pred))
             loss = loss_per_event.clone().mean()
             mean_loss += loss.item()
 

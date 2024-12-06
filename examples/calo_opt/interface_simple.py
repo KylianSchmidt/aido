@@ -2,6 +2,7 @@ import os
 from typing import Dict, Iterable, List
 
 import pandas as pd
+import torch
 
 import aido
 
@@ -114,3 +115,16 @@ class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
         )
         os.system("rm *.pkl")
         return None
+
+    def loss(self, y: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
+        """ Remark: filters nans and in order to make it more stable.
+        Uses an L2 loss with with 1/sqrt(E) weighting
+
+        Alternatively: 'torch.nn.MSELoss()(y_pred, y)**(1/2)'
+        """
+        y = torch.where(torch.isnan(y_pred), torch.zeros_like(y) + 1., y)
+        y = torch.where(torch.isinf(y_pred), torch.zeros_like(y) + 1., y)
+        y_pred = torch.where(torch.isnan(y_pred), torch.zeros_like(y_pred), y_pred)
+        y_pred = torch.where(torch.isinf(y_pred), torch.zeros_like(y_pred), y_pred)
+
+        return ((y_pred - y)**2 / (torch.abs(y) + 1.))

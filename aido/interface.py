@@ -106,7 +106,16 @@ class AIDOBaseUserInterface(_AIDOBaseUserInterface):
 
     def plot(self, parameter_dict: SimulationParameterDictionary) -> None:
         """ This method is optional
+
         Use this method to execute code after each iteration. This can be anything used to track the
         progress of the Optimization process.
         """
         return None
+
+    def loss(self, y: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
+        """ This method is optional
+
+        Use this method to compute the loss of the internal Optimizer. This must be an equivalent
+        implementation to your reconstruction loss.
+        """
+        raise NotImplementedError

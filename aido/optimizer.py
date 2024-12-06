@@ -145,6 +145,7 @@ class Optimizer(torch.nn.Module):
             parameter_dict: SimulationParameterDictionary,
             batch_size: int,
             n_epochs: int,
+            reconstruction_loss: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
             additional_constraints: None | Callable[[SimulationParameterDictionary, Dict], torch.Tensor] = None,
             parameter_optimizer_savepath: str | os.PathLike | None = None
             ) -> Tuple[SimulationParameterDictionary, bool]:
@@ -162,12 +163,6 @@ class Optimizer(torch.nn.Module):
             SimulationParameterDictionary
             bool
         """
-        def reco_loss(y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-            y = torch.where(torch.isnan(y_pred), torch.zeros_like(y) + 1., y)
-            y = torch.where(torch.isinf(y_pred), torch.zeros_like(y) + 1., y)
-            y_pred = torch.where(torch.isnan(y_pred), torch.zeros_like(y_pred), y_pred)
-            y_pred = torch.where(torch.isinf(y_pred), torch.zeros_like(y_pred), y_pred)
-            return ((y_pred - y)**2 / (torch.abs(y) + 1.))
 
         self.parameter_module.reset_continuous_parameters(parameter_dict)
         self.parameter_box = self.parameter_module.constraints.to(self.device)
@@ -194,7 +189,7 @@ class Optimizer(torch.nn.Module):
                     context,
                     targets
                 )
-                surrogate_reconstruction_loss = reco_loss(
+                surrogate_reconstruction_loss = reconstruction_loss(
                     dataset.unnormalise_features(surrogate_output, index=2),
                     dataset.unnormalise_features(targets, index=2)
                 )
