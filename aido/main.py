@@ -74,7 +74,8 @@ def optimize(
     """
     if isinstance(parameters, list):
         parameters = SimulationParameterDictionary(parameters)
-        parameters.description = description
+
+    parameters.description += description
 
     start_scheduler(
         parameters=parameters,
