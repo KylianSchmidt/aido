@@ -472,8 +472,12 @@ class SimulationParameterDictionary:
         i = 0
         for parameter in self.parameter_list:
             if parameter.optimizable is True and parameter.discrete_values is None:
-                parameter.sigma = new_covariance[i, i]
-                i += 1
+                try:
+                    parameter.sigma = new_covariance[i, i]
+                    i += 1
+                except AssertionError:
+                    print(f"Unable setting covariance:\n{new_covariance}")
+                    raise
 
     @property
     def metadata(self) -> Dict[str, int | str]:

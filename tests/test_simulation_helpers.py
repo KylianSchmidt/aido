@@ -107,6 +107,12 @@ def test_sigma() -> None:
     assert sim_param_dict.sigma == 0.2
 
 
+def test_set_config() -> None:
+    aido.SimulationParameter.set_config("sigma", 1.5)
+    sim_param_dict = aido.SimulationParameter("foo", 0.0)
+    assert sim_param_dict.sigma == 1.5
+
+
 def test_set_sigma() -> None:
     sim_param_dict = aido.SimulationParameterDictionary([
         aido.SimulationParameter("foo", 3.14, sigma=0.1),

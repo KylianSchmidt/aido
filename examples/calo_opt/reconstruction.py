@@ -46,6 +46,7 @@ class ReconstructionDataset(Dataset):
             np.std(self.context, axis=0) + 1e-10
         ]
 
+        self.parameters = (self.parameters - self.means[0]) / self.stds[0]
         self.inputs = (self.inputs - self.means[1]) / self.stds[1]
         self.targets = (self.targets - self.means[2]) / self.stds[2]
         self.context = (self.context - self.means[3]) / self.stds[3]

@@ -82,7 +82,7 @@ class Optimizer(torch.nn.Module):
         """
         if len(self.parameter_box) != 0:
             parameters_continuous_tensor = self.parameter_module.tensor("continuous")
-            return torch.mean(0.5 * torch.nn.ReLU()(-parameters_continuous_tensor)**2)
+            return torch.mean(0.5 * torch.nn.ReLU()(-1.0 - parameters_continuous_tensor)**2)
         else:
             return torch.Tensor([0.0])
 
@@ -129,15 +129,10 @@ class Optimizer(torch.nn.Module):
             for param in self.parameters():
                 param.grad += torch.randn_like(param) * scale
 
-    def clamp_discrete_parameters(self, max_grad: float = 0.001):
-        with torch.no_grad():
-            for param in self.parameter_module.discrete.parameters():
-                param.grad = torch.clamp(param.grad, min=-max_grad, max=max_grad)
-
     def print_grads(self) -> None:
         for name, param in self.named_parameters():
             if param.requires_grad and not name.startswith("surrogate_model"):
-                print(f"Optimizer parameter {name}: Data={param.data}, grads={param.grad}")
+                print(f"Optimizer {name}: Data={param.data}, grads={param.grad}")
 
     def optimize(
             self,
@@ -163,7 +158,6 @@ class Optimizer(torch.nn.Module):
             SimulationParameterDictionary
             bool
         """
-
         self.parameter_module.reset_continuous_parameters(parameter_dict)
         self.parameter_box = self.parameter_module.constraints.to(self.device)
         self.starting_parameters_continuous = self.parameter_module.tensor("continuous").clone().detach()
@@ -182,7 +176,7 @@ class Optimizer(torch.nn.Module):
             for batch_idx, (_parameters, context, targets, _reconstructed) in enumerate(data_loader):
                 context: torch.Tensor = context.to(self.device)
                 targets: torch.Tensor = targets.to(self.device)
-                parameters_batch: torch.Tensor = self.parameter_module()
+                parameters_batch: torch.Tensor = dataset.normalise_features(self.parameter_module(), index=0)
 
                 surrogate_output = self.surrogate_model.sample_forward(
                     parameters_batch,
@@ -204,9 +198,6 @@ class Optimizer(torch.nn.Module):
 
                 self.optimizer.zero_grad()
                 loss.backward()
-                self.add_noise_to_grads()
-                self.clamp_discrete_parameters(max_grad=0.01)
-                self.print_grads()
 
                 if np.isnan(loss.item()):
                     print("Optimizer: NaN loss, exiting.")
@@ -231,7 +222,7 @@ class Optimizer(torch.nn.Module):
 
             print(f"Optimizer Epoch: {epoch} \tLoss: {surrogate_loss_detached:.5f} (reco)", end="\t")
             print(f"+ {(constraints_loss.item()):.5f} (constraints)", end="\t")
-            print(f"+ {(self.loss_box_constraints()):.5f} (boundaries)", end="\t")
+            print(f"+ {(self.loss_box_constraints().item()):.5f} (boundaries)", end="\t")
             print(f"= {loss.item():.5f} (total)")
 
             epoch_loss /= batch_idx + 1

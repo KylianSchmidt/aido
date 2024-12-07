@@ -95,6 +95,8 @@ class ContinuousParameter(torch.nn.Module):
 
     @property
     def current_value(self) -> torch.Tensor:
+        if torch.isnan(self.parameter.data):
+            print(f"DEBUG {self.__dict__}")
         return self.parameter
 
     @property
@@ -197,7 +199,7 @@ class ParameterModule(torch.nn.ModuleDict):
     @property
     def cost_loss(self) -> torch.Tensor:
         return sum(parameter.cost for parameter in self.values())
-    
+
     def reset_continuous_parameters(self, parameter_dict: SimulationParameterDictionary):
         for name, parameter in self.parameters_continuous.items():
             parameter.reset(parameter_dict[name])
@@ -214,9 +216,10 @@ class ParameterModule(torch.nn.ModuleDict):
         scale_factor = min_scale * max(1, 4 * norm)
 
         for index, parameter in enumerate(self.parameters_continuous.values()):
-            new_variance = parameter.sigma**2 * 1 + (scale_factor - 1) * (direction_normed[index]**2)
+            new_variance = parameter.sigma**2 + (scale_factor - 1) * (direction_normed[index]**2)
             parameter.sigma = np.sqrt(new_variance)
 
+        print(f"DEBUG {direction}")
         return self.reset_covariance()
 
     def check_parameters_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:

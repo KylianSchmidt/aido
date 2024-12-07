@@ -128,6 +128,7 @@ class SurrogateDataset(Dataset):
         self.c_means = [torch.tensor(a).to(device) for a in self.means]
         self.c_stds = [torch.tensor(a).to(device) for a in self.stds]
 
+        self.parameters = self.normalise_features(self.parameters, index=0)
         self.context = self.normalise_features(self.context, index=1)
         self.targets = self.normalise_features(self.targets, index=2)
         self.reconstructed = self.normalise_features(self.reconstructed, index=2)
