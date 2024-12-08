@@ -23,9 +23,6 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             parameter_dict_as_tensor: Dict[str, torch.Tensor]
             ) -> torch.Tensor:
 
-        def sigmoid(x: float):
-            return 1.0 / (1.0 + torch.exp(-x))
-
         detector_length = 0.0
         cost = 0.0
         materials = {
@@ -36,13 +33,9 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
         for i in range(3):
             for name in ["absorber", "scintillator"]:
                 layer_thickness = parameter_dict_as_tensor[f"thickness_{name}_{i}"]
-                layer_material = parameter_dict_as_tensor[f"material_{name}_{i}"]
+                layer_choice = parameter_dict[f"material_{name}_{i}"].current_value
+                layer_cost_per_unit = materials[name]["costly"] if layer_choice >= 0 else materials[name]["cheap"]
 
-                sigmoid_scintillator = sigmoid(self.material_scaling_factor * layer_material)
-                layer_cost_per_unit = (
-                    sigmoid_scintillator * materials[name]["costly"]
-                    + (1.0 - sigmoid_scintillator) * materials[name]["cheap"]
-                )
                 cost += layer_thickness * layer_cost_per_unit
                 detector_length += layer_thickness
 
@@ -244,16 +237,16 @@ if __name__ == "__main__":
     parameters = aido.SimulationParameterDictionary([
         aido.SimulationParameter("thickness_absorber_0", np.random.uniform(0.1, 50), min_value=min_value),
         aido.SimulationParameter("thickness_scintillator_0", np.random.uniform(20, 35), min_value=min_value),
-        aido.SimulationParameter("material_absorber_0", np.random.uniform(-1, 1)),
-        aido.SimulationParameter("material_scintillator_0", np.random.uniform(-1, 1)),
+        aido.SimulationParameter("material_absorber_0", -1, optimizable=False),
+        aido.SimulationParameter("material_scintillator_0", 1, optimizable=False),
         aido.SimulationParameter("thickness_absorber_1", np.random.uniform(0.1, 5), min_value=min_value),
         aido.SimulationParameter("thickness_scintillator_1", np.random.uniform(0.1, 35), min_value=min_value),
-        aido.SimulationParameter("material_absorber_1", np.random.uniform(-1, 1)),
-        aido.SimulationParameter("material_scintillator_1", np.random.uniform(-1, 1)),
+        aido.SimulationParameter("material_absorber_1", 1, optimizable=False),
+        aido.SimulationParameter("material_scintillator_1", -1, optimizable=False),
         aido.SimulationParameter("thickness_absorber_2", np.random.uniform(0.1, 50), min_value=min_value),
         aido.SimulationParameter("thickness_scintillator_2", np.random.uniform(0.1, 10), min_value=min_value),
-        aido.SimulationParameter("material_absorber_2", np.random.uniform(-1, 1)),
-        aido.SimulationParameter("material_scintillator_2", np.random.uniform(-1, 1)),
+        aido.SimulationParameter("material_absorber_2", 1, optimizable=False),
+        aido.SimulationParameter("material_scintillator_2", -1, optimizable=False),
         aido.SimulationParameter("num_events", 400, optimizable=False),
         aido.SimulationParameter("max_length", 200, optimizable=False),
         aido.SimulationParameter("max_cost", 50_000, optimizable=False),
@@ -266,7 +259,7 @@ if __name__ == "__main__":
         simulation_tasks=20,
         max_iterations=200,
         threads=10,
-        results_dir="/work/kschmidt/aido/results_material_choice/results_20241206_1",
+        results_dir="/work/kschmidt/aido/results_material_choice/results_20241208",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model
@@ -290,6 +283,7 @@ if __name__ == "__main__":
             Actually implemented covariance box correctly
             Save reco model between iterations
             Discrete LR = 0.001, gradients clamped at 0.01
+            Fixed material choice
         """
     )
     os.system("rm *.root")
