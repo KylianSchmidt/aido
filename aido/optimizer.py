@@ -246,7 +246,7 @@ class Optimizer(torch.nn.Module):
             self.parameter_module.tensor("continuous").to(self.device)
             - self.starting_parameters_continuous.to(self.device)
         ).astype(float)
-        return self.parameter_dict, True
+        return self.boosted_parameter_dict, True
 
     @property
     def boosted_parameter_dict(self) -> SimulationParameterDictionary:
