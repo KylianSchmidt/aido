@@ -5,6 +5,7 @@ from typing import Dict, Generator
 
 import b2luigi
 
+from aido.config import AIDOConfig
 from aido.interface import AIDOBaseUserInterface
 from aido.plotting import Plotting
 from aido.simulation_helpers import SimulationParameterDictionary
@@ -110,6 +111,7 @@ class OptimizationTask(b2luigi.Task):
         return {
             "results_dir": str(self.results_dir),
             "own_path": str(self.get_output_file_name("reco_paths_dict")),
+            "config_path": f"{self.results_dir}/config.json",
             "surrogate_model_previous_path": f"{self.results_dir}/models/surrogate_{self.iteration - 1}.pt",
             "optimizer_model_previous_path": f"{self.results_dir}/models/optimizer_{self.iteration - 1}.pt",
             "surrogate_model_save_path": f"{self.results_dir}/models/surrogate_{self.iteration}.pt",
@@ -203,6 +205,8 @@ def start_scheduler(
     os.makedirs(f"{results_dir}/loss/constraints", exist_ok=True)
     os.makedirs(f"{results_dir}/loss/surrogate", exist_ok=True)
     start_param_dict_filepath = f"{results_dir}/parameters/param_dict_iter_0.json"
+
+    AIDOConfig.from_json("config.json").to_json(os.path.join(results_dir, "config.json"))
 
     parameters.to_json(start_param_dict_filepath)
 

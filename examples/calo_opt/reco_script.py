@@ -35,8 +35,8 @@ if __name__ == "__main__":
     output_df_path = sys.argv[2]
     results_dir = sys.argv[3]
 
-    n_epochs_pre = 30
-    n_epochs_main = 100
+    n_epochs_pre = 24
+    n_epochs_main = 40
 
     # Load the input df
     simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
