@@ -242,6 +242,7 @@ class Surrogate(torch.nn.Module):
         self.n_time_steps = n_time_steps
         self.device = torch.device('cuda')
         self.t_is = torch.tensor([i / self.n_time_steps for i in range(self.n_time_steps + 1)]).to(self.device)
+        self.best_surrogate_loss = 1e10
 
         for k, v in ddpm_schedules(*betas, n_time_steps).items():
             self.register_buffer(k, v)
@@ -277,6 +278,13 @@ class Surrogate(torch.nn.Module):
         self.sqrtab = self.sqrtab.to(device)
         self.sqrtmab = self.sqrtmab.to(device)
         return self
+
+    def update_best_surrogate_loss(self, loss: torch.Tensor) -> bool:
+        if loss < self.best_surrogate_loss:
+            self.best_surrogate_loss = loss
+            return True
+
+        return loss < 4.0 * self.best_surrogate_loss
 
     def create_noisy_input(
             self,
