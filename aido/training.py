@@ -42,18 +42,7 @@ def training_loop(
         reconstruction_loss_function: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         constraints: None | Callable[[SimulationParameterDictionary], float | torch.Tensor] = None
         ):
-
-    def update_best_surrogate_loss(loss: torch.Tensor) -> bool:
-        global best_surrogate_loss
-
-        if loss < best_surrogate_loss:
-            best_surrogate_loss = loss
-            return True
-
-        return loss < 4.0 * best_surrogate_loss
     
-    best_surrogate_loss = 1e10
-
     if isinstance(reco_file_paths_dict, (str, os.PathLike)):
         with open(reco_file_paths_dict, "r") as file:
             reco_file_paths_dict = json.load(file)
@@ -92,11 +81,8 @@ def training_loop(
         print("Surrogate Training")
         surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
         surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
-
-        if not best_surrogate_loss:
-            best_surrogate_loss = 1e10
         
-        while not update_best_surrogate_loss(surrogate_loss):
+        while not surrogate.update_best_surrogate_loss(surrogate_loss):
             print("Surrogate retraining")
             pre_train()
             surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 5, lr=0.005)
