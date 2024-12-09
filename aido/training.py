@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from aido.config import AIDOConfig
 from aido.optimizer import Optimizer
 from aido.simulation_helpers import SimulationParameterDictionary
 from aido.surrogate import Surrogate, SurrogateDataset
@@ -47,6 +48,8 @@ def training_loop(
         with open(reco_file_paths_dict, "r") as file:
             reco_file_paths_dict = json.load(file)
 
+    config = AIDOConfig.from_json(reco_file_paths_dict["config_path"])
+
     results_dir = reco_file_paths_dict["results_dir"]
     output_df_path = reco_file_paths_dict["reco_output_df"]
     validation_df_path = reco_file_paths_dict["validation_output_df"]
@@ -61,9 +64,6 @@ def training_loop(
 
     parameter_dict = SimulationParameterDictionary.from_json(parameter_dict_input_path)
 
-    n_epochs_pre = 24
-    n_epochs_main = 40
-
     # Surrogate:
     surrogate_dataset = SurrogateDataset(
         pd.read_parquet(output_df_path),
@@ -76,9 +76,10 @@ def training_loop(
             surrogate: Surrogate = torch.load(surrogate_previous_path)
         else:
             surrogate = Surrogate(*surrogate_dataset.shape)
-            pre_train(surrogate, surrogate_dataset, n_epochs_pre)
+            pre_train(surrogate, surrogate_dataset, config.surrogate.n_epoch_pre)
 
         print("Surrogate Training")
+        n_epochs_main = config.surrogate.n_epochs_main
         surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
         surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
         
@@ -110,13 +111,18 @@ def training_loop(
     if os.path.isfile(optimizer_previous_path):
         optimizer: Optimizer = torch.load(optimizer_previous_path)
     else:
-        optimizer = Optimizer(surrogate, parameter_dict, continuous_lr=0.02, discrete_lr=0.001)
+        optimizer = Optimizer(
+            surrogate,
+            parameter_dict,
+            continuous_lr=config.optimizer.continuous_lr,
+            discrete_lr=config.optimizer.discrete_lr
+        )
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_dataset,
         parameter_dict,
-        batch_size=512,
-        n_epochs=40,
+        batch_size=config.optimizer.batch_size,
+        n_epochs=config.optimizer.n_epochs,
         additional_constraints=constraints,
         reconstruction_loss=reconstruction_loss_function,
         parameter_optimizer_savepath=os.path.join(results_dir, "models", "parameter_optimizer_df")
@@ -147,4 +153,4 @@ if __name__ == "__main__":
     with open(sys.argv[1], "r") as file:
         reco_file_paths_dict = json.load(file)
 
-    training_loop(reco_file_paths_dict, constraints=None)
+    training_loop(reco_file_paths_dict, reconstruction_loss_function=torch.nn.MSELoss, constraints=None)

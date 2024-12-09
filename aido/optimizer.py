@@ -26,8 +26,8 @@ class Optimizer(torch.nn.Module):
             self,
             surrogate_model: Surrogate,
             starting_parameter_dict: SimulationParameterDictionary,
-            continuous_lr: float = 1e-3,
-            discrete_lr: float = 1e-3,
+            continuous_lr: float | None = None,
+            discrete_lr: float | None = None,
             ):
         """
         Initializes the optimizer with the given surrogate model and parameters.

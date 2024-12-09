@@ -1,6 +1,7 @@
 import os
-from typing import List
+from typing import Any, List
 
+from aido.config import AIDOConfig
 from aido.interface import AIDOBaseUserInterface
 from aido.scheduler import start_scheduler
 from aido.simulation_helpers import SimulationParameter, SimulationParameterDictionary
@@ -77,6 +78,7 @@ def optimize(
 
     parameters.description += description
 
+    freeze_config(results_dir)
     start_scheduler(
         parameters=parameters,
         user_interface=user_interface,
@@ -102,3 +104,17 @@ def check_results_folder_format(directory: str | os.PathLike) -> bool:
     existing_folders = set(os.listdir(directory))
     required_folders = set(["loss", "models", "parameters", "plots", "task_outputs"])
     return True if required_folders.issubset(existing_folders) else False
+
+
+def freeze_config(results_dir: str):
+    AIDOConfig.from_json("config.json").to_json(os.path.join(results_dir, "config.json"))
+
+
+def set_config(key: str, value: Any):
+    config = AIDOConfig.from_json("config.json")
+    config.set_value(key, value)
+    config.to_json("config.json")
+
+
+def get_config(key: str) -> Any:
+    return AIDOConfig.from_json("config.json").get_value(key)
