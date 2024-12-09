@@ -1,0 +1,12 @@
+{
+    "optimizer": {
+        "continuous_lr": 0.02,
+        "discrete_lr": 0.001,
+        "batch_size": 512,
+        "n_epochs": 40
+    },
+    "surrogate": {
+        "n_epoch_pre": 24,
+        "n_epochs_main": 40
+    }
+}
