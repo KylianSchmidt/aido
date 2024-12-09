@@ -114,6 +114,17 @@ def test_set_config() -> None:
 
 
 def test_set_sigma() -> None:
+    aido.SimulationParameter.set_config("sigma", 1.5)
+    sim_param_dict = aido.SimulationParameterDictionary([
+        aido.SimulationParameter("thickness_absorber_0", np.random.uniform(0.1, 50), min_value=0.001),
+        aido.SimulationParameter("material_absorber_0", -1, optimizable=False)
+    ])
+    print(f"DEBUG {sim_param_dict.to_json("test_param_dict.json")}")
+    assert sim_param_dict["thickness_absorber_0"].discrete_values is None
+    assert sim_param_dict["thickness_absorber_0"].sigma == 1.5
+
+
+def test_covariance() -> None:
     sim_param_dict = aido.SimulationParameterDictionary([
         aido.SimulationParameter("foo", 3.14, sigma=0.1),
         aido.SimulationParameter("bar", "LEAD", discrete_values=["LEAD", "BREAD"]),

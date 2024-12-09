@@ -128,7 +128,7 @@ class SimulationParameter:
         self.probabilities = probabilities if discrete_values is not None else None
 
         check_sigma()
-        self._sigma = sigma
+        self.sigma = sigma
         self.sigma_mode = sigma_mode or self.config["sigma_mode"]
 
         check_cost()
@@ -191,18 +191,21 @@ class SimulationParameter:
     
     @property
     def sigma(self) -> float | None:
-        sigma_value = self._sigma or self.config["sigma"]
         if self.discrete_values is not None or not self.optimizable:
             return None
         if self.sigma_mode == "scale":
-            return sigma_value * self.current_value
+            return self._sigma * self.current_value
         elif self.sigma_mode == "flat":
-            return sigma_value
+            return self._sigma
 
     @sigma.setter
-    def sigma(self, value: float):
-        assert value > 0.0
-        assert self.discrete_values is None and self.optimizable
+    def sigma(self, value: float | None):
+        if self.discrete_values is None and self.optimizable:
+            if value is None:
+                value = self.config["sigma"]
+            assert value > 0.0
+        else:
+            assert value is None
         self._sigma = value
 
     @property
@@ -535,9 +538,9 @@ class SimulationParameterDictionary:
                 new_value = rng.normal(parameter.current_value, parameter.sigma)
 
                 if (
-                    parameter.min_value is not None and parameter.current_value >= parameter.min_value
-                    or parameter.max_value is not None and parameter.current_value <= parameter.max_value
-                    or parameter.min_value is None and parameter.max_value is None
+                    (parameter.min_value is not None and (new_value >= parameter.min_value))
+                    or (parameter.max_value is not None and (new_value <= parameter.max_value))
+                    or (parameter.min_value is None and parameter.max_value is None)
                 ):
                     break
             else:
