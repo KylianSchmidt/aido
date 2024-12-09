@@ -5,6 +5,7 @@ from typing import Dict, Generator
 
 import b2luigi
 
+from aido.config import AIDOConfig
 from aido.interface import AIDOBaseUserInterface
 from aido.plotting import Plotting
 from aido.simulation_helpers import SimulationParameterDictionary
@@ -204,6 +205,8 @@ def start_scheduler(
     os.makedirs(f"{results_dir}/loss/constraints", exist_ok=True)
     os.makedirs(f"{results_dir}/loss/surrogate", exist_ok=True)
     start_param_dict_filepath = f"{results_dir}/parameters/param_dict_iter_0.json"
+
+    AIDOConfig.from_json("config.json").to_json(os.path.join(results_dir, "config.json"))
 
     parameters.to_json(start_param_dict_filepath)
 

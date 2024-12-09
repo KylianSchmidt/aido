@@ -78,7 +78,6 @@ def optimize(
 
     parameters.description += description
 
-    freeze_config(results_dir)
     start_scheduler(
         parameters=parameters,
         user_interface=user_interface,
@@ -104,10 +103,6 @@ def check_results_folder_format(directory: str | os.PathLike) -> bool:
     existing_folders = set(os.listdir(directory))
     required_folders = set(["loss", "models", "parameters", "plots", "task_outputs"])
     return True if required_folders.issubset(existing_folders) else False
-
-
-def freeze_config(results_dir: str):
-    AIDOConfig.from_json("config.json").to_json(os.path.join(results_dir, "config.json"))
 
 
 def set_config(key: str, value: Any):
