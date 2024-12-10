@@ -18,6 +18,13 @@ class SurrogateConfig:
 
 
 @dataclass
+class SimulationConfig:
+    generate_scaling: float = 1.2
+    sigma: float = 0.5
+    sigma_mode: str = "flat"
+
+
+@dataclass
 class AIDOConfig:
     """
     Sub-classes:
@@ -31,9 +38,15 @@ class AIDOConfig:
     Surrogate:
         surrogate.n_epoch_pre: int = 24
         surrogate.n_epochs_main: int = 40
+    
+    Simulation:
+        simulation.generate_scaling: float = 1.2
+        simulation.sigma: float = 0.5
+        simulation.sigma_mode: str = "flat"
     """
     optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
     surrogate: SurrogateConfig = field(default_factory=SurrogateConfig)
+    simulation: SimulationConfig = field(default_factory=SimulationConfig)
 
     @classmethod
     def from_json(cls, file_path: str):
@@ -42,7 +55,8 @@ class AIDOConfig:
 
         return cls(
             optimizer=OptimizerConfig(**data["optimizer"]),
-            surrogate=SurrogateConfig(**data["surrogate"])
+            surrogate=SurrogateConfig(**data["surrogate"]),
+            simulation=SimulationConfig(**data["simulation"])
         )
 
     def to_json(self, file_path: str):

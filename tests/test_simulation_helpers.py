@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 import aido
+import aido.config
 
 
 @pytest.fixture
@@ -81,13 +82,9 @@ def test_sigma_mode() -> None:
     sim_param_dict = aido.SimulationParameter("foo", 0.0, sigma_mode="scale")
     assert sim_param_dict.sigma_mode == "scale"
 
-    aido.SimulationParameter.set_sigma_mode("scale")
-    sim_param_dict = aido.SimulationParameter("bar", 0.0)
-    assert sim_param_dict.sigma_mode == "scale"
-
 
 def test_sigma() -> None:
-    aido.SimulationParameter.set_sigma_mode("flat")
+    aido.set_config("simulation.sigma_mode", "flat")
     sim_param_dict = aido.SimulationParameter("foo", 0.0)
     assert sim_param_dict.sigma == 0.5
 

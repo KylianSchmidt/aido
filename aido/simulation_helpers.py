@@ -6,15 +6,14 @@ from typing import Any, Dict, Iterable, Iterator, List, Literal, Type
 import numpy as np
 import pandas as pd
 
+from aido.config import AIDOConfig
+
+config = AIDOConfig.from_json("config.json")
+
 
 class SimulationParameter:
     """Base class for all parameters used in the simulation
     """
-    config = {
-        "sigma": 0.5,
-        "sigma_mode": "flat"
-    }
-
     def __init__(
             self,
             name: str,
@@ -129,7 +128,7 @@ class SimulationParameter:
 
         check_sigma()
         self.sigma = sigma
-        self.sigma_mode = sigma_mode or self.config["sigma_mode"]
+        self.sigma_mode = sigma_mode or config.simulation.sigma_mode
 
         check_cost()
         self.cost = cost
@@ -151,16 +150,6 @@ class SimulationParameter:
     def from_dict(cls, attribute_dict: Dict):
         """Create from dictionary"""
         return cls(**attribute_dict)
-    
-    @classmethod
-    def set_config(cls, key: str, value: Any) -> None:
-        if key in cls.config:
-            cls.config[key] = value
-
-    @classmethod
-    def set_sigma_mode(cls, mode: Literal["flat", "scale"]) -> None:
-        assert mode in ["flat", "scale"], "Options are 'flat' or 'scale'."
-        cls.config["sigma_mode"] = mode
 
     @property
     def current_value(self) -> Any:
@@ -202,7 +191,7 @@ class SimulationParameter:
     def sigma(self, value: float | None):
         if self.discrete_values is None and self.optimizable:
             if value is None:
-                value = self.config["sigma"]
+                value = config.simulation.sigma
             assert value > 0.0
         else:
             assert value is None
@@ -514,7 +503,12 @@ class SimulationParameterDictionary:
             parameter_dicts: Dict = json.load(file)
         return cls.from_dict(parameter_dicts)
 
-    def generate_new(self, rng_seed: int | None = None, discrete_index: int | None = None):
+    def generate_new(
+            self,
+            rng_seed: int | None = None,
+            discrete_index: int | None = None,
+            scaling_factor: float = 1.0
+            ):
         """
         Generates a new set of values for each parameter, bounded by specified minimum and maximum
         values for float parameters. For discrete parameters, the new value is randomly chosen from
@@ -530,7 +524,11 @@ class SimulationParameterDictionary:
             a random sampling is uses. Otherwise the chosen value is parameter.discrete_values['discrete_index']
         """
 
-        def generate_continuous(parameter: SimulationParameter, retries: int = 100):
+        def generate_continuous(
+                parameter: SimulationParameter,
+                scaling_factor: float,
+                retries: int = 100
+                ):
             if parameter.optimizable is False:
                 return parameter.current_value
 
@@ -568,7 +566,7 @@ class SimulationParameterDictionary:
                 parameter.current_value = generate_discrete(parameter)
 
             elif isinstance(parameter.current_value, float) and parameter.optimizable:
-                parameter.current_value = generate_continuous(parameter)
+                parameter.current_value = generate_continuous(parameter, scaling_factor)
 
         new_instance = type(self)(new_parameter_list)
         new_instance.metadata = self.metadata
