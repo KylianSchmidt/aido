@@ -65,17 +65,17 @@ def training_loop(
     parameter_dict = SimulationParameterDictionary.from_json(parameter_dict_input_path)
 
     # Surrogate:
-    surrogate_dataset = SurrogateDataset(
-        pd.read_parquet(output_df_path),
-    )
+    surrogate_df = pd.read_parquet(output_df_path)
 
     if os.path.isfile(surrogate_save_path):
-        surrogate = torch.load(surrogate_save_path)
+        surrogate: Surrogate = torch.load(surrogate_save_path)
     else:
         if os.path.isfile(surrogate_previous_path):
             surrogate: Surrogate = torch.load(surrogate_previous_path)
+            surrogate_dataset = SurrogateDataset(surrogate_df, means=surrogate.means, stds=surrogate.stds)
         else:
-            surrogate = Surrogate(*surrogate_dataset.shape)
+            surrogate_dataset = SurrogateDataset(surrogate_df)
+            surrogate = Surrogate(*surrogate_dataset.shape, surrogate_dataset.means, surrogate_dataset.stds)
             pre_train(surrogate, surrogate_dataset, config.surrogate.n_epoch_pre)
 
         print("Surrogate Training")

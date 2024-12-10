@@ -201,8 +201,10 @@ class Surrogate(torch.nn.Module):
             num_context: int,
             num_targets: int,
             num_reconstructed: int,
+            initial_means: List[np.float32],
+            initial_stds: List[np.float32],
             n_time_steps: int = 50,
-            betas: Tuple[float] = (1e-4, 0.02)
+            betas: Tuple[float] = (1e-4, 0.02),
             ):
         """
         Initializes the surrogate model.
@@ -222,6 +224,8 @@ class Surrogate(torch.nn.Module):
         self.num_context = num_context
         self.num_targets = num_targets
         self.num_reconstructed = num_reconstructed
+        self.means = initial_means
+        self.stds = initial_stds
         self.layers = torch.nn.Sequential(
             torch.nn.Linear(
                 self.num_parameters

@@ -72,7 +72,7 @@ class Optimizer(torch.nn.Module):
         super().to(self.device, **kwargs)
         return self
 
-    def loss_box_constraints(self) -> torch.Tensor:
+    def boundaries(self) -> torch.Tensor:
         """ Adds penalties for parameters that are outside of the boundaries spaned by 'self.parameter_box'. This
         ensures that the optimizer does not propose new values that are outside of the scope of the Surrogate and
         therefore largely unknown to the current iteration.
@@ -82,7 +82,7 @@ class Optimizer(torch.nn.Module):
         """
         if len(self.parameter_box) != 0:
             parameters_continuous_tensor = self.parameter_module.tensor("continuous")
-            return torch.mean(0.5 * torch.nn.ReLU()(-1.0 - parameters_continuous_tensor)**2)
+            return torch.mean(0.5 * torch.nn.ReLU()(-parameters_continuous_tensor)**2)
         else:
             return torch.Tensor([0.0])
 
@@ -99,8 +99,8 @@ class Optimizer(torch.nn.Module):
             loss = self.parameter_module.cost_loss
         else:
             loss = constraints_func(self.parameter_dict, parameter_dict_as_tensor)
-        return loss
-    
+        return loss if loss is not None else torch.tensor(0.0)
+
     def save_parameters(
             self,
             epoch: int,
@@ -123,11 +123,6 @@ class Optimizer(torch.nn.Module):
                 print("Warning: Saving the Optimizer Parameters to file before stopping...")
                 updated_parameter_optimizer_df.to_parquet(filepath)
                 raise
-
-    def add_noise_to_grads(self, scale: float = 0.05) -> None:
-        with torch.no_grad():
-            for param in self.parameters():
-                param.grad += torch.randn_like(param) * scale
 
     def print_grads(self) -> None:
         for name, param in self.named_parameters():
@@ -194,6 +189,7 @@ class Optimizer(torch.nn.Module):
                     self.parameter_module.current_values()
                 )
                 loss += constraints_loss
+                loss += self.boundaries()
 
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -221,7 +217,7 @@ class Optimizer(torch.nn.Module):
 
             print(f"Optimizer Epoch: {epoch} \tLoss: {surrogate_loss_detached:.5f} (reco)", end="\t")
             print(f"+ {(constraints_loss.item()):.5f} (constraints)", end="\t")
-            print(f"+ {(self.loss_box_constraints().item()):.5f} (boundaries)", end="\t")
+            print(f"+ {(self.boundaries().item()):.5f} (boundaries)", end="\t")
             print(f"= {loss.item():.5f} (total)")
 
             epoch_loss /= batch_idx + 1
