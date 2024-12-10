@@ -41,13 +41,14 @@ if __name__ == "__main__":
     # Load the input df
     simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
 
-    reco_dataset = ReconstructionDataset(simulation_df)
     reco_model_previous_path = os.path.join(results_dir, "reco_model")
 
     if os.path.exists(reco_model_previous_path):
-        reco_model = torch.load(reco_model_previous_path)
+        reco_model: Reconstruction = torch.load(reco_model_previous_path)
+        reco_dataset = ReconstructionDataset(simulation_df, means=reco_model.means, stds=reco_model.stds)
     else:
-        reco_model = Reconstruction(*reco_dataset.shape)
+        reco_dataset = ReconstructionDataset(simulation_df)
+        reco_model = Reconstruction(*reco_dataset.shape, reco_dataset.means, reco_dataset.stds)
         pre_train(reco_model, reco_dataset, n_epochs_pre)
 
     # Reconstruction:

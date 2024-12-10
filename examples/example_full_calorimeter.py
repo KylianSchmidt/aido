@@ -282,8 +282,8 @@ if __name__ == "__main__":
         user_interface=UIFullCalorimeter,
         simulation_tasks=20,
         max_iterations=200,
-        threads=10,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241205_3",
+        threads=20,
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241209",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model

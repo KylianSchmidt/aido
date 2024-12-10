@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -6,10 +6,20 @@ import torch
 import torch.utils.data
 from torch.utils.data import DataLoader, Dataset
 
+""" Reconstruction Dataset and Model
+
+Written for python 3.9
+"""
+
 
 class ReconstructionDataset(Dataset):
 
-    def __init__(self, input_df: pd.DataFrame):
+    def __init__(
+            self,
+            input_df: pd.DataFrame,
+            means: Optional[List[np.float32]] = None,
+            stds: Optional[List[np.float32]] = None
+            ):
         """Convert the files from the simulation to simple lists.
 
         Args:
@@ -33,18 +43,25 @@ class ReconstructionDataset(Dataset):
             self.targets.shape[1],
             self.context.shape[1]
         )
-        self.means = [
-            np.mean(self.parameters, axis=0),
-            np.mean(self.inputs, axis=0),
-            np.mean(self.targets, axis=0),
-            np.mean(self.context, axis=0)
-        ]
-        self.stds = [
-            np.std(self.parameters, axis=0) + 1e-10,
-            np.std(self.inputs, axis=0) + 1e-10,
-            np.std(self.targets, axis=0) + 1e-10,
-            np.std(self.context, axis=0) + 1e-10
-        ]
+        if not means:
+            self.means = [
+                np.mean(self.parameters, axis=0),
+                np.mean(self.inputs, axis=0),
+                np.mean(self.targets, axis=0),
+                np.mean(self.context, axis=0)
+            ]
+        else:
+            self.means = means
+
+        if not stds:
+            self.stds = [
+                np.std(self.parameters, axis=0) + 1e-10,
+                np.std(self.inputs, axis=0) + 1e-10,
+                np.std(self.targets, axis=0) + 1e-10,
+                np.std(self.context, axis=0) + 1e-10
+            ]
+        else:
+            self.stds = stds
 
         self.parameters = (self.parameters - self.means[0]) / self.stds[0]
         self.inputs = (self.inputs - self.means[1]) / self.stds[1]
@@ -100,7 +117,9 @@ class Reconstruction(torch.nn.Module):
             num_parameters: int,
             num_input_features: int,
             num_target_features: int,
-            num_context_features: int
+            num_context_features: int,
+            initial_means: List[np.float32],
+            initial_stds: List[np.float32]
             ):
         """Initialize the shape of the model.
 
@@ -116,6 +135,8 @@ class Reconstruction(torch.nn.Module):
         self.n_input_features = num_input_features
         self.n_target_features = num_target_features
         self.n_context_features = num_context_features
+        self.means = initial_means
+        self.stds = initial_stds
         self.layers = torch.nn.Sequential(
             torch.nn.Linear(num_parameters + num_input_features, 200),
             torch.nn.ELU(),
@@ -164,7 +185,7 @@ class Reconstruction(torch.nn.Module):
                 x: torch.Tensor = x.to(self.device)
                 y: torch.Tensor = y.to(self.device)
                 y_pred: torch.Tensor = self(detector_parameters, x)
-                loss_per_event = self.loss(y, y_pred)
+                loss_per_event = self.loss(dataset.unnormalise_target(y), dataset.unnormalise_target(y_pred))
                 loss = loss_per_event.clone().mean()
                 self.optimizer.zero_grad()
                 loss.backward()

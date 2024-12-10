@@ -94,15 +94,13 @@ class AIDOBaseUserInterface(_AIDOBaseUserInterface):
             self,
             parameter_dict: SimulationParameterDictionary,
             parameter_dict_as_tensor: Dict[str, torch.Tensor]
-            ) -> torch.Tensor:
+            ) -> None | torch.Tensor:
         """ This method is optional
 
         Use this method to compute additional constraints such as cost or dimensions using pytorch. The resulting
         Tensor must be one-dimensional and include gradients.
         """
-        constraints_loss = torch.Tensor([0.0])
-        constraints_loss: torch.Tensor
-        return constraints_loss
+        return None
 
     def plot(self, parameter_dict: SimulationParameterDictionary) -> None:
         """ This method is optional
