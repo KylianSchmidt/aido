@@ -32,6 +32,8 @@ class ReconstructionDataset(Dataset):
             torch.DataSet instance
         """
         self.df = input_df
+        self.df = self.filter_empty_events(self.df)
+        self.df = self.filter_infs_and_nans(self.df)
         self.parameters = self.df["Parameters"].to_numpy("float32")
         self.inputs = self.df["Inputs"].to_numpy("float32")
         self.targets = self.df["Targets"].to_numpy("float32")
@@ -43,7 +45,7 @@ class ReconstructionDataset(Dataset):
             self.targets.shape[1],
             self.context.shape[1]
         )
-        if not means:
+        if means is None:
             self.means = [
                 np.mean(self.parameters, axis=0),
                 np.mean(self.inputs, axis=0),
@@ -53,7 +55,7 @@ class ReconstructionDataset(Dataset):
         else:
             self.means = means
 
-        if not stds:
+        if stds is None:
             self.stds = [
                 np.std(self.parameters, axis=0) + 1e-10,
                 np.std(self.inputs, axis=0) + 1e-10,
@@ -70,13 +72,17 @@ class ReconstructionDataset(Dataset):
 
         self.c_means = [torch.tensor(a).to('cuda') for a in self.means]
         self.c_stds = [torch.tensor(a).to('cuda') for a in self.stds]
-        self.df = self.filter_infs_and_nans(self.df)
 
     def filter_infs_and_nans(self, df: pd.DataFrame):
         '''
         Removes all events that contain infs or nans.
         '''
         df = df.replace([np.inf, -np.inf], np.nan)
+        df = df.dropna(axis=0, ignore_index=True)
+        return df
+    
+    def filter_empty_events(self, df: pd.DataFrame):
+        df = df[df["Inputs"]["sensor_energy_0"] > 0.0]
         df = df.dropna(axis=0, ignore_index=True)
         return df
 

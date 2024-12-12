@@ -16,15 +16,9 @@ def pre_train(model: Reconstruction, dataset: Dataset, n_epochs: int):
     model.to('cuda')
 
     print("Reconstruction: Pre-training 0")
-    model.train_model(dataset, batch_size=256, n_epochs=2, lr=0.03)
-
-    print("Reconstruction: Pre-training 1")
-    model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.01)
-
-    print("Reconstruction: Pre-training 2")
     model.train_model(dataset, batch_size=512, n_epochs=n_epochs, lr=0.001)
 
-    print("Reconstruction: Pre-training 3")
+    print("Reconstruction: Pre-training 1")
     model.train_model(dataset, batch_size=1024, n_epochs=n_epochs, lr=0.001)
     model.to('cpu')
 
@@ -41,7 +35,7 @@ if __name__ == "__main__":
     # Load the input df
     simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
 
-    reco_model_previous_path = os.path.join(results_dir, "reco_model")
+    reco_model_previous_path = os.path.join(results_dir, "reco_model.pt")
 
     if os.path.exists(reco_model_previous_path):
         reco_model: Reconstruction = torch.load(reco_model_previous_path)
