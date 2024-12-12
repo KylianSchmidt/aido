@@ -22,7 +22,7 @@ class SurrogateValidation():
             dataset: SurrogateDataset,
             batch_size: int = 512
             ):
-        data_loader = DataLoader(dataset, batch_size=batch_size)
+        data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         validation_df = dataset.df
         surrogate_reconstructed_array = np.full(len(dataset), -1.0)
 
@@ -48,6 +48,7 @@ class SurrogateValidation():
 
     @classmethod
     def plot(cls, validation_df: pd.DataFrame, fig_savepath: os.PathLike | str):
+        os.makedirs(fig_savepath, exist_ok=True)
         bins = np.linspace(0, 20, 100 + 1)
         val_reco = validation_df["Reconstructed"]["true_energy"]
         surr_reco = validation_df["Surrogate"]

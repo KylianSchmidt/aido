@@ -23,18 +23,12 @@ def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     model.to('cuda')
 
     print('Surrogate: Pre-Training 0')
-    model.train_model(dataset, batch_size=256, n_epochs=10, lr=0.03)
-
-    print('Surrogate: Pre-Training 1')
-    model.train_model(dataset, batch_size=256, n_epochs=n_epochs, lr=0.01)
-
-    print('Surrogate: Pre-Training 2')
     model.train_model(dataset, batch_size=512, n_epochs=n_epochs, lr=0.001)
 
-    print('Surrogate: Pre-Training 3')
+    print('Surrogate: Pre-Training 1')
     model.train_model(dataset, batch_size=1024, n_epochs=n_epochs, lr=0.001)
 
-    print('Surrogate: Pre-Training 4')
+    print('Surrogate: Pre-Training 2')
     model.train_model(dataset, batch_size=1024, n_epochs=n_epochs, lr=0.0003)
 
 
@@ -61,6 +55,7 @@ def training_loop(
     optimizer_loss_save_path = reco_file_paths_dict["optimizer_loss_save_path"]
     surrogate_loss_save_path = reco_file_paths_dict["surrogate_loss_save_path"]
     constraints_loss_save_path = reco_file_paths_dict["constraints_loss_save_path"]
+    parameter_optimizer_savepath = os.path.join(results_dir, "models", "parameter_optimizer_df")
 
     parameter_dict = SimulationParameterDictionary.from_json(parameter_dict_input_path)
 
@@ -69,6 +64,7 @@ def training_loop(
 
     if os.path.isfile(surrogate_save_path):
         surrogate: Surrogate = torch.load(surrogate_save_path)
+        surrogate_dataset = SurrogateDataset(surrogate_df, means=surrogate.means, stds=surrogate.stds)
     else:
         if os.path.isfile(surrogate_previous_path):
             surrogate: Surrogate = torch.load(surrogate_previous_path)
@@ -82,10 +78,10 @@ def training_loop(
         n_epochs_main = config.surrogate.n_epochs_main
         surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
         surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
-        
+
         while not surrogate.update_best_surrogate_loss(surrogate_loss):
             print("Surrogate retraining")
-            pre_train()
+            pre_train(surrogate, surrogate_dataset, config.surrogate.n_epoch_pre)
             surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 5, lr=0.005)
             surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
             surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
@@ -96,8 +92,20 @@ def training_loop(
                 lr=0.0001,
             )
 
+    print("Surrogate Validation on Training Data")
+    surrogate_validator = SurrogateValidation(surrogate)
+    validation_df = surrogate_validator.validate(surrogate_dataset)
+    surrogate_validator.plot(
+        validation_df,
+        fig_savepath=os.path.join(results_dir, "plots", "validation_on_training_data"),
+        )
+
     print("Surrogate Validation")
-    surrogate_validation_dataset = SurrogateDataset(pd.read_parquet(validation_df_path))
+    surrogate_validation_dataset = SurrogateDataset(
+        pd.read_parquet(validation_df_path),
+        means=surrogate_dataset.means,
+        stds=surrogate_dataset.stds
+    )
     surrogate_validator = SurrogateValidation(surrogate)
     validation_df = surrogate_validator.validate(surrogate_validation_dataset)
     surrogate_validator.plot(
@@ -113,7 +121,6 @@ def training_loop(
     else:
         optimizer = Optimizer(
             surrogate,
-            parameter_dict,
             continuous_lr=config.optimizer.continuous_lr,
             discrete_lr=config.optimizer.discrete_lr
         )
@@ -125,7 +132,7 @@ def training_loop(
         n_epochs=config.optimizer.n_epochs,
         additional_constraints=constraints,
         reconstruction_loss=reconstruction_loss_function,
-        parameter_optimizer_savepath=os.path.join(results_dir, "models", "parameter_optimizer_df")
+        parameter_optimizer_savepath=parameter_optimizer_savepath
     )
     if not is_optimal:
         raise RuntimeError
