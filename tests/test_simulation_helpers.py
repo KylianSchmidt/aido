@@ -84,12 +84,11 @@ def test_sigma_mode() -> None:
 
 
 def test_sigma() -> None:
-    aido.set_config("simulation.sigma_mode", "flat")
-    sim_param_dict = aido.SimulationParameter("foo", 0.0)
-    assert sim_param_dict.sigma == 0.5
+    sim_param_dict = aido.SimulationParameter("foo", 1.0)
+    assert sim_param_dict.sigma == 1.5
 
-    sim_param_dict = aido.SimulationParameter("foo", 4.0, sigma_mode="scale")
-    assert sim_param_dict.sigma == 2.0
+    sim_param_dict = aido.SimulationParameter("foo", 4.0, sigma_mode="scale", sigma=1.5)
+    assert sim_param_dict.sigma == 6.0
 
     sim_param_dict = aido.SimulationParameter("foo", "LEAD", discrete_values=["LEAD"])
     assert sim_param_dict.sigma is None
@@ -104,19 +103,11 @@ def test_sigma() -> None:
     assert sim_param_dict.sigma == 0.2
 
 
-def test_set_config() -> None:
-    aido.SimulationParameter.set_config("sigma", 1.5)
-    sim_param_dict = aido.SimulationParameter("foo", 0.0)
-    assert sim_param_dict.sigma == 1.5
-
-
 def test_set_sigma() -> None:
-    aido.SimulationParameter.set_config("sigma", 1.5)
     sim_param_dict = aido.SimulationParameterDictionary([
         aido.SimulationParameter("thickness_absorber_0", np.random.uniform(0.1, 50), min_value=0.001),
         aido.SimulationParameter("material_absorber_0", -1, optimizable=False)
     ])
-    print(f"DEBUG {sim_param_dict.to_json("test_param_dict.json")}")
     assert sim_param_dict["thickness_absorber_0"].discrete_values is None
     assert sim_param_dict["thickness_absorber_0"].sigma == 1.5
 

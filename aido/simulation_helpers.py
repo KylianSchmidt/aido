@@ -153,6 +153,11 @@ class SimulationParameter:
 
     @property
     def current_value(self) -> Any:
+        if isinstance(self._current_value, float):
+            if self.max_value is not None and self._current_value > self.max_value:
+                return self.max_value
+            if self.min_value is not None and self._current_value < self.min_value:
+                return self.min_value
         return self._current_value
 
     @current_value.setter
@@ -167,11 +172,6 @@ class SimulationParameter:
         assert (
             self.discrete_values is None or value in self.discrete_values
         ), "Updated discrete parameter value is not in the list of allowed discrete values."
-        if isinstance(value, float):
-            if self.max_value is not None and value > self.max_value:
-                value = self.max_value
-            if self.min_value is not None and value < self.min_value:
-                value = self.min_value
         self._current_value = value
 
     @property
