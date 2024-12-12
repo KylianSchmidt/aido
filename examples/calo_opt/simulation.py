@@ -84,9 +84,35 @@ class Simulation():
                 else:
                     self.cw.addLayer(scintillator_thickness, materials["scintillator"]["cheap"], True, 1)
 
+        elif "two_layers" in parameter_dict:
+            self.cw = GeometryDescriptor()
+
+            absorber_thickness = max([
+                1e-3,
+                self.parameter_dict["thickness_absorber_0"]["current_value"]]
+            )
+            scintillator_thickness = max([
+                1e-3,
+                self.parameter_dict["thickness_scintillator_0"]["current_value"]]
+            )
+            materials = {
+                "absorber": {"costly": "G4_Pb", "cheap": "G4_Fe"},
+                "scintillator": {"costly": "G4_PbWO4", "cheap": "G4_POLYSTYRENE"}
+            }
+
+            if self.parameter_dict["material_absorber_0"]["current_value"] >= 0:
+                self.cw.addLayer(absorber_thickness, materials["absorber"]["costly"], False)
+            else:
+                self.cw.addLayer(absorber_thickness, materials["absorber"]["cheap"], False)
+
+            if self.parameter_dict["material_scintillator_0"]["current_value"] >= 0:
+                self.cw.addLayer(scintillator_thickness, materials["scintillator"]["costly"], True, 1)
+            else:
+                self.cw.addLayer(scintillator_thickness, materials["scintillator"]["cheap"], True, 1)
+
     def run_simulation(self) -> pd.DataFrame:
         dfs = []
-        particles = {'pi+': 0.211, 'gamma': 0.22}
+        particles = {'gamma': 0.22}
 
         for particle in particles.items():
             name, pid = particle
