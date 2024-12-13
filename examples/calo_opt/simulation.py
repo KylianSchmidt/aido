@@ -112,7 +112,7 @@ class Simulation():
 
     def run_simulation(self) -> pd.DataFrame:
         dfs = []
-        particles = {'gamma': 0.22}
+        particles = {"pi+": 0.211, "gamma": 0.22}
 
         for particle in particles.items():
             name, pid = particle

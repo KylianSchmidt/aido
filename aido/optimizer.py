@@ -45,6 +45,15 @@ class Optimizer(torch.nn.Module):
         self.device = device if isinstance(device, torch.device) else torch.device(device)
         super().to(self.device, **kwargs)
         return self
+    
+    def check_parameters_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:
+        """ Assure that the predicted parameters by the optimizer are within the bounds of the covariance
+        matrix spanned by the 'sigma' of each parameter.
+        """
+        diff = updated_parameters - self.starting_parameters_continuous
+        diff = diff.detach().cpu().numpy()
+
+        return np.dot(diff, np.dot(np.linalg.inv(self.parameter_dict.covariance), diff)) < scale
 
     def boundaries(self) -> torch.Tensor:
         """ Adds penalties for parameters that are outside of the boundaries spaned by 'self.parameter_box'. This
@@ -196,8 +205,8 @@ class Optimizer(torch.nn.Module):
                 epoch_loss += loss.item()
                 epoch_constraints_loss += constraints_loss.item()
 
-                if not self.parameter_module.check_parameters_are_local(
-                    self.parameter_module.tensor("continuous"),
+                if not self.check_parameters_are_local(
+                    updated_parameters=self.parameter_module.tensor("continuous"),
                     scale=0.8
                 ):
                     stop_epoch = True
@@ -216,10 +225,10 @@ class Optimizer(torch.nn.Module):
             if stop_epoch:
                 break
 
-        # self.parameter_dict.covariance = self.parameter_module.adjust_covariance(
-        #     self.parameter_module.tensor("continuous").to(self.device)
-        #     - self.starting_parameters_continuous.to(self.device)
-        # ).astype(float)
+        self.parameter_dict.covariance = self.parameter_module.adjust_covariance(
+            self.parameter_module.tensor("continuous").to(self.device)
+            - self.starting_parameters_continuous.to(self.device)
+        ).astype(float)
         return self.parameter_dict, True
 
     @property

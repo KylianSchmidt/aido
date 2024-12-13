@@ -125,15 +125,6 @@ class ParameterModule(torch.nn.ModuleDict):
     def values(self) -> Iterable[OneHotEncoder | ContinuousParameter]:
         return super().values()
 
-    def reset_covariance(self) -> np.ndarray:
-        """ Returns the current covariance matrix for all continuous parameters in order.
-        Covariance is a misnomer as we use the standard deviation and not the variance
-        """
-        return np.diag(np.array(
-            [parameter.sigma.item() for parameter in self.values()],
-            dtype="float32"
-        ))
-
     def __call__(self) -> torch.Tensor:
         return super().__call__()
 
@@ -176,11 +167,14 @@ class ParameterModule(torch.nn.ModuleDict):
     @property
     def cost_loss(self) -> torch.Tensor:
         return sum(parameter.cost for parameter in self.values())
-
-    def reset_continuous_parameters(self, parameter_dict: SimulationParameterDictionary):
-        for name, parameter in self.items():
-            parameter.reset(parameter_dict[name])
-        self.covariance = self.reset_covariance()
+    
+    @property
+    def covariance(self) -> np.ndarray:
+        return self.parameter_dict.covariance
+    
+    @covariance.setter
+    def covariance(self, new_covariance):
+        self.parameter_dict.covariance = new_covariance
 
     def adjust_covariance(self, direction: torch.Tensor, min_scale: float = 2.0):
         """ Stretches the box_covariance of the generator in the directon specified as input.
@@ -189,26 +183,7 @@ class ParameterModule(torch.nn.ModuleDict):
         direction = direction.cpu().detach().numpy()
         norm = np.linalg.norm(direction)
         direction_normed = direction / (norm + 1e-4)
-
         scale_factor = min_scale * max(1, 4 * norm)
-
-        for index, parameter in enumerate(self.values()):
-            new_variance = parameter.sigma**2 + (scale_factor - 1) * (direction_normed[index]**2)
-            parameter.sigma = np.sqrt(new_variance)
-
-        print(f"DEBUG {direction}")
-        return self.reset_covariance()
-
-    def check_parameters_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:
-        """ Assure that the predicted parameters by the optimizer are within the bounds of the covariance
-        matrix spanned by the 'sigma' of each parameter.
-        """
-        diff = updated_parameters - self.tensor("continuous")
-        diff = diff.detach().cpu().numpy()
-
-        self.covariance = self.reset_covariance()
-
-        if self.covariance.ndim == 1:
-            self.covariance = np.diag(self.covariance)
-
-        return np.dot(diff, np.dot(np.linalg.inv(self.covariance), diff)) < scale
+        adjustement_matrix = (scale_factor - 1) * np.outer(direction_normed, direction_normed)
+        self.covariance = self.parameter_dict.sigma_array**2 + adjustement_matrix
+        return self.covariance

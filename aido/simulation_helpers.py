@@ -288,6 +288,7 @@ class SimulationParameterDictionary:
         self.creation_time = str(datetime.datetime.now())
         self.rng_seed: int | None = None
         self.description = ""
+        self._covariance: np.ndarray | None = None
         self.parameter_list = parameter_list
         self.parameter_dict = self.to_dict(serialized=False)
 
@@ -448,28 +449,43 @@ class SimulationParameterDictionary:
                 self.parameter_dict[key].probabilities = value
 
         return self
+    
+    @property
+    def sigma_array(self) -> np.ndarray:
+        """ Diagonal matrix with the standard deviation of each continuous parameter
+        """
+        sigma_array = []
+
+        for parameter in self.parameter_list:
+            if parameter.optimizable is True and parameter.discrete_values is None:
+                sigma_array.append(parameter.sigma**2)
+
+        return np.diag(np.array(sigma_array))
 
     @property
     def covariance(self) -> np.ndarray:
-        covariance_matrix = []
+        """ Get the current covariance matrix. If no covariance was set, it defaults
+        to the 'sigma_array' squared (covariance matrix with no correlations).
+        """
+        if self._covariance is not None:
+            return self._covariance
+        else:
+            return self.sigma_array**2
 
-        for parameter in self.parameter_list:
-            if parameter.optimizable is True and parameter.discrete_values is None:
-                covariance_matrix.append(parameter.sigma)
-
-        return np.diag(np.array(covariance_matrix))
-    
     @covariance.setter
     def covariance(self, new_covariance=np.ndarray) -> None:
-        i = 0
-        for parameter in self.parameter_list:
-            if parameter.optimizable is True and parameter.discrete_values is None:
-                try:
-                    parameter.sigma = new_covariance[i, i]
-                    i += 1
-                except AssertionError:
-                    print(f"Unable setting covariance:\n{new_covariance}")
-                    raise
+        """ Set the input matrix as the new covariance matrix
+        """
+        assert (
+            np.allclose(new_covariance, new_covariance.T)
+        ), "Covariance matrix is not symmetric"
+        assert (
+            np.all(np.linalg.eigvals(new_covariance) >= 0)
+        ), "Covariance matrix is not positive semi-definite (negative eigenvalues detected)"
+        assert (
+            np.all(np.diag(new_covariance) >= 0)
+        ), "Covariance matrix has negative variances on the diagonal"
+        self._covariance = new_covariance
 
     @property
     def metadata(self) -> Dict[str, int | str]:
@@ -524,29 +540,9 @@ class SimulationParameterDictionary:
             a random sampling is uses. Otherwise the chosen value is parameter.discrete_values['discrete_index']
         """
 
-        def generate_continuous(
-                parameter: SimulationParameter,
-                scaling_factor: float,
-                retries: int = 100
-                ):
-            if parameter.optimizable is False:
-                return parameter.current_value
-
-            for i in range(retries):
-                new_value = rng.normal(parameter.current_value, parameter.sigma)
-
-                if (
-                    (parameter.min_value is not None and (new_value >= parameter.min_value))
-                    or (parameter.max_value is not None and (new_value <= parameter.max_value))
-                    or (parameter.min_value is None and parameter.max_value is None)
-                ):
-                    break
-            else:
-                new_value = parameter.current_value
-                print(f"Warning: unable to set new current value for parameter {parameter.name}")
-            return new_value
-
         def generate_discrete(parameter: SimulationParameter):
+            if parameter.discrete_values is None:
+                return None
             if discrete_index is not None and discrete_index < len(parameter.discrete_values):
                 return parameter.discrete_values[discrete_index]
             else:
@@ -556,19 +552,20 @@ class SimulationParameterDictionary:
 
         rng = np.random.default_rng(rng_seed)
         rng_seed = rng_seed or int(rng.integers(9_999_999))
-        new_parameter_list = copy.deepcopy(self.parameter_list)  # Prevents the modification of this instance
+        new_instance = copy.deepcopy(self)  # Prevents the modification of this instance
 
-        for parameter in new_parameter_list:
-            if parameter.optimizable is False:
-                continue
+        for parameter in self.parameter_list:
+            if parameter.discrete_values is not None:
+                new_instance[parameter.name].current_value = generate_discrete(parameter)
 
-            elif parameter.discrete_values is not None:
-                parameter.current_value = generate_discrete(parameter)
+        new_continuous_parameter_list = rng.multivariate_normal(
+            mean=np.array(self.get_current_values(format="list", types="continuous")),
+            cov=self.covariance * scaling_factor
+        )
 
-            elif isinstance(parameter.current_value, float) and parameter.optimizable:
-                parameter.current_value = generate_continuous(parameter, scaling_factor)
+        for index, key in enumerate(self.get_current_values(types="continuous").keys()):
+            new_instance[key].current_value = float(new_continuous_parameter_list[index])
 
-        new_instance = type(self)(new_parameter_list)
         new_instance.metadata = self.metadata
         new_instance.rng_seed = rng_seed
         return new_instance
