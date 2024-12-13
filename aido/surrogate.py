@@ -212,7 +212,7 @@ class Surrogate(torch.nn.Module):
             num_parameters (int): Number of input parameters.
             num_context (int): Number of context variables.
             num_reconstructed (int): Number of reconstructed variables.
-            n_time_steps (int, optional): Number of time steps for the DDPM schedule. Defaults to 100. Setting
+            n_time_steps (int, optional): Number of time steps for the DDPM schedule. Defaults to 50. Setting
                 it higher might lead to divergence towards infinity which will register as NaN when reaching
                 float32 accuracy ~= 2e9.
             betas (Tuple[float], optional): Tuple containing the start and end values for the beta schedule.
@@ -242,6 +242,7 @@ class Surrogate(torch.nn.Module):
             torch.nn.Linear(100, num_reconstructed),
         )
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
+        self.loss_mse = torch.nn.MSELoss()
         self.surrogate_loss = []
         self.n_time_steps = n_time_steps
         self.device = torch.device('cuda')
@@ -345,10 +346,10 @@ class Surrogate(torch.nn.Module):
         noise.
         """
         train_loader = DataLoader(surrogate_dataset, batch_size=batch_size, shuffle=True)
-        self.optimizer.lr = lr
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = lr
         self.to(self.device)
         self.train()
-        self.loss_mse = torch.nn.MSELoss()
 
         for epoch in range(n_epochs):
 
@@ -383,7 +384,6 @@ class Surrogate(torch.nn.Module):
             dataset: SurrogateDataset,
             batch_size: int,
             oversample: int = 1,
-            unnormalise_results: bool = True
             ):
         """
         Applies the model to the given dataset in batches and returns the results.

@@ -5,8 +5,7 @@ from typing import Any, Dict
 
 @dataclass
 class OptimizerConfig:
-    continuous_lr: float = 0.02
-    discrete_lr: float = 0.001
+    lr: float = 0.02
     batch_size: int = 512
     n_epochs: int = 40
 
@@ -20,7 +19,7 @@ class SurrogateConfig:
 @dataclass
 class SimulationConfig:
     generate_scaling: float = 1.2
-    sigma: float = 0.5
+    sigma: float = 1.5
     sigma_mode: str = "flat"
 
 
@@ -30,8 +29,7 @@ class AIDOConfig:
     Sub-classes:
     
     Optimizer:
-        optimizer.continuous_lr: float = 0.02
-        optimizer.discrete_lr: float = 0.001
+        optimizer.lr: float = 0.02
         optimizer.batch_size: int = 512
         optimizer.n_epochs: int = 40
 
@@ -41,7 +39,7 @@ class AIDOConfig:
     
     Simulation:
         simulation.generate_scaling: float = 1.2
-        simulation.sigma: float = 0.5
+        simulation.sigma: float = 1.5
         simulation.sigma_mode: str = "flat"
     """
     optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)

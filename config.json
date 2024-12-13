@@ -1,7 +1,6 @@
 {
     "optimizer": {
-        "continuous_lr": 0.02,
-        "discrete_lr": 0.001,
+        "lr": 0.02,
         "batch_size": 512,
         "n_epochs": 40
     },

@@ -116,28 +116,25 @@ def training_loop(
     torch.save(surrogate, surrogate_save_path)
 
     # Optimization
+    optimizer = Optimizer(parameter_dict=parameter_dict)
     if os.path.isfile(optimizer_previous_path):
-        optimizer: Optimizer = torch.load(optimizer_previous_path)
-    else:
-        optimizer = Optimizer(
-            surrogate,
-            continuous_lr=config.optimizer.continuous_lr,
-            discrete_lr=config.optimizer.discrete_lr
-        )
+        checkpoint = torch.load(optimizer_previous_path)
+        optimizer.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
-        surrogate_dataset,
-        parameter_dict,
+        surrogate_model=surrogate,
+        dataset=surrogate_dataset,
         batch_size=config.optimizer.batch_size,
         n_epochs=config.optimizer.n_epochs,
-        additional_constraints=constraints,
         reconstruction_loss=reconstruction_loss_function,
-        parameter_optimizer_savepath=parameter_optimizer_savepath
+        additional_constraints=constraints,
+        parameter_optimizer_savepath=parameter_optimizer_savepath,
+        lr=config.optimizer.lr
     )
     if not is_optimal:
         raise RuntimeError
     else:
-        torch.save(optimizer, optimizer_save_path)
+        torch.save({"optimizer_state_dict": optimizer.optimizer.state_dict()}, optimizer_save_path)
 
     pd.DataFrame(
         np.array(surrogate.surrogate_loss),

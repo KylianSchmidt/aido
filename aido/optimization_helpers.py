@@ -111,21 +111,13 @@ class ContinuousParameter(torch.nn.Module):
 class ParameterModule(torch.nn.ModuleDict):
     def __init__(self, parameter_dict: SimulationParameterDictionary):
         self.parameter_dict = parameter_dict
-        self.parameters_discrete: dict[str, OneHotEncoder] = {}
-        self.parameters_continuous: dict[str, ContinuousParameter] = {}
-        self.covariance = self.reset_covariance()
         super().__init__()
 
         for parameter in self.parameter_dict:
-            if not parameter.optimizable:
+            if not parameter.optimizable or parameter.discrete_values:
                 continue
 
-            if parameter.discrete_values:
-                self.parameters_discrete[parameter.name] = OneHotEncoder(parameter)
-                self[parameter.name] = self.parameters_discrete[parameter.name]
-            else:
-                self.parameters_continuous[parameter.name] = ContinuousParameter(parameter)
-                self[parameter.name] = self.parameters_continuous[parameter.name]
+            self[parameter.name] = ContinuousParameter(parameter)
 
     def items(self) -> Iterable[Tuple[str, OneHotEncoder | ContinuousParameter]]:
         return super().items()
@@ -138,7 +130,7 @@ class ParameterModule(torch.nn.ModuleDict):
         Covariance is a misnomer as we use the standard deviation and not the variance
         """
         return np.diag(np.array(
-            [parameter.sigma.item() for parameter in self.parameters_continuous.values()],
+            [parameter.sigma.item() for parameter in self.values()],
             dtype="float32"
         ))
 
@@ -148,19 +140,9 @@ class ParameterModule(torch.nn.ModuleDict):
     def forward(self) -> torch.Tensor:
         return torch.unsqueeze(torch.concat([parameter() for parameter in self.values()]), 0)
 
-    @property
-    def discrete(self) -> torch.nn.ModuleDict:
-        return torch.nn.ModuleDict(self.parameters_discrete)
-
-    @property
-    def continuous(self) -> torch.nn.ModuleDict:
-        return torch.nn.ModuleDict(self.parameters_continuous)
-
     def tensor(self, parameter_types: Literal["all", "discrete", "continuous"] = "all"):
         types = {
-            "all": self,
-            "discrete": self.parameters_discrete,
-            "continuous": self.parameters_continuous
+            "continuous": self
         }
         assert parameter_types != "all", NotImplementedError("Not implemented yet due to dimension mismatch")
         module: dict[str, OneHotEncoder | ParameterModule] = types[parameter_types]
@@ -179,18 +161,13 @@ class ParameterModule(torch.nn.ModuleDict):
             return [parameter.physical_value for parameter in self.values()]
         elif format == "dict":
             return {name: parameter.physical_value for name, parameter in self.items()}
-        
-    def get_probabilities(self) -> dict[str, np.ndarray]:
-        return {
-            name: parameter.probabilities.detach().cpu().numpy() for name, parameter in self.parameters_discrete.items()
-        }
 
     @property
     def constraints(self) -> torch.Tensor:
         """ A tensor of shape (P, 2) where P is the number of continuous parameters. In the second index,
         the order is the same as in the ContinuousParameter class (min, max)
         """
-        tensor_list = [parameter.boundaries for parameter in self.parameters_continuous.values()]
+        tensor_list = [parameter.boundaries for parameter in self.values()]
         if tensor_list == []:
             return torch.tensor([])
         else:
@@ -201,7 +178,7 @@ class ParameterModule(torch.nn.ModuleDict):
         return sum(parameter.cost for parameter in self.values())
 
     def reset_continuous_parameters(self, parameter_dict: SimulationParameterDictionary):
-        for name, parameter in self.parameters_continuous.items():
+        for name, parameter in self.items():
             parameter.reset(parameter_dict[name])
         self.covariance = self.reset_covariance()
 
@@ -215,7 +192,7 @@ class ParameterModule(torch.nn.ModuleDict):
 
         scale_factor = min_scale * max(1, 4 * norm)
 
-        for index, parameter in enumerate(self.parameters_continuous.values()):
+        for index, parameter in enumerate(self.values()):
             new_variance = parameter.sigma**2 + (scale_factor - 1) * (direction_normed[index]**2)
             parameter.sigma = np.sqrt(new_variance)
 
@@ -229,8 +206,7 @@ class ParameterModule(torch.nn.ModuleDict):
         diff = updated_parameters - self.tensor("continuous")
         diff = diff.detach().cpu().numpy()
 
-        if np.any(self.covariance >= 10E3) or not np.any(self.covariance):
-            self.covariance = self.reset_covariance()
+        self.covariance = self.reset_covariance()
 
         if self.covariance.ndim == 1:
             self.covariance = np.diag(self.covariance)
