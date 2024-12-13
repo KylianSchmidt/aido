@@ -32,7 +32,6 @@ class ReconstructionDataset(Dataset):
             torch.DataSet instance
         """
         self.df = input_df
-        self.df = self.filter_empty_events(self.df)
         self.df = self.filter_infs_and_nans(self.df)
         self.parameters = self.df["Parameters"].to_numpy("float32")
         self.inputs = self.df["Inputs"].to_numpy("float32")

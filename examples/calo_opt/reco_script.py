@@ -51,6 +51,7 @@ if __name__ == "__main__":
     reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
     reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
     reco_result, reco_loss, _ = reco_model.apply_model_in_batches(reco_dataset, batch_size=128)
+    print(f"DEBUG nominal reco loss {reco_loss[0:400].mean()}")
 
     reconstructed_df = pd.DataFrame({"true_energy": reco_result})
     reconstructed_df = pd.concat({"Reconstructed": reconstructed_df}, axis=1)
