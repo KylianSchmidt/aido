@@ -13,7 +13,8 @@ def pre_train(model: Reconstruction, dataset: Dataset, n_epochs: int):
     TODO Reconstruction results are normalized. In the future only expose the un-normalised ones,
     but also requires adjustments to the surrogate dataset
     """
-    model.to('cuda')
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(dev)
 
     print("Reconstruction: Pre-training 0")
     model.train_model(dataset, batch_size=512, n_epochs=n_epochs, lr=0.001)
@@ -46,7 +47,8 @@ if __name__ == "__main__":
         pre_train(reco_model, reco_dataset, n_epochs_pre)
 
     # Reconstruction:
-    reco_model.to('cuda')
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    reco_model.to(dev)
     reco_model.train_model(reco_dataset, batch_size=256, n_epochs=n_epochs_main // 4, lr=0.003)
     reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
     reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)

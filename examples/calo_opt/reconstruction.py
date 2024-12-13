@@ -69,8 +69,9 @@ class ReconstructionDataset(Dataset):
         self.targets = (self.targets - self.means[2]) / self.stds[2]
         self.context = (self.context - self.means[3]) / self.stds[3]
 
-        self.c_means = [torch.tensor(a).to('cuda') for a in self.means]
-        self.c_stds = [torch.tensor(a).to('cuda') for a in self.stds]
+        dev = "cuda" if torch.cuda.is_available() else "cpu"
+        self.c_means = [torch.tensor(a).to(dev) for a in self.means]
+        self.c_stds = [torch.tensor(a).to(dev) for a in self.stds]
 
     def filter_infs_and_nans(self, df: pd.DataFrame):
         '''
@@ -152,7 +153,9 @@ class Reconstruction(torch.nn.Module):
             torch.nn.Linear(100, num_target_features),
         )
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
-        self.device = torch.device('cuda')
+
+        dev = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = torch.device(dev)
 
     def forward(self, parameters, x) -> torch.Tensor:
         """ Concatenate the detector parameters and the input

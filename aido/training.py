@@ -20,7 +20,8 @@ def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     TODO Reconstruction results are normalized. In the future only expose the un-normalised ones,
     but also requires adjustments to the surrogate dataset
     """
-    model.to('cuda')
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(dev)
 
     print('Surrogate: Pre-Training 0')
     model.train_model(dataset, batch_size=512, n_epochs=n_epochs, lr=0.001)
