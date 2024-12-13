@@ -25,21 +25,21 @@ if __name__ == "__main__":
     aido.set_config("simulation.sigma", 1.5)
     min_value = 0.001
     parameters = aido.SimulationParameterDictionary([
-        aido.SimulationParameter("thickness_absorber_0", np.random.uniform(0.1, 50), min_value=min_value),
-        aido.SimulationParameter("thickness_scintillator_0", np.random.uniform(20, 35), min_value=min_value),
-        aido.SimulationParameter("material_absorber_0", -1, optimizable=False),
-        aido.SimulationParameter("material_scintillator_0", 1, optimizable=False),
-        aido.SimulationParameter("thickness_absorber_1", np.random.uniform(0.1, 50), min_value=min_value),
-        aido.SimulationParameter("thickness_scintillator_1", np.random.uniform(0.1, 35), min_value=min_value),
-        aido.SimulationParameter("material_absorber_1", 1, optimizable=False),
-        aido.SimulationParameter("material_scintillator_1", -1, optimizable=False),
-        aido.SimulationParameter("thickness_absorber_2", np.random.uniform(0.1, 50), min_value=min_value),
+        aido.SimulationParameter("thickness_absorber_0", np.random.uniform(0.1, 5), min_value=min_value),
+        aido.SimulationParameter("thickness_scintillator_0", np.random.uniform(1, 5), min_value=min_value),
+        aido.SimulationParameter("material_absorber_0", 0.0, min_value=-1.0, max_value=1.0),
+        aido.SimulationParameter("material_scintillator_0", 0.0, min_value=-1.0, max_value=1.0),
+        aido.SimulationParameter("thickness_absorber_1", np.random.uniform(0.1, 5), min_value=min_value),
+        aido.SimulationParameter("thickness_scintillator_1", np.random.uniform(0.1, 10), min_value=min_value),
+        aido.SimulationParameter("material_absorber_1", 0.0, min_value=-1.0, max_value=1.0),
+        aido.SimulationParameter("material_scintillator_1", 0.0, min_value=-1.0, max_value=1.0),
+        aido.SimulationParameter("thickness_absorber_2", np.random.uniform(0.1, 5), min_value=min_value),
         aido.SimulationParameter("thickness_scintillator_2", np.random.uniform(0.1, 10), min_value=min_value),
-        aido.SimulationParameter("material_absorber_2", 1, optimizable=False),
-        aido.SimulationParameter("material_scintillator_2", -1, optimizable=False),
+        aido.SimulationParameter("material_absorber_2", 0.0, min_value=-1.0, max_value=1.0),
+        aido.SimulationParameter("material_scintillator_2", 0.0, min_value=-1.0, max_value=1.0),
         aido.SimulationParameter("num_events", 400, optimizable=False),
         aido.SimulationParameter("max_length", 200, optimizable=False),
-        aido.SimulationParameter("max_cost", 200_000, optimizable=False),
+        aido.SimulationParameter("max_cost", 80_000, optimizable=False),
         aido.SimulationParameter("nikhil_material_choice", True, optimizable=False)
     ])
 
@@ -49,7 +49,7 @@ if __name__ == "__main__":
         simulation_tasks=20,
         max_iterations=200,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_material_choice/results_20241210_1",
+        results_dir="/work/kschmidt/aido/results_material_choice/results_20241213_with_material_constrained",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model

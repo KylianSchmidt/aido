@@ -24,7 +24,7 @@ if __name__ == "__main__":
     aido.set_config("simulation.sigma", 1.5)
     min_value = 0.001
     parameters = aido.SimulationParameterDictionary([
-        aido.SimulationParameter("thickness_absorber_0", 20.0, min_value=min_value),
+        aido.SimulationParameter("thickness_absorber_0", 1.0, min_value=min_value),
         aido.SimulationParameter("thickness_scintillator_0", 1.0, min_value=min_value),
         aido.SimulationParameter("material_absorber_0", -1, optimizable=False),
         aido.SimulationParameter("material_scintillator_0", 1, optimizable=False),
@@ -38,7 +38,7 @@ if __name__ == "__main__":
         simulation_tasks=20,
         max_iterations=200,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_two_layers/results_20241211",
+        results_dir="/work/kschmidt/aido/results_two_layers/results_20241213",
         description="""
             Full Calorimeter with cost and length constraints.
             Improved normalization of reconstructed array in Surrogate Model
