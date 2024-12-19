@@ -120,6 +120,9 @@ def test_covariance() -> None:
         aido.SimulationParameter("foo", 9.17, optimizable=False),
         aido.SimulationParameter("foo", 10.0, sigma=1.0)
     ])
-    assert np.all(sim_param_dict.covariance == np.diag([0.1, 0.2, 1]))
-    sim_param_dict.covariance = np.diag([5, 1, 2])
-    assert np.all(sim_param_dict.covariance == np.diag([5, 1, 2]))
+    assert np.all(sim_param_dict.covariance == np.diag(np.array([0.1, 0.2, 1])**2))
+    sim_param_dict.covariance = np.diag([25, 1, 4])
+    assert np.all(sim_param_dict.covariance == np.diag([25, 1, 4]))
+    sim_param_dict.to_json("test_param_dict")
+    sim_param_dict_2 = aido.SimulationParameterDictionary.from_json("test_param_dict")
+    assert np.all(sim_param_dict_2.covariance == np.diag([25, 1, 4]))

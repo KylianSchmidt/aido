@@ -470,12 +470,15 @@ class SimulationParameterDictionary:
         if self._covariance is not None:
             return self._covariance
         else:
-            return self.sigma_array**2
+            return self.sigma_array
 
     @covariance.setter
     def covariance(self, new_covariance=np.ndarray) -> None:
         """ Set the input matrix as the new covariance matrix
         """
+        assert (
+            isinstance(new_covariance, np.ndarray)
+        ), f"Covariance must be a numpy array, but is type {type(new_covariance)}"
         assert (
             np.allclose(new_covariance, new_covariance.T)
         ), "Covariance matrix is not symmetric"
@@ -488,16 +491,20 @@ class SimulationParameterDictionary:
         self._covariance = new_covariance
 
     @property
-    def metadata(self) -> Dict[str, int | str]:
+    def metadata(self) -> Dict[str, int | str | List]:
         return {
             "iteration": self.iteration,
             "creation_time": self.creation_time,
             "rng_seed": self.rng_seed,
-            "description": self.description
+            "description": self.description,
+            "covariance": self.covariance.tolist()
         }
 
     @metadata.setter
     def metadata(self, new_metadata_dict: Dict[str, int | str]):
+        if "covariance" in new_metadata_dict.keys():
+            self.covariance = np.array(new_metadata_dict.pop("covariance"))
+
         for name, value in new_metadata_dict.items():
             if name in self.metadata:
                 self.__setattr__(name, value)
@@ -507,7 +514,7 @@ class SimulationParameterDictionary:
         """Create an instance from dictionary
         TODO Make sure it is a serialized dict, not a dict of SimulationParameters
         """
-        metadata = parameter_dict.pop("metadata")
+        metadata: Dict = parameter_dict.pop("metadata")
         instance = cls([SimulationParameter.from_dict(parameter) for parameter in parameter_dict.values()])
         instance.metadata = metadata
         return instance
