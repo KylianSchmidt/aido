@@ -1,9 +1,11 @@
 import inspect
 import json
 import os
+import time
 from typing import Dict, Generator
 
 import b2luigi
+import torch
 
 from aido.config import AIDOConfig
 from aido.interface import AIDOBaseUserInterface
@@ -149,11 +151,26 @@ class OptimizationTask(b2luigi.Task):
             json.dump(self.reco_paths_dict, file)
 
         # Run surrogate and optimizer model
-        new_param_dict = training_loop(
-            reco_file_paths_dict=self.reco_paths_dict["own_path"],
-            reconstruction_loss_function=interface.loss,
-            constraints=interface.constraints
-        )
+        num_training_loop_tries: int = 0
+        training_loop_out_of_memory: bool = True
+
+        while training_loop_out_of_memory is True:
+            try:
+                training_loop_out_of_memory = False
+                new_param_dict = training_loop(
+                    reco_file_paths_dict=self.reco_paths_dict["own_path"],
+                    reconstruction_loss_function=interface.loss,
+                    constraints=interface.constraints
+                )
+            except torch.cuda.OutOfMemoryError as e:
+                training_loop_out_of_memory = True
+                num_training_loop_tries += 1
+                torch.cuda.empty_cache()
+                time.sleep(60)
+
+                if num_training_loop_tries > 10:
+                    raise e
+
         new_param_dict.iteration = self.iteration + 1
         # TODO Change datetime too
         new_param_dict.to_json(self.reco_paths_dict["next_parameter_dict"])

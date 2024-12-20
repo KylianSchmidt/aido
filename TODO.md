@@ -8,4 +8,5 @@
 [x] The boundaries that get enforced by "additional constraints" should be the min and max, not the sigma boundaries. They should remain totally unchecked during Optimization.
 [ ] File sizes can add up. Clean up the Simulation Files and Model saves once they are used.
 [ ] Allow for an extra validation step for the reconstruction algorithm for the end user. For example a separate Task that resimulates the same detector configurations and passes it to interface.
-[ ] Use a try-except clause to allocate memory for the surrogate and optimizer models (or check if b2luigi can wait until memory is freed up)
+[x] Use a try-except clause to allocate memory for the surrogate and optimizer models (or check if b2luigi can wait until memory is freed up)
+[ ] Argument in scheduler that decides whether to re-raise Exceptions from user-defined plotting (e.g. ignore_plotting_exceptions=True)
