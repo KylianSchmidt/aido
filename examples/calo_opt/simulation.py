@@ -46,13 +46,13 @@ class Simulation():
 
             for i in range(3):
                 self.cw.addLayer(
-                    parameter_dict[f"thickness_absorber_{i}"]["current_value"],
+                    max(parameter_dict[f"thickness_absorber_{i}"]["current_value"], 1e-3),
                     parameter_dict[f"material_absorber_{i}"]["current_value"],
                     False,
                     1
                 )
                 self.cw.addLayer(
-                    parameter_dict[f"thickness_scintillator_{i}"]["current_value"],
+                    max(parameter_dict[f"thickness_scintillator_{i}"]["current_value"], 1e-3),
                     parameter_dict[f"material_scintillator_{i}"]["current_value"],
                     True,
                     1
