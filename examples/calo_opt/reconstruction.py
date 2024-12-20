@@ -124,7 +124,8 @@ class Reconstruction(torch.nn.Module):
             num_target_features: int,
             num_context_features: int,
             initial_means: List[np.float32],
-            initial_stds: List[np.float32]
+            initial_stds: List[np.float32],
+            device: str = "cuda"
             ):
         """Initialize the shape of the model.
 
@@ -142,21 +143,30 @@ class Reconstruction(torch.nn.Module):
         self.n_context_features = num_context_features
         self.means = initial_means
         self.stds = initial_stds
-        self.layers = torch.nn.Sequential(
-            torch.nn.Linear(num_parameters + num_input_features, 200),
+        self.preprocessing_layers = torch.nn.Sequential(
+            torch.nn.Linear(num_parameters, 100),
             torch.nn.ELU(),
-            torch.nn.Linear(200, 100),
+            torch.nn.Linear(100, 100),
+            torch.nn.ELU(),
+            torch.nn.Linear(100, num_input_features),
+            torch.nn.ReLU()
+        )
+        self.layers = torch.nn.Sequential(
+            torch.nn.Linear(num_parameters + num_input_features, 100),
+            torch.nn.ELU(),
+            torch.nn.Linear(100, 100),
             torch.nn.ELU(),
             torch.nn.Linear(100, 100),
             torch.nn.ReLU(),
             torch.nn.Linear(100, num_target_features),
         )
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
-        self.device = torch.device('cuda')
+        self.device = torch.device(device)
 
     def forward(self, parameters, x) -> torch.Tensor:
         """ Concatenate the detector parameters and the input
         """
+        x = torch.multiply(self.preprocessing_layers(parameters), x)
         x = torch.cat([parameters, x], dim=1)
         return self.layers(x)
 
