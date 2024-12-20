@@ -6,6 +6,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
+from aido.logger import logger
 from aido.optimization_helpers import ParameterModule
 from aido.simulation_helpers import SimulationParameterDictionary
 from aido.surrogate import Surrogate, SurrogateDataset
@@ -52,7 +53,6 @@ class Optimizer(torch.nn.Module):
         """
         diff = updated_parameters - self.starting_parameters_continuous
         diff = diff.detach().cpu().numpy()
-
         return np.dot(diff, np.dot(np.linalg.inv(self.parameter_dict.covariance), diff)) < scale
 
     def boundaries(self) -> torch.Tensor:
@@ -63,13 +63,14 @@ class Optimizer(torch.nn.Module):
         -------
             float
         """
-        if len(self.parameter_box) != 0:
+        parameter_box = self.parameter_module.constraints.to(self.device)
+        if len(parameter_box) != 0:
             parameters_continuous_tensor = self.parameter_module.continuous_tensors()
             lower_boundary_loss = torch.mean(
-                0.5 * torch.nn.ReLU()(self.parameter_box[:, 0] - parameters_continuous_tensor)**2
+                0.5 * torch.nn.ReLU()(parameter_box[:, 0] - parameters_continuous_tensor)**2
             )
             upper_boundary_loss = torch.mean(
-                0.5 * torch.nn.ReLU()(parameters_continuous_tensor - self.parameter_box[:, 1]**2)
+                0.5 * torch.nn.ReLU()(parameters_continuous_tensor - parameter_box[:, 1]**2)
             )
             return lower_boundary_loss + upper_boundary_loss
         else:
@@ -109,14 +110,14 @@ class Optimizer(torch.nn.Module):
                 updated_parameter_optimizer_df = pd.concat([pd.read_parquet(filepath), df], ignore_index=True)
                 updated_parameter_optimizer_df.to_parquet(filepath)
             except KeyboardInterrupt:
-                print("Warning: Saving the Optimizer Parameters to file before stopping...")
+                logger.warning("Saving the Optimizer Parameters to file before stopping...")
                 updated_parameter_optimizer_df.to_parquet(filepath)
                 raise
 
     def print_grads(self) -> None:
         for name, param in self.named_parameters():
             if param.requires_grad and not name.startswith("surrogate_model"):
-                print(f"Optimizer {name}: Data={param.data}, grads={param.grad}")
+                logger.debug(f"Optimizer {name}: Data={param.data}, grads={param.grad}")
 
     def optimize(
             self,
@@ -149,7 +150,6 @@ class Optimizer(torch.nn.Module):
         self.device = device or self.device
         self.to(self.device)
 
-        self.parameter_box = self.parameter_module.constraints.to(self.device)
         self.starting_parameters_continuous = self.parameter_module.continuous_tensors().clone().detach()
 
         for param_group in self.optimizer.param_groups:
@@ -193,7 +193,7 @@ class Optimizer(torch.nn.Module):
                 loss.backward()
 
                 if np.isnan(loss.item()):
-                    print("Optimizer: NaN loss, exiting.")
+                    logger.error("Optimizer: NaN loss, exiting.")
                     self.optimizer.step()
                     return self.parameter_dict, False
 
@@ -210,12 +210,15 @@ class Optimizer(torch.nn.Module):
                     scale=0.8
                 ):
                     stop_epoch = True
+                    logger.error("Optimizer: Parameters are not local")
                     break
 
-            print(f"Optimizer Epoch: {epoch} \tLoss: {surrogate_loss_detached:.5f} (reco)", end="\t")
-            print(f"+ {(constraints_loss.item()):.5f} (constraints)", end="\t")
-            print(f"+ {(self.boundaries().item()):.5f} (boundaries)", end="\t")
-            print(f"= {loss.item():.5f} (total)")
+            logger.info(
+                f"Optimizer Epoch: {epoch} \tLoss: {surrogate_loss_detached:.5f} (reco)\t"
+                + f"+ {(constraints_loss.item()):.5f} (constraints)\t"
+                + f"+ {(self.boundaries().item()):.5f} (boundaries)\t"
+                + f"= {loss.item():.5f} (total)"
+            )
 
             epoch_loss /= batch_idx + 1
             epoch_constraints_loss /= batch_idx + 1

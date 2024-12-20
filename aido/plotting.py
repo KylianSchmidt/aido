@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from aido.logger import logger
 from aido.simulation_helpers import SimulationParameterDictionary
 
 
@@ -48,7 +49,7 @@ class Plotting:
         for plot_type in plot_types:
             getattr(cls, plot_type)(results_dir=results_dir)
 
-        print(f"aido.Plotting: Saved all figures to {results_dir}")
+        logger.info(f"Saved all figures to {results_dir}")
 
     def parameter_evolution(
             fig_savepath: str | os.PathLike | None = "/plots/parameter_evolution",

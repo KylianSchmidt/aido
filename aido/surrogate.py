@@ -5,6 +5,8 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader, Dataset
 
+from aido.logger import logger
+
 
 def ddpm_schedules(beta1: float, beta2: float, n_time_steps: int) -> dict[str, torch.Tensor]:
     """
@@ -367,12 +369,11 @@ class Surrogate(torch.nn.Module):
                 loss.backward()
                 self.optimizer.step()
 
-            print(
-                f"Surrogate Epoch: {epoch}",
-                f"Loss: {loss.item():.5f}",
-                f"Prediction: {self.sample_forward(parameters, context, targets).mean().item():.5f}",
+            logger.info(
+                f"Surrogate Epoch: {epoch}\t",
+                f"Loss: {loss.item():.5f}\t",
+                f"Prediction: {self.sample_forward(parameters, context, targets).mean().item():.5f}\t",
                 f"Reconstructed: {reconstructed.mean().item():.5f}",
-                sep="\t"
             )
             self.surrogate_loss.append(loss.item())
 
@@ -408,7 +409,7 @@ class Surrogate(torch.nn.Module):
         for i_o in range(oversample):
 
             for batch_idx, (parameters, context, targets, _reconstructed) in enumerate(data_loader):
-                print(f'Surrogate batch: {batch_idx} / {len(data_loader)}', end='\r')
+                logger.info(f'Surrogate batch: {batch_idx} / {len(data_loader)}', end='\r')
                 parameters: torch.Tensor = parameters.to(self.device)
                 context: torch.Tensor = context.to(self.device)
                 targets: torch.Tensor = targets.to(self.device)

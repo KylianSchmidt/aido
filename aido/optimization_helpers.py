@@ -3,6 +3,7 @@ from typing import Iterable, List, Literal, Tuple
 import numpy as np
 import torch
 
+from aido.logger import logger
 from aido.simulation_helpers import SimulationParameter, SimulationParameterDictionary
 
 
@@ -96,7 +97,7 @@ class ContinuousParameter(torch.nn.Module):
     @property
     def current_value(self) -> torch.Tensor:
         if torch.isnan(self.parameter.data):
-            print(f"DEBUG {self.__dict__}")
+            logger.debug(self.__dict__)
         return self.parameter
 
     @property
@@ -156,11 +157,13 @@ class ParameterModule(torch.nn.ModuleDict):
         """ A tensor of shape (P, 2) where P is the number of continuous parameters. In the second index,
         the order is the same as in the ContinuousParameter class (min, max)
         """
-        tensor_list = [parameter.boundaries for parameter in self.values()]
-        if tensor_list == []:
-            return torch.tensor([])
-        else:
-            return torch.stack(tensor_list)
+        tensor_list: List[torch.Tensor] = []
+
+        for parameter in self.values():
+            if isinstance(parameter, ContinuousParameter):
+                tensor_list.append(parameter.boundaries)
+
+        return torch.stack(tensor_list)
 
     @property
     def cost_loss(self) -> torch.Tensor:
@@ -179,9 +182,8 @@ class ParameterModule(torch.nn.ModuleDict):
         Direction is a vector in parameter space
         """
         direction = direction.cpu().detach().numpy()
-        norm = np.linalg.norm(direction)
-        direction_normed = direction / (norm + 1e-4)
-        scale_factor = min_scale * max(1, 4 * norm)
+        direction_normed = direction / (np.linalg.norm(direction) + 1e-4)
+        scale_factor = min_scale * max(1, 4 * np.linalg.norm(direction))
         adjustement_matrix = (scale_factor - 1) * np.outer(direction_normed, direction_normed)
         self.covariance = self.parameter_dict.sigma_array**2 + adjustement_matrix
         return self.covariance
