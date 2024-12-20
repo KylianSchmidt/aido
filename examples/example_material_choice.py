@@ -31,8 +31,12 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
         for i in range(3):
             for name in ["absorber", "scintillator"]:
                 layer_thickness = parameter_dict_as_tensor[f"thickness_{name}_{i}"]
-                layer_choice = parameter_dict[f"material_{name}_{i}"].current_value
-                layer_cost_per_unit = materials[name]["costly"] if layer_choice >= 0 else materials[name]["cheap"]
+                layer_choice = parameter_dict_as_tensor[f"material_{name}_{i}"]
+                layer_composition = torch.sigmoid(self.material_scaling_factor * layer_choice)
+                layer_cost_per_unit = (
+                    layer_composition * materials[name]["costly"]
+                    + (1 - layer_composition) * materials[name]["cheap"]
+                )
 
                 cost += layer_thickness * layer_cost_per_unit
                 detector_length += layer_thickness
@@ -81,9 +85,10 @@ if __name__ == "__main__":
         simulation_tasks=20,
         max_iterations=200,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_material_choice/results_20241213_2",
+        results_dir="/work/kschmidt/aido/results_material_choice/results_20241219_1",
         description="""
             With constraints, pions and photons, boundaries and adjustements to the covariance matrix.
+            With same material composition loss as Nikhil
         """
     )
     os.system("rm *.root")

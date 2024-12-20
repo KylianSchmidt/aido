@@ -1,4 +1,4 @@
-from typing import Iterable, Literal, Tuple
+from typing import Iterable, List, Literal, Tuple
 
 import numpy as np
 import torch
@@ -114,10 +114,12 @@ class ParameterModule(torch.nn.ModuleDict):
         super().__init__()
 
         for parameter in self.parameter_dict:
-            if not parameter.optimizable or parameter.discrete_values:
+            if not parameter.optimizable:
                 continue
-
-            self[parameter.name] = ContinuousParameter(parameter)
+            if parameter.discrete_values is not None:
+                self[parameter.name] = OneHotEncoder(parameter)
+            else:
+                self[parameter.name] = ContinuousParameter(parameter)
 
     def items(self) -> Iterable[Tuple[str, OneHotEncoder | ContinuousParameter]]:
         return super().items()
@@ -131,18 +133,14 @@ class ParameterModule(torch.nn.ModuleDict):
     def forward(self) -> torch.Tensor:
         return torch.unsqueeze(torch.concat([parameter() for parameter in self.values()]), 0)
 
-    def tensor(self, parameter_types: Literal["all", "discrete", "continuous"] = "all"):
-        types = {
-            "continuous": self
-        }
-        assert parameter_types != "all", NotImplementedError("Not implemented yet due to dimension mismatch")
-        module: dict[str, OneHotEncoder | ParameterModule] = types[parameter_types]
-        tensor_list = [parameter.current_value for parameter in module.values()]
+    def continuous_tensors(self) -> torch.Tensor:
+        tensor_list: List[torch.Tensor] = []
 
-        if tensor_list == []:
-            return torch.tensor([])
-        else:
-            return torch.stack(tensor_list)
+        for parameter in self.values():
+            if isinstance(parameter, ContinuousParameter):
+                tensor_list.append(parameter.current_value)
+
+        return torch.stack(tensor_list)
 
     def current_values(self) -> dict:
         return {name: parameter.current_value for name, parameter in self.items()}
@@ -167,13 +165,13 @@ class ParameterModule(torch.nn.ModuleDict):
     @property
     def cost_loss(self) -> torch.Tensor:
         return sum(parameter.cost for parameter in self.values())
-    
+
     @property
     def covariance(self) -> np.ndarray:
         return self.parameter_dict.covariance
-    
+
     @covariance.setter
-    def covariance(self, new_covariance):
+    def covariance(self, new_covariance: np.ndarray):
         self.parameter_dict.covariance = new_covariance
 
     def adjust_covariance(self, direction: torch.Tensor, min_scale: float = 2.0):

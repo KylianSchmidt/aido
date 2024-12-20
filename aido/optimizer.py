@@ -64,7 +64,7 @@ class Optimizer(torch.nn.Module):
             float
         """
         if len(self.parameter_box) != 0:
-            parameters_continuous_tensor = self.parameter_module.tensor("continuous")
+            parameters_continuous_tensor = self.parameter_module.continuous_tensors()
             lower_boundary_loss = torch.mean(
                 0.5 * torch.nn.ReLU()(self.parameter_box[:, 0] - parameters_continuous_tensor)**2
             )
@@ -150,7 +150,7 @@ class Optimizer(torch.nn.Module):
         self.to(self.device)
 
         self.parameter_box = self.parameter_module.constraints.to(self.device)
-        self.starting_parameters_continuous = self.parameter_module.tensor("continuous").clone().detach()
+        self.starting_parameters_continuous = self.parameter_module.continuous_tensors().clone().detach()
 
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = lr
@@ -206,7 +206,7 @@ class Optimizer(torch.nn.Module):
                 epoch_constraints_loss += constraints_loss.item()
 
                 if not self.check_parameters_are_local(
-                    updated_parameters=self.parameter_module.tensor("continuous"),
+                    updated_parameters=self.parameter_module.continuous_tensors(),
                     scale=0.8
                 ):
                     stop_epoch = True
@@ -226,7 +226,7 @@ class Optimizer(torch.nn.Module):
                 break
 
         self.parameter_dict.covariance = self.parameter_module.adjust_covariance(
-            self.parameter_module.tensor("continuous").to(self.device)
+            self.parameter_module.continuous_tensors().to(self.device)
             - self.starting_parameters_continuous.to(self.device)
         ).astype(float)
         return self.parameter_dict, True

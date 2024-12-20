@@ -62,5 +62,5 @@ def test_instantiation(parameter_dict):
 
 def test_ordering(parameter_dict):
     parameter_module = ParameterModule(parameter_dict)
-    assert round(parameter_module.tensor("continuous")[1].item(), 2) == 0.1
-    assert round(parameter_module.tensor("continuous")[2].item(), 2) == 13.9
+    assert round(parameter_module.continuous_tensors()[1].item(), 2) == 0.1
+    assert round(parameter_module.continuous_tensors()[2].item(), 2) == 13.9
