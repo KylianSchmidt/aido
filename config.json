@@ -12,5 +12,9 @@
         "generate_scaling": 1.2,
         "sigma": 1.5,
         "sigma_mode": "flat"
+    },
+    "scheduler": {
+        "training_num_retries": 20,
+        "training_delay_between_retries": 60
     }
 }
