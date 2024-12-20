@@ -24,12 +24,18 @@ class SimulationConfig:
 
 
 @dataclass
+class SchedulerConfig:
+    training_num_retries: int = 20
+    training_delay_between_retries: int | float = 60
+
+
+@dataclass
 class AIDOConfig:
     """
     Sub-classes:
     
     Optimizer:
-        optimizer.lr: float = 0.02
+        optimizer.lr: float = 0.02 (>0)
         optimizer.batch_size: int = 512
         optimizer.n_epochs: int = 40
 
@@ -38,13 +44,18 @@ class AIDOConfig:
         surrogate.n_epochs_main: int = 40
     
     Simulation:
-        simulation.generate_scaling: float = 1.2
-        simulation.sigma: float = 1.5
-        simulation.sigma_mode: str = "flat"
+        simulation.generate_scaling: float = 1.2 (>0)
+        simulation.sigma: float = 1.5 (>0)
+        simulation.sigma_mode: str = "flat" (or "scale")
+
+    Scheduler:
+        scheduler.training_num_retries: int = 20
+        scheduler.training_delay_between_retries: int | float = 60 (in seconds)
     """
     optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
     surrogate: SurrogateConfig = field(default_factory=SurrogateConfig)
     simulation: SimulationConfig = field(default_factory=SimulationConfig)
+    scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)
 
     @classmethod
     def from_json(cls, file_path: str):
@@ -54,7 +65,8 @@ class AIDOConfig:
         return cls(
             optimizer=OptimizerConfig(**data["optimizer"]),
             surrogate=SurrogateConfig(**data["surrogate"]),
-            simulation=SimulationConfig(**data["simulation"])
+            simulation=SimulationConfig(**data["simulation"]),
+            scheduler=SchedulerConfig(**data["scheduler"])
         )
 
     def to_json(self, file_path: str):

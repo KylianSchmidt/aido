@@ -142,6 +142,7 @@ class OptimizationTask(b2luigi.Task):
             whole Tasks is skipped. Otherwise, the updated parameter dict is saved in this location
         """
         self.reco_paths_dict = self.create_reco_path_dict()
+        config = AIDOConfig.from_json(os.path.join(self.results_dir, "config.json"))
 
         if os.path.isfile(self.next_param_dict_file):
             print(f"Iteration {self.iteration} has an updated parameter dict already and will be skipped")
@@ -166,9 +167,9 @@ class OptimizationTask(b2luigi.Task):
                 training_loop_out_of_memory = True
                 num_training_loop_tries += 1
                 torch.cuda.empty_cache()
-                time.sleep(60)
+                time.sleep(config.scheduler.training_delay_between_retries)
 
-                if num_training_loop_tries > 10:
+                if num_training_loop_tries > config.scheduler.training_num_retries:
                     raise e
 
         new_param_dict.iteration = self.iteration + 1
@@ -238,6 +239,7 @@ def start_scheduler(
         issubclass(type(user_interface), AIDOBaseUserInterface)
     ), f"The class {user_interface} must inherit from {AIDOBaseUserInterface}."
 
+    global config
     global interface  # Fix for b2luigi, as passing b2luigi.Parameter of non-serializable classes is not possible
     interface = user_interface
     interface.results_dir = results_dir
