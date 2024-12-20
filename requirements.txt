@@ -1,4 +1,3 @@
--e git+ssh://git@gitlab.etp.kit.edu/kschmidt/aido.git@d52c52f69dacb6d7e8bc4d673faa7ab2cca1b48c#egg=aido
 alabaster==1.0.0
 annotated-types==0.7.0
 asttokens==2.4.1
