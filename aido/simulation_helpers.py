@@ -8,7 +8,7 @@ import pandas as pd
 
 from aido.config import AIDOConfig
 
-config = AIDOConfig.from_json("config.json")
+config = AIDOConfig.from_json("/mnt/optCal/aido/config.json")
 
 
 class SimulationParameter:

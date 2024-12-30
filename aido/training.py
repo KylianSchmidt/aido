@@ -21,7 +21,8 @@ def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     TODO Reconstruction results are normalized. In the future only expose the un-normalised ones,
     but also requires adjustments to the surrogate dataset
     """
-    model.to('cuda')
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(dev)
 
     logger.info('Surrogate: Pre-Training 0')
     model.train_model(dataset, batch_size=512, n_epochs=n_epochs, lr=0.001)
@@ -98,7 +99,7 @@ def training_loop(
     validation_df = surrogate_validator.validate(surrogate_dataset)
     surrogate_validator.plot(
         validation_df,
-        fig_savepath=os.path.join(results_dir, "plots", "validation_on_training_data"),
+        fig_savepath=os.path.join(results_dir, "plots", "validation","surrogate","on_trainingData"),
         )
 
     logger.info("Surrogate Validation")
@@ -111,7 +112,7 @@ def training_loop(
     validation_df = surrogate_validator.validate(surrogate_validation_dataset)
     surrogate_validator.plot(
         validation_df,
-        fig_savepath=os.path.join(results_dir, "plots", "validation"),
+        fig_savepath=os.path.join(results_dir, "plots", "validation","surrogate","on_validationData"),
         )
 
     torch.save(surrogate, surrogate_save_path)
@@ -119,7 +120,7 @@ def training_loop(
     # Optimization
     optimizer = Optimizer(parameter_dict=parameter_dict)
     if os.path.isfile(optimizer_previous_path):
-        checkpoint = torch.load(optimizer_previous_path)
+        checkpoint = torch.load(optimizer_previous_path,weights_only=False)
         optimizer.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
     updated_parameter_dict, is_optimal = optimizer.optimize(
