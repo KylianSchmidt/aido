@@ -96,7 +96,7 @@ class Optimizer(torch.nn.Module):
             epoch: int,
             batch_index: int,
             loss: float,
-            filepath: str | os.PathLike = "parameter_optimizer_df",
+            filepath: str | os.PathLike = "parameter_optimizer_df.parquet",
             ) -> None:
         df = self.parameter_dict.to_df()
         df["Epoch"] = epoch
