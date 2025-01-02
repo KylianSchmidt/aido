@@ -42,7 +42,7 @@ testing:
   script:
     - source $VENV_DIR/bin/activate
     - export PYTHONPATH=$PYTHONPATH:$(pwd)
-    - pytest .
+    - pytest tests
   only:
     - merge_requests
     - pushes
