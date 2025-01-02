@@ -98,7 +98,7 @@ class Optimizer(torch.nn.Module):
             loss: float,
             filepath: str | os.PathLike = "parameter_optimizer_df.parquet",
             ) -> None:
-        df = self.parameter_dict.to_df()
+        df = self.parameter_dict.to_df(display_discrete="as_probabilities")
         df["Epoch"] = epoch
         df["Batch"] = batch_index
         df["Surrogate_Prediction"] = loss
