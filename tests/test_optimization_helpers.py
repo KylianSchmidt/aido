@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import torch
 
 import aido
 from aido.optimization_helpers import ParameterModule
@@ -64,3 +65,10 @@ def test_ordering(parameter_dict):
     parameter_module = ParameterModule(parameter_dict)
     assert round(parameter_module.continuous_tensors()[1].item(), 2) == 0.1
     assert round(parameter_module.continuous_tensors()[2].item(), 2) == 13.9
+
+
+def test_probabilities(parameter_dict: aido.SimulationParameterDictionary):
+    parameter_module = ParameterModule(parameter_dict)
+    parameter_module["absorber_material"].logits.data = torch.tensor([0.1, 0.2, 0.7])
+    parameter_dict.update_probabilities(parameter_module.probabilities)
+    assert np.all(parameter_dict["absorber_material"] != [1 / 3, 1 / 3, 1 / 3])

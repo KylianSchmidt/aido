@@ -128,6 +128,9 @@ class ParameterModule(torch.nn.ModuleDict):
     def values(self) -> Iterable[OneHotEncoder | ContinuousParameter]:
         return super().values()
 
+    def __getitem__(self, key: str) -> OneHotEncoder | ContinuousParameter:
+        return super().__getitem__(key)
+
     def __call__(self) -> torch.Tensor:
         return super().__call__()
 
@@ -151,6 +154,16 @@ class ParameterModule(torch.nn.ModuleDict):
             return [parameter.physical_value for parameter in self.values()]
         elif format == "dict":
             return {name: parameter.physical_value for name, parameter in self.items()}
+
+    @property
+    def probabilities(self) -> dict[str, np.ndarray]:
+        probability_dict = {}
+
+        for name, parameter in self.items():
+            if isinstance(parameter, OneHotEncoder):
+                probability_dict[name] = parameter.probabilities.detach().cpu().numpy()
+
+        return probability_dict
 
     @property
     def constraints(self) -> torch.Tensor:

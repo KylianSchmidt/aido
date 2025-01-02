@@ -12,3 +12,4 @@
 [ ] Argument in scheduler that decides whether to re-raise Exceptions from user-defined plotting (e.g. ignore_plotting_exceptions=True)
 [ ] Check if the min max values are correctly enforced when calling current_value on SimulationParameter
 [ ] Probabilities of discrete parameters are not propagated from the ParameterModule to the SimulationParameterDictionary in Optimizer.
+[ ] Add 'check if all probabilities were changed' in SimulationParameterDictionary

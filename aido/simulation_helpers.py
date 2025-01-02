@@ -439,7 +439,7 @@ class SimulationParameterDictionary:
 
         return self
 
-    def update_probabilities(self, probabilities_dict: dict):
+    def update_probabilities(self, probabilities_dict: dict[str, List | np.ndarray]):
         for key, value in probabilities_dict.items():
             assert (
                 key in self.parameter_dict.keys()
