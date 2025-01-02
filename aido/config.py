@@ -42,7 +42,7 @@ class AIDOConfig:
     Surrogate:
         surrogate.n_epoch_pre: int = 24
         surrogate.n_epochs_main: int = 40
-    
+
     Simulation:
         simulation.generate_scaling: float = 1.2 (>0)
         simulation.sigma: float = 1.5 (>0)
@@ -71,7 +71,7 @@ class AIDOConfig:
 
     def to_json(self, file_path: str):
         with open(file_path, "w") as file:
-            json.dump(asdict(self), file, indent=4)
+            json.dump(self.as_dict(), file, indent=4)
 
     def get_key(self, key: str):
         """
@@ -106,4 +106,6 @@ class AIDOConfig:
 
 
 if __name__ == "__main__":
+    """ Use as script to reset the values of the config.json file to their defaults
+    """
     AIDOConfig().to_json("config.json")

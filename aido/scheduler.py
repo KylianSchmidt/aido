@@ -190,7 +190,6 @@ class AIDOMainTask(b2luigi.Task):
     """ Trigger recursive calls for each Iteration
     TODO Fix exit condition in 'run' method
     TODO parameter results dir
-    TODO Unable to resume optimization because only condition is that iteration 0 worked
     """
     num_max_iterations = b2luigi.IntParameter(significant=False)
     num_simulation_tasks = b2luigi.IntParameter(significant=False)
