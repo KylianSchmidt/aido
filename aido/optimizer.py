@@ -200,7 +200,7 @@ class Optimizer(torch.nn.Module):
                 self.optimizer.step()
 
                 self.parameter_dict.update_current_values(self.parameter_module.physical_values(format="dict"))
-                self.parameter_dict.update_probabilities(self.parameter_module)  # TODO add method for probabilities
+                self.parameter_dict.update_probabilities(self.parameter_module.probabilities)
                 self.save_parameters(epoch, batch_idx, surrogate_loss_detached, parameter_optimizer_savepath)
 
                 epoch_loss += loss.item()
