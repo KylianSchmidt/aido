@@ -2,11 +2,14 @@ import glob
 import os
 import re
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 import aido
+
+matplotlib.use("agg")
 
 
 class CaloOptPlotting:
