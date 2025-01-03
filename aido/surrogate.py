@@ -370,9 +370,9 @@ class Surrogate(torch.nn.Module):
                 self.optimizer.step()
 
             logger.info(
-                f"Surrogate Epoch: {epoch}\t",
-                f"Loss: {loss.item():.5f}\t",
-                f"Prediction: {self.sample_forward(parameters, context, targets).mean().item():.5f}\t",
+                f"Surrogate Epoch: {epoch}\t"
+                f"Loss: {loss.item():.5f}\t"
+                f"Prediction: {self.sample_forward(parameters, context, targets).mean().item():.5f}\t"
                 f"Reconstructed: {reconstructed.mean().item():.5f}",
             )
             self.surrogate_loss.append(loss.item())
