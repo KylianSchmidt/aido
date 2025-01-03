@@ -224,8 +224,6 @@ def start_scheduler(
     os.makedirs(f"{results_dir}/loss/surrogate", exist_ok=True)
     start_param_dict_filepath = f"{results_dir}/parameters/param_dict_iter_0.json"
 
-    AIDOConfig.from_json("config.json").to_json(os.path.join(results_dir, "config.json"))
-
     parameters.to_json(start_param_dict_filepath)
 
     assert (
@@ -240,6 +238,9 @@ def start_scheduler(
     ), f"The class {user_interface} must inherit from {AIDOBaseUserInterface}."
 
     global config
+    config = AIDOConfig.from_json("config.json")
+    config.to_json(os.path.join(results_dir, "config.json"))
+
     global interface  # Fix for b2luigi, as passing b2luigi.Parameter of non-serializable classes is not possible
     interface = user_interface
     interface.results_dir = results_dir
