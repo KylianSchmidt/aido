@@ -14,3 +14,4 @@
 [ ] Probabilities of discrete parameters are not propagated from the ParameterModule to the SimulationParameterDictionary in Optimizer.
 [ ] Add 'check if all probabilities were changed' in SimulationParameterDictionary
 [ ] Split merge and reconstruct in ReconstructionTask (to allow for multiple envs)
+[ ] Keep the best version of the parameters of the optimizer.
