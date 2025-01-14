@@ -21,8 +21,7 @@ def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     TODO Reconstruction results are normalized. In the future only expose the un-normalised ones,
     but also requires adjustments to the surrogate dataset
     """
-    dev = "cuda" if torch.cuda.is_available() else "cpu"
-    model.to(dev)
+    model.to("cuda" if torch.cuda.is_available() else "cpu")
 
     logger.info('Surrogate: Pre-Training 0')
     model.train_model(dataset, batch_size=512, n_epochs=n_epochs, lr=0.001)
@@ -120,7 +119,7 @@ def training_loop(
     # Optimization
     optimizer = Optimizer(parameter_dict=parameter_dict)
     if os.path.isfile(optimizer_previous_path):
-        checkpoint = torch.load(optimizer_previous_path,weights_only=False)
+        checkpoint = torch.load(optimizer_previous_path)
         optimizer.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
     updated_parameter_dict, is_optimal = optimizer.optimize(

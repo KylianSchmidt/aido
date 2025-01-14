@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
@@ -10,6 +9,11 @@ import datetime
 from typing import Dict, Generator
 
 from reconstruction import ReconstructionDataset,Reconstruction
+
+import matplotlib
+matplotlib.use("agg")
+import matplotlib.pyplot as plt
+
 
 class ReconstructionValidation():
     def __init__(

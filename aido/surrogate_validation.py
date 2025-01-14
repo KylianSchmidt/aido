@@ -16,8 +16,7 @@ class SurrogateValidation():
             surrogate_model: Surrogate,
             ):
         self.surrogate_model = surrogate_model
-        dev = "cuda" if torch.cuda.is_available() else "cpu"
-        self.device = dev
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def validate(
             self,
