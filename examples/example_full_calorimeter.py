@@ -37,7 +37,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
         max_loss = parameter_dict["max_length"].current_value
         max_cost = parameter_dict["max_cost"].current_value
         detector_length_penalty = torch.mean(10.0 * torch.nn.ReLU()(detector_length - max_loss)**2)
-        max_cost_penalty = torch.mean(2.0 / max_cost * torch.nn.ReLU()(cost - max_cost)**2)
+        max_cost_penalty = torch.mean(2.0 / max_cost * torch.nn.ReLU()(cost - max_cost)**2) / 10
         return detector_length_penalty + max_cost_penalty
 
     def plot(self, parameter_dict: aido.SimulationParameterDictionary) -> None:
@@ -273,7 +273,7 @@ if __name__ == "__main__":
         ),
         aido.SimulationParameter("num_events", 400, optimizable=False),
         aido.SimulationParameter("max_length", 200, optimizable=False),
-        aido.SimulationParameter("max_cost", 50_000, optimizable=False),
+        aido.SimulationParameter("max_cost", 120_000, optimizable=False),
         aido.SimulationParameter("full_calorimeter", True, optimizable=False)
     ])
 
@@ -281,9 +281,9 @@ if __name__ == "__main__":
         parameters=parameters,
         user_interface=UIFullCalorimeter,
         simulation_tasks=20,
-        max_iterations=200,
+        max_iterations=700,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241220",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20250109",
         description="""
             Full Calorimeter with cost and length constraints.
             With discrete parameters
