@@ -12,14 +12,26 @@ from aido.interface import AIDOBaseUserInterface
 from aido.logger import logger
 from aido.plotting import Plotting
 from aido.simulation_helpers import SimulationParameterDictionary
+from aido.task import AIDOTask
 from aido.training import training_loop
 
 
-class SimulationTask(b2luigi.Task):
+class SimulationTask(AIDOTask):
     iteration = b2luigi.IntParameter()
     validation = b2luigi.BoolParameter()
     simulation_task_id = b2luigi.IntParameter()
+    num_simulation_tasks = b2luigi.IntParameter(significant=False)
     start_param_dict_filepath = b2luigi.PathParameter(hashed=True, significant=False)
+    results_dir = b2luigi.PathParameter(hashed=True, significant=False)
+
+    def requires(self):
+        if self.iteration > 0:
+            return OptimizationTask(
+                iteration=self.iteration - 1,
+                num_simulation_tasks=self.num_simulation_tasks,
+                start_param_dict_filepath=f"{self.results_dir}/parameters/param_dict_iter_{self.iteration - 1}.json",
+                results_dir=self.results_dir
+            )
 
     def output(self) -> Generator:
         yield self.add_to_output("param_dict.json")
@@ -45,11 +57,12 @@ class SimulationTask(b2luigi.Task):
         interface.simulate(output_parameter_dict_path, output_path)
 
 
-class ReconstructionTask(b2luigi.Task):
+class ReconstructionTask(AIDOTask):
     iteration = b2luigi.IntParameter()
     validation = b2luigi.BoolParameter()
     num_simulation_tasks = b2luigi.IntParameter(significant=False)
     start_param_dict_filepath = b2luigi.PathParameter(hashed=True, significant=False)
+    results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def requires(self) -> Generator:
 
@@ -59,7 +72,9 @@ class ReconstructionTask(b2luigi.Task):
                 iteration=self.iteration,
                 validation=self.validation,
                 simulation_task_id=i,
+                num_simulation_tasks=self.num_simulation_tasks,
                 start_param_dict_filepath=self.start_param_dict_filepath,
+                results_dir=self.results_dir
             )
 
     def output(self) -> Generator:
@@ -83,7 +98,7 @@ class ReconstructionTask(b2luigi.Task):
         )
 
 
-class OptimizationTask(b2luigi.Task):
+class OptimizationTask(AIDOTask):
     """ This Task requires n='num_simulation_tasks' of StartSimulationTask before running. If the output of
     this Task exists, then it will be completely skipped.
     When running, it calls the user-provided 'interface.merge()' and 'interface.reconstruct' methods. The
@@ -95,19 +110,19 @@ class OptimizationTask(b2luigi.Task):
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def output(self) -> Generator:
-        yield self.add_to_output("reco_paths_dict")
-        yield self.add_to_output("param_dict.json")
+        if self.iteration >= 0:
+            yield self.add_to_output("reco_paths_dict")
+            yield self.add_to_output("param_dict.json")
 
     def requires(self) -> Generator:
-        self.next_param_dict_file = f"{self.results_dir}/parameters/param_dict_iter_{self.iteration + 1}.json"
-
-        if not os.path.isfile(self.next_param_dict_file):
-            for validation in [False, True]:
+        if self.iteration >= 0:
+            for validation in [True, False]:
                 yield ReconstructionTask(
                     iteration=self.iteration,
                     validation=validation,
                     num_simulation_tasks=self.num_simulation_tasks,
-                    start_param_dict_filepath=self.start_param_dict_filepath
+                    start_param_dict_filepath=self.start_param_dict_filepath,
+                    results_dir=self.results_dir,
                 )
 
     def create_reco_path_dict(self) -> Dict:
@@ -142,12 +157,11 @@ class OptimizationTask(b2luigi.Task):
         Next parameter dict is the location of the next iteration's parameter dict, if already exists, the
             whole Tasks is skipped. Otherwise, the updated parameter dict is saved in this location
         """
+        if self.iteration == -1:
+            return None
+
         self.reco_paths_dict = self.create_reco_path_dict()
         config = AIDOConfig.from_json(os.path.join(self.results_dir, "config.json"))
-
-        if os.path.isfile(self.next_param_dict_file):
-            logger.warning(f"Iteration {self.iteration} has an updated parameter dict already and will be skipped")
-            return None
 
         with open(self.reco_paths_dict["own_path"], "w") as file:
             json.dump(self.reco_paths_dict, file)
@@ -184,26 +198,6 @@ class OptimizationTask(b2luigi.Task):
             interface.plot(parameter_dict=new_param_dict)
         except Exception as e:
             logger.warning(f"The following Exception was raised during user-defined plotting:\n{e}")
-
-
-class AIDOMainTask(b2luigi.Task):
-    """ Trigger recursive calls for each Iteration
-    TODO Fix exit condition in 'run' method
-    TODO parameter results dir
-    """
-    num_max_iterations = b2luigi.IntParameter(significant=False)
-    num_simulation_tasks = b2luigi.IntParameter(significant=False)
-    start_param_dict_filepath = b2luigi.PathParameter(hashed=True)
-    results_dir = b2luigi.PathParameter(hashed=True, significant=False)
-
-    def run(self) -> Generator:
-        for iteration in range(0, self.num_max_iterations):
-            yield OptimizationTask(
-                iteration=iteration,
-                num_simulation_tasks=self.num_simulation_tasks,
-                start_param_dict_filepath=f"{self.results_dir}/parameters/param_dict_iter_{iteration}.json",
-                results_dir=self.results_dir
-            )
 
 
 def start_scheduler(
@@ -246,10 +240,10 @@ def start_scheduler(
     interface.results_dir = results_dir
 
     b2luigi.process(
-        AIDOMainTask(
+        OptimizationTask(
             start_param_dict_filepath=start_param_dict_filepath,
             num_simulation_tasks=simulation_tasks,
-            num_max_iterations=max_iterations,
+            iteration=max_iterations,
             results_dir=results_dir
         ),
         workers=threads,

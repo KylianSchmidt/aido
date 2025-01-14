@@ -85,7 +85,7 @@ if __name__ == "__main__":
         simulation_tasks=20,
         max_iterations=200,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_material_choice/results_20241219_1",
+        results_dir="/work/kschmidt/aido/results_material_choice/results_20250109",
         description="""
             With constraints, pions and photons, boundaries and adjustements to the covariance matrix.
             With same material composition loss as Nikhil

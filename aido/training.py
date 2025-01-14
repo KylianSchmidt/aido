@@ -93,26 +93,27 @@ def training_loop(
                 lr=0.0001,
             )
 
-    logger.info("Surrogate Validation on Training Data")
-    surrogate_validator = SurrogateValidation(surrogate)
-    validation_df = surrogate_validator.validate(surrogate_dataset)
-    surrogate_validator.plot(
-        validation_df,
-        fig_savepath=os.path.join(results_dir, "plots", "validation_on_training_data"),
-        )
+    if validation_df_path is not None:
+        logger.info("Surrogate Validation on Training Data")
+        surrogate_validator = SurrogateValidation(surrogate)
+        validation_df = surrogate_validator.validate(surrogate_dataset)
+        surrogate_validator.plot(
+            validation_df,
+            fig_savepath=os.path.join(results_dir, "plots", "validation_on_training_data"),
+            )
 
-    logger.info("Surrogate Validation")
-    surrogate_validation_dataset = SurrogateDataset(
-        pd.read_parquet(validation_df_path),
-        means=surrogate_dataset.means,
-        stds=surrogate_dataset.stds
-    )
-    surrogate_validator = SurrogateValidation(surrogate)
-    validation_df = surrogate_validator.validate(surrogate_validation_dataset)
-    surrogate_validator.plot(
-        validation_df,
-        fig_savepath=os.path.join(results_dir, "plots", "validation"),
+        logger.info("Surrogate Validation")
+        surrogate_validation_dataset = SurrogateDataset(
+            pd.read_parquet(validation_df_path),
+            means=surrogate_dataset.means,
+            stds=surrogate_dataset.stds
         )
+        surrogate_validator = SurrogateValidation(surrogate)
+        validation_df = surrogate_validator.validate(surrogate_validation_dataset)
+        surrogate_validator.plot(
+            validation_df,
+            fig_savepath=os.path.join(results_dir, "plots", "validation"),
+            )
 
     torch.save(surrogate, surrogate_save_path)
 
@@ -125,7 +126,7 @@ def training_loop(
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_model=surrogate,
         dataset=surrogate_dataset,
-        batch_size=config.optimizer.batch_size,
+        batch_size=len(surrogate_dataset),
         n_epochs=config.optimizer.n_epochs,
         reconstruction_loss=reconstruction_loss_function,
         additional_constraints=constraints,

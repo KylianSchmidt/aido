@@ -281,9 +281,9 @@ if __name__ == "__main__":
         parameters=parameters,
         user_interface=UIFullCalorimeter,
         simulation_tasks=20,
-        max_iterations=700,
+        max_iterations=5,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20250109",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20250114",
         description="""
             Full Calorimeter with cost and length constraints.
             With discrete parameters
