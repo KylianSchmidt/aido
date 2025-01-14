@@ -285,7 +285,7 @@ if __name__ == "__main__":
         simulation_tasks=20,
         max_iterations=200,
         threads=20,
-        results_dir="/mnt/work/results",
+        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241220",
         description="""
             Full Calorimeter with cost and length constraints.
             With discrete parameters
