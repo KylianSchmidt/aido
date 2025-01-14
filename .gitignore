@@ -12,4 +12,3 @@ build
 docs/_build/
 docs/.doctrees/
 docs/.DS_Store
-example/
