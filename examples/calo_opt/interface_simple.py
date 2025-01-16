@@ -104,7 +104,7 @@ class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
         df.to_parquet(reco_input_path, index=range(len(df)))
         return None
 
-    def reconstruct(self, reco_input_path: str, reco_output_path: str, isVal : bool):
+    def reconstruct(self, reco_input_path: str, reco_output_path: str, isVal: bool):
         """ Start your reconstruction algorithm from a local container.
 
         TODO Change to the dockerhub version when deploying to production.

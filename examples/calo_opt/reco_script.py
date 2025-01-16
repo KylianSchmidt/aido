@@ -4,11 +4,9 @@ import sys
 import pandas as pd
 import torch
 from reconstruction import Reconstruction, ReconstructionDataset
-from torch.utils.data import Dataset
 from reconstruction_validation import ReconstructionValidation
-import matplotlib.pyplot as plt
-import numpy as np
-import datetime
+from torch.utils.data import Dataset
+
 
 def pre_train(model: Reconstruction, dataset: Dataset, n_epochs: int):
     """ Pre-train the  a given model
@@ -28,34 +26,28 @@ def pre_train(model: Reconstruction, dataset: Dataset, n_epochs: int):
     model.to('cpu')
 
 
-def do_reco(input_df_path,output_df_path,isVal,results_dir):
-    
+def do_reco(
+        input_df_path: str | os.PathLike,
+        output_df_path: str | os.PathLike,
+        isVal: bool,
+        results_dir: str | os.PathLike
+        ):
     simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
      
     if isVal:
-        
-        # Load the reco_model
         reco_model: Reconstruction = torch.load(os.path.join(results_dir, "reco_model"))
         reco_dataset = ReconstructionDataset(simulation_df, means=reco_model.means, stds=reco_model.stds)
-        
-        # validation
-        try:
-            
-            validator = ReconstructionValidation(reco_model)
-            output_df_val = validator.validate(reco_dataset)
-            output_df_val.to_parquet(output_df_path)  
-            
-            validator.plot(output_df_val,os.path.join(results_dir, "plots","validation","reco_model","on_validationData"))
-            
-        except:
-            print("An exception occurred")  
-    
+
+        validator = ReconstructionValidation(reco_model)
+        output_df_val = validator.validate(reco_dataset)
+        output_df_val.to_parquet(output_df_path)
+        validator.plot(
+            output_df_val,
+            os.path.join(results_dir, "plots", "validation", "reco_model", "on_validationData")
+        )
     else:
-             
         n_epochs_pre = 24
         n_epochs_main = 40
-
-        # Load the reco_model
         reco_model_previous_path = os.path.join(results_dir, "reco_model")
 
         if os.path.exists(reco_model_previous_path):
@@ -74,21 +66,18 @@ def do_reco(input_df_path,output_df_path,isVal,results_dir):
         
         validator = ReconstructionValidation(reco_model)
         output_df_val = validator.validate(reco_dataset)
-        output_df_val.to_parquet(output_df_path)  
-
+        output_df_val.to_parquet(output_df_path)
         torch.save(reco_model, reco_model_previous_path)
-        
-        # validation
-        try:
-            validator.plot(output_df_val,os.path.join(results_dir, "plots","validation","reco_model","on_trainingData"))
-        except:
-            print("An exception occurred")  
-    
-if __name__ == "__main__":
 
+        validator.plot(
+            output_df_val,
+            os.path.join(results_dir, "plots", "validation", "reco_model", "on_trainingData")
+        )
+
+
+if __name__ == "__main__":
     input_df_path = sys.argv[1]
     output_df_path = sys.argv[2]
     isVal = sys.argv[3].strip().lower() == "true"
     results_dir = sys.argv[4]
-    
-    do_reco(input_df_path,output_df_path,isVal,results_dir)
+    do_reco(input_df_path, output_df_path, isVal, results_dir)
