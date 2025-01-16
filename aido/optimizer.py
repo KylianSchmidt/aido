@@ -36,7 +36,10 @@ class Optimizer(torch.nn.Module):
         """
         super().__init__()
         self.parameter_dict = parameter_dict
-        self.device = device or torch.device("cuda")
+        
+        dev = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = dev or torch.device(dev)
+        
         self.parameter_module = ParameterModule(self.parameter_dict).to(self.device)
         self.optimizer = torch.optim.Adam(self.parameter_module.parameters())
 

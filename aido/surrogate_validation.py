@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from torch.utils.data import DataLoader
+import torch
 
 from aido.surrogate import Surrogate, SurrogateDataset
 
@@ -15,7 +16,7 @@ class SurrogateValidation():
             surrogate_model: Surrogate,
             ):
         self.surrogate_model = surrogate_model
-        self.device = "cuda"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def validate(
             self,
@@ -53,22 +54,25 @@ class SurrogateValidation():
         val_reco = validation_df["Reconstructed"]["true_energy"]
         surr_reco = validation_df["Surrogate"]
 
-        plt.hist(val_reco, bins=bins, label="Validation", histtype="step")
-        plt.hist(surr_reco, bins=bins, label="Surrogate", histtype="step")
-        plt.xlim(bins[0], bins[-1])
-        plt.xlabel("Predicted Energy")
-        plt.ylabel(f"Counts / {(bins[1] - bins[0]):.2f}")
-        plt.legend()
-        plt.savefig(os.path.join(fig_savepath, f"validation_loss_{datetime.datetime.now()}.png"))
-        plt.close()
+        fig, axes = plt.subplots(2, 1, figsize=(10, 8))
 
-        bins = np.linspace(-10, 10, 100 + 1)
-        plt.hist(
-            (val_reco - surr_reco),
-            bins=bins
-        )
-        plt.xlabel("Surrogate Accuracy")
-        plt.xlim(bins[0], bins[-1])
-        plt.savefig(os.path.join(fig_savepath, f"validation_accuracy_{datetime.datetime.now()}.png"))
+        bins = np.linspace(0, 20, 100 + 1)
+        axes[0].hist(val_reco, bins=bins, label="Validation", histtype="step")
+        axes[0].hist(surr_reco, bins=bins, label="Surrogate", histtype="step")
+        axes[0].set_xlim(bins[0], bins[-1])
+        axes[0].set_xlabel("Predicted Energy")
+        axes[0].set_ylabel(f"Counts / {(bins[1] - bins[0]):.2f}")
+        axes[0].legend()
+
+        bins_diff = np.linspace(-10, 10, 100 + 1)
+        axes[1].hist(val_reco - surr_reco, bins=bins_diff, color='orange', alpha=0.7)
+        axes[1].set_xlabel("Surrogate Accuracy (Difference)")
+        axes[1].set_xlim(bins_diff[0], bins_diff[-1])
+        axes[1].set_ylabel("Counts")
+
+        fig.tight_layout()
+
+        filename = os.path.join(fig_savepath, f"validation_surrogate_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+        plt.savefig(filename)
         plt.close()
-        print("Validation Plots Saved")
+        print(f"Validation Plots Saved: {filename}")

@@ -52,7 +52,12 @@ class ReconstructionTask(b2luigi.Task):
     start_param_dict_filepath = b2luigi.PathParameter(hashed=True, significant=False)
 
     def requires(self) -> Generator:
-
+        """
+        Define dependencies for ReconstructionTask.
+        - Always requires SimulationTask instances.
+        - If validation=True, it also depends on the ReconstructionTask with validation=False.
+        """
+        
         for i in range(self.num_simulation_tasks):
             yield self.clone(
                 SimulationTask,
@@ -62,7 +67,18 @@ class ReconstructionTask(b2luigi.Task):
                 start_param_dict_filepath=self.start_param_dict_filepath,
             )
 
+        if self.validation:
+            yield ReconstructionTask(
+                iteration=self.iteration,
+                validation=False,
+                num_simulation_tasks=self.num_simulation_tasks,
+                start_param_dict_filepath=self.start_param_dict_filepath,
+            )
+
     def output(self) -> Generator:
+        """
+        Define the output files for the task based on the validation parameter.
+        """
         if self.validation:
             yield self.add_to_output("validation_input_df")
             yield self.add_to_output("validation_output_df")
@@ -71,18 +87,24 @@ class ReconstructionTask(b2luigi.Task):
             yield self.add_to_output("reco_output_df")
 
     def run(self) -> None:
+        """
+        Run the reconstruction process. The type of processing depends on the validation flag.
+        """
         output_type = "reco" if not self.validation else "validation"
+        
         interface.merge(
             parameter_dict_file_paths=self.get_input_file_names("param_dict.json"),
             simulation_file_paths=self.get_input_file_names("simulation_output"),
             reco_input_path=self.get_output_file_name(f"{output_type}_input_df")
         )
+        
         interface.reconstruct(
             reco_input_path=self.get_output_file_name(f"{output_type}_input_df"),
             reco_output_path=self.get_output_file_name(f"{output_type}_output_df"),
+            isVal=self.validation
         )
 
-
+        
 class OptimizationTask(b2luigi.Task):
     """ This Task requires n='num_simulation_tasks' of StartSimulationTask before running. If the output of
     this Task exists, then it will be completely skipped.
@@ -95,22 +117,37 @@ class OptimizationTask(b2luigi.Task):
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def output(self) -> Generator:
+        """
+        Define the output files for the optimization task.
+        """
         yield self.add_to_output("reco_paths_dict")
         yield self.add_to_output("param_dict.json")
 
     def requires(self) -> Generator:
+        """
+        Define dependencies for OptimizationTask.
+        - Requires ReconstructionTask with validation=False and validation=True.
+        """
         self.next_param_dict_file = f"{self.results_dir}/parameters/param_dict_iter_{self.iteration + 1}.json"
 
         if not os.path.isfile(self.next_param_dict_file):
-            for validation in [False, True]:
-                yield ReconstructionTask(
-                    iteration=self.iteration,
-                    validation=validation,
-                    num_simulation_tasks=self.num_simulation_tasks,
-                    start_param_dict_filepath=self.start_param_dict_filepath
-                )
+        
+            yield ReconstructionTask(
+                iteration=self.iteration,
+                validation=False,
+                num_simulation_tasks=self.num_simulation_tasks,
+                start_param_dict_filepath=self.start_param_dict_filepath,
+            )
+
+            yield ReconstructionTask(
+                iteration=self.iteration,
+                validation=True,
+                num_simulation_tasks=self.num_simulation_tasks,
+                start_param_dict_filepath=self.start_param_dict_filepath,
+            )
 
     def create_reco_path_dict(self) -> Dict:
+
         return {
             "results_dir": str(self.results_dir),
             "own_path": str(self.get_output_file_name("reco_paths_dict")),
@@ -131,10 +168,8 @@ class OptimizationTask(b2luigi.Task):
     def run(self) -> None:
         """ For each root file produced by the simulation Task, start a container with the reconstruction algorithm.
         Afterwards, the parameter dictionary used to generate these results are also passed as output
-
         Alternative container:
             /cvmfs/unpacked.cern.ch/registry.hub.docker.com/cernml4reco/deepjetcore3:latest
-
         Current parameter dict is the main parameter dict of this iteration that was used to generate the
             simulations. It is fed to the Reconstruction and Surrogate/Optimizer models as input
         Updated parameter dict is the output of the optimizer and is saved as the parameter dict of the
@@ -152,11 +187,11 @@ class OptimizationTask(b2luigi.Task):
         with open(self.reco_paths_dict["own_path"], "w") as file:
             json.dump(self.reco_paths_dict, file)
 
-        # Run surrogate and optimizer model
+        # Run surrogate and optimizer models
         num_training_loop_tries: int = 0
         training_loop_out_of_memory: bool = True
 
-        while training_loop_out_of_memory is True:
+        while training_loop_out_of_memory:
             try:
                 training_loop_out_of_memory = False
                 new_param_dict = training_loop(
@@ -178,7 +213,7 @@ class OptimizationTask(b2luigi.Task):
         new_param_dict.to_json(self.reco_paths_dict["next_parameter_dict"])
         new_param_dict.to_json(self.get_output_file_name("param_dict.json"))
 
-        # Plot the evolution
+        # Plot results
         Plotting.plot(results_dir=self.results_dir)
         try:
             interface.plot(parameter_dict=new_param_dict)
@@ -219,7 +254,10 @@ def start_scheduler(
     os.makedirs(f"{results_dir}", exist_ok=True)
     os.makedirs(f"{results_dir}/parameters", exist_ok=True)
     os.makedirs(f"{results_dir}/models", exist_ok=True)
-    os.makedirs(f"{results_dir}/plots/validation", exist_ok=True)
+    os.makedirs(f"{results_dir}/plots/validation/reco_model/on_trainingData", exist_ok=True)
+    os.makedirs(f"{results_dir}/plots/validation/reco_model/on_validationData", exist_ok=True)
+    os.makedirs(f"{results_dir}/plots/validation/surrogate/on_trainingData", exist_ok=True)
+    os.makedirs(f"{results_dir}/plots/validation/surrogate/on_validationData", exist_ok=True)
     os.makedirs(f"{results_dir}/loss/optimizer", exist_ok=True)
     os.makedirs(f"{results_dir}/loss/constraints", exist_ok=True)
     os.makedirs(f"{results_dir}/loss/surrogate", exist_ok=True)

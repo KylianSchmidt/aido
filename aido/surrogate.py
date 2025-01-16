@@ -76,7 +76,7 @@ class SurrogateDataset(Dataset):
             context_key: str = "Context",
             target_key: str = "Targets",
             reconstructed_key: str = "Reconstructed",
-            device: str = "cuda",
+            device: str = "cuda" if torch.cuda.is_available() else "cpu",
             means: List[np.float32] | None = None,
             stds: List[np.float32] | None = None
             ):
@@ -247,7 +247,7 @@ class Surrogate(torch.nn.Module):
         self.loss_mse = torch.nn.MSELoss()
         self.surrogate_loss = []
         self.n_time_steps = n_time_steps
-        self.device = torch.device('cuda')
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.t_is = torch.tensor([i / self.n_time_steps for i in range(self.n_time_steps + 1)]).to(self.device)
         self.best_surrogate_loss = 1e10
 
