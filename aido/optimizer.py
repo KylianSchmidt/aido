@@ -70,7 +70,7 @@ class Optimizer(torch.nn.Module):
                 0.5 * torch.nn.ReLU()(parameter_box[:, 0] - parameters_continuous_tensor)**2
             )
             upper_boundary_loss = torch.mean(
-                0.5 * torch.nn.ReLU()(parameters_continuous_tensor - parameter_box[:, 1]**2)
+                0.5 * torch.nn.ReLU()(parameters_continuous_tensor - parameter_box[:, 1])**2
             )
             return lower_boundary_loss + upper_boundary_loss
         else:
