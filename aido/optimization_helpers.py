@@ -80,7 +80,7 @@ class ContinuousParameter(torch.nn.Module):
             _cost (float): The cost associated with the parameter.
         """
         super().__init__()
-        self.starting_value = torch.tensor(parameter._current_value)
+        self.starting_value = torch.tensor(parameter.current_value)
         self.parameter = torch.nn.Parameter(self.starting_value.clone(), requires_grad=True)
         self.min_value = parameter.min_value or -10E10
         self.max_value = parameter.max_value or +10E10
