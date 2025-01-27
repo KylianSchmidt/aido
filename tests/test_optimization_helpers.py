@@ -72,3 +72,12 @@ def test_probabilities(parameter_dict: aido.SimulationParameterDictionary):
     parameter_module["absorber_material"].logits.data = torch.tensor([0.1, 0.2, 0.7])
     parameter_dict.update_probabilities(parameter_module.probabilities)
     assert np.all(parameter_dict["absorber_material"] != [1 / 3, 1 / 3, 1 / 3])
+
+
+def test_probabilities_previously_set(parameter_dict: aido.SimulationParameterDictionary):
+    parameter_dict["absorber_material"].probabilities = [0.3, 0.4, 0.3]
+    parameter_module = ParameterModule(parameter_dict)
+    parameter_dict.update_probabilities(parameter_module.probabilities)
+    assert (
+        np.all(np.round(parameter_dict["absorber_material"].probabilities, decimals=1) == [0.3, 0.4, 0.3])
+    ), f"DEBUG {parameter_module.probabilities=}"

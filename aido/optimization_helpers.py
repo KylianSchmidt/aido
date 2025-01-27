@@ -28,7 +28,7 @@ class OneHotEncoder(torch.nn.Module):
         self.discrete_values: list = parameter.discrete_values
         self.starting_value = torch.tensor(self.discrete_values.index(parameter.current_value))
         self.logits = torch.nn.Parameter(
-            torch.tensor(np.repeat(1.0 / len(self.discrete_values), len(self.discrete_values)), dtype=torch.float32),
+            torch.log(torch.tensor(parameter.probabilities, dtype=torch.float32)),
             requires_grad=True
         )
         self._cost = parameter.cost if parameter.cost is not None else 0.0
@@ -50,10 +50,7 @@ class OneHotEncoder(torch.nn.Module):
     @property
     def probabilities(self) -> torch.Tensor:
         """ Probabilities for each entry, with a minimal probability of 1%"""
-        probabilities = torch.nn.functional.softmax(self.logits, dim=0)
-        probabilities = torch.clamp(probabilities, min=0.01)
-        probabilities = probabilities / probabilities.sum(dim=-1, keepdim=True)
-        return probabilities
+        return torch.nn.functional.softmax(self.logits, dim=0)
 
     @property
     def cost(self) -> torch.Tensor:
