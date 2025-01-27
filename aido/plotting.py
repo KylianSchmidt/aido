@@ -3,15 +3,12 @@ import os
 import re
 from typing import Annotated, List, Tuple
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from aido.logger import logger
 from aido.simulation_helpers import SimulationParameterDictionary
-
-matplotlib.use("agg")
 
 
 def percentage_type(value: float) -> float:
@@ -149,7 +146,6 @@ class Plotting:
             plt.xlim(0, df_loss["Iteration"].to_numpy()[-1])
             plt.xlabel("Epoch", loc="right")
             plt.ylabel("Loss", loc="top")
-            plt.yscale("log")
             plt.legend()
             plt.savefig(fig_savepath)
             plt.close()

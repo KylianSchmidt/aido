@@ -1,15 +1,12 @@
 import datetime
 import os
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from torch.utils.data import DataLoader
 
 from aido.surrogate import Surrogate, SurrogateDataset
-
-matplotlib.use("agg")
 
 
 class SurrogateValidation():
