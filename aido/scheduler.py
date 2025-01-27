@@ -243,7 +243,7 @@ def start_scheduler(
         OptimizationTask(
             start_param_dict_filepath=start_param_dict_filepath,
             num_simulation_tasks=simulation_tasks,
-            iteration=max_iterations,
+            iteration=max_iterations - 1,
             results_dir=results_dir
         ),
         workers=threads,
