@@ -126,3 +126,9 @@ def test_covariance() -> None:
     sim_param_dict.to_json("test_param_dict")
     sim_param_dict_2 = aido.SimulationParameterDictionary.from_json("test_param_dict")
     assert np.all(sim_param_dict_2.covariance == np.diag([25, 1, 4]))
+
+
+def test_current_value(sim_param_dict: aido.SimulationParameterDictionary) -> None:
+    assert sim_param_dict["absorber_thickness"].current_value == 10.0
+    sim_param_dict["absorber_thickness"].current_value = -5.0
+    assert sim_param_dict["absorber_thickness"].current_value == -5.0
