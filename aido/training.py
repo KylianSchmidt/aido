@@ -80,17 +80,33 @@ def training_loop(
         surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
         surrogate_loss = surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main, lr=0.0003)
 
+        surrogate_lr = 0.001 * (1 if parameter_dict.iteration <= 50 else 0.5)
+
         while not surrogate.update_best_surrogate_loss(surrogate_loss):
             logger.info("Surrogate retraining")
             pre_train(surrogate, surrogate_dataset, config.surrogate.n_epoch_pre)
-            surrogate.train_model(surrogate_dataset, batch_size=256, n_epochs=n_epochs_main // 5, lr=0.005)
-            surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.005)
-            surrogate.train_model(surrogate_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
+            surrogate.train_model(
+                surrogate_dataset,
+                batch_size=256,
+                n_epochs=n_epochs_main // 5,
+                lr=5 * surrogate_lr
+            )
+            surrogate.train_model(
+                surrogate_dataset,
+                batch_size=1024,
+                n_epochs=n_epochs_main // 2,
+                lr=1 * surrogate_lr
+            )
+            surrogate.train_model(
+                surrogate_dataset,
+                batch_size=1024,
+                n_epochs=n_epochs_main // 2,
+                lr=0.3 * surrogate_lr)
             surrogate_loss = surrogate.train_model(
                 surrogate_dataset,
                 batch_size=1024,
                 n_epochs=n_epochs_main // 2,
-                lr=0.0001,
+                lr=0.1 * surrogate_lr,
             )
 
     if validation_df_path is not None:
