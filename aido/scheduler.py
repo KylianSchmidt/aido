@@ -29,7 +29,6 @@ class SimulationTask(AIDOTask):
             return OptimizationTask(
                 iteration=self.iteration - 1,
                 num_simulation_tasks=self.num_simulation_tasks,
-                start_param_dict_filepath=f"{self.results_dir}/parameters/param_dict_iter_{self.iteration - 1}.json",
                 results_dir=self.results_dir
             )
 
@@ -67,6 +66,8 @@ class ReconstructionTask(AIDOTask):
     def requires(self) -> Generator:
 
         for i in range(self.num_simulation_tasks):
+            if self.validation is True and i >= 5:
+                break
             yield self.clone(
                 SimulationTask,
                 iteration=self.iteration,
@@ -106,7 +107,6 @@ class OptimizationTask(AIDOTask):
     """
     iteration = b2luigi.IntParameter()
     num_simulation_tasks = b2luigi.IntParameter(significant=False)
-    start_param_dict_filepath = b2luigi.PathParameter(hashed=True, significant=False)
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def output(self) -> Generator:
@@ -121,7 +121,7 @@ class OptimizationTask(AIDOTask):
                     iteration=self.iteration,
                     validation=validation,
                     num_simulation_tasks=self.num_simulation_tasks,
-                    start_param_dict_filepath=self.start_param_dict_filepath,
+                    start_param_dict_filepath=f"{self.results_dir}/parameters/param_dict_iter_{self.iteration}.json",
                     results_dir=self.results_dir,
                 )
 
@@ -134,7 +134,7 @@ class OptimizationTask(AIDOTask):
             "optimizer_model_previous_path": f"{self.results_dir}/models/optimizer_{self.iteration - 1}.pt",
             "surrogate_model_save_path": f"{self.results_dir}/models/surrogate_{self.iteration}.pt",
             "optimizer_model_save_path": f"{self.results_dir}/models/optimizer_{self.iteration}.pt",
-            "current_parameter_dict": str(self.start_param_dict_filepath),
+            "current_parameter_dict": f"{self.results_dir}/parameters/param_dict_iter_{self.iteration}.json",
             "next_parameter_dict": f"{self.results_dir}/parameters/param_dict_iter_{self.iteration + 1}.json",
             "reco_output_df": str(self.get_input_file_names("reco_output_df")[0]),
             "validation_output_df": str(self.get_input_file_names("validation_output_df")[0]),
@@ -216,9 +216,7 @@ def start_scheduler(
     os.makedirs(f"{results_dir}/loss/optimizer", exist_ok=True)
     os.makedirs(f"{results_dir}/loss/constraints", exist_ok=True)
     os.makedirs(f"{results_dir}/loss/surrogate", exist_ok=True)
-    start_param_dict_filepath = f"{results_dir}/parameters/param_dict_iter_0.json"
-
-    parameters.to_json(start_param_dict_filepath)
+    parameters.to_json(f"{results_dir}/parameters/param_dict_iter_0.json")
 
     assert (
         parameters.get_current_values("list") != []
@@ -241,7 +239,6 @@ def start_scheduler(
 
     b2luigi.process(
         OptimizationTask(
-            start_param_dict_filepath=start_param_dict_filepath,
             num_simulation_tasks=simulation_tasks,
             iteration=max_iterations - 1,
             results_dir=results_dir
