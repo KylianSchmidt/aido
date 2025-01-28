@@ -142,7 +142,7 @@ def training_loop(
     updated_parameter_dict, is_optimal = optimizer.optimize(
         surrogate_model=surrogate,
         dataset=surrogate_dataset,
-        batch_size=len(surrogate_dataset),
+        batch_size=config.optimizer.batch_size,
         n_epochs=config.optimizer.n_epochs,
         reconstruction_loss=reconstruction_loss_function,
         additional_constraints=constraints,
