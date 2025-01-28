@@ -40,9 +40,9 @@ def parameter_dict():
         aido.SimulationParameter(
             "thickness_absorber_1",
             13.9,
-            min_value=0.01,
+            min_value=0.0,
             max_value=20.0,
-            sigma=0.2,
+            sigma=1.5,
             cost=1.1,
         ),
         aido.SimulationParameter(
@@ -57,11 +57,11 @@ def parameter_dict():
     ])
 
 
-def test_instantiation(parameter_dict):
+def test_instantiation(parameter_dict: aido.SimulationParameterDictionary):
     ParameterModule(parameter_dict)
 
 
-def test_ordering(parameter_dict):
+def test_ordering(parameter_dict: aido.SimulationParameterDictionary):
     parameter_module = ParameterModule(parameter_dict)
     assert round(parameter_module.continuous_tensors()[1].item(), 2) == 0.1
     assert round(parameter_module.continuous_tensors()[2].item(), 2) == 13.9
@@ -81,3 +81,15 @@ def test_probabilities_previously_set(parameter_dict: aido.SimulationParameterDi
     assert (
         np.all(np.round(parameter_dict["absorber_material"].probabilities, decimals=1) == [0.3, 0.4, 0.3])
     ), f"DEBUG {parameter_module.probabilities=}"
+
+
+def test_boundaries(parameter_dict: aido.SimulationParameterDictionary):
+    parameter_module = ParameterModule(parameter_dict)
+    assert np.all(
+        parameter_module["thickness_scintillator_1"].boundaries.numpy().astype(np.float32)
+        == np.array([1.1 * (-0.2 + 0.05), 1.1 * (0.2 + 1.0)], np.float32)
+    )
+    assert np.all(
+        parameter_module["thickness_absorber_1"].boundaries.numpy().astype(np.float32)
+        == np.array([-1.1 * 1.5, 1.1 * (1.5 + 20.0)], np.float32)
+    )

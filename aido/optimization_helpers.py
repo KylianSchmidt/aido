@@ -77,13 +77,16 @@ class ContinuousParameter(torch.nn.Module):
             _cost (float): The cost associated with the parameter.
         """
         super().__init__()
+        self.reset(parameter)
         self.starting_value = torch.tensor(parameter.current_value)
         self.parameter = torch.nn.Parameter(self.starting_value.clone(), requires_grad=True)
-        self.min_value = parameter.min_value or -10E10
-        self.max_value = parameter.max_value or +10E10
-        self.boundaries = torch.tensor(np.array([self.min_value, self.max_value], dtype="float32"))
+        self.min_value = parameter.min_value if parameter.min_value is not None else -10E10
+        self.max_value = parameter.max_value if parameter.max_value is not None else +10E10
+        self.boundaries = torch.tensor(np.array([
+            1.1 * (- self.sigma + self.min_value),
+            1.1 * (self.sigma + self.max_value)
+        ], dtype="float32"))
         self._cost = parameter.cost if parameter.cost is not None else 0.0
-        self.reset(parameter)
 
     def reset(self, parameter: SimulationParameter):
         self.sigma = np.array(parameter.sigma)
