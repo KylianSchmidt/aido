@@ -116,7 +116,7 @@ class OptimizationTask(AIDOTask):
 
     def requires(self) -> Generator:
         if self.iteration >= 0:
-            for validation in [True, False]:
+            for validation in [False]:
                 yield ReconstructionTask(
                     iteration=self.iteration,
                     validation=validation,
@@ -137,7 +137,7 @@ class OptimizationTask(AIDOTask):
             "current_parameter_dict": f"{self.results_dir}/parameters/param_dict_iter_{self.iteration}.json",
             "next_parameter_dict": f"{self.results_dir}/parameters/param_dict_iter_{self.iteration + 1}.json",
             "reco_output_df": str(self.get_input_file_names("reco_output_df")[0]),
-            "validation_output_df": str(self.get_input_file_names("validation_output_df")[0]),
+            "validation_output_df": None,
             "optimizer_loss_save_path": f"{self.results_dir}/loss/optimizer/optimizer_loss_{self.iteration}",
             "constraints_loss_save_path": f"{self.results_dir}/loss/constraints/constraints_loss_{self.iteration}",
             "surrogate_loss_save_path": f"{self.results_dir}/loss/surrogate/surrogate_loss_{self.iteration}"
