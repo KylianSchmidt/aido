@@ -189,7 +189,6 @@ class Optimizer(torch.nn.Module):
                 loss += constraints_loss
                 loss += self.boundaries()
 
-                self.optimizer.zero_grad()
                 loss.backward()
 
                 if np.isnan(loss.item()):
@@ -198,6 +197,7 @@ class Optimizer(torch.nn.Module):
                     return self.parameter_dict, False
 
                 self.optimizer.step()
+                self.optimizer.zero_grad()
 
                 self.parameter_dict.update_current_values(self.parameter_module.physical_values(format="dict"))
                 self.parameter_dict.update_probabilities(self.parameter_module.probabilities)

@@ -40,7 +40,7 @@ class OneHotEncoder(torch.nn.Module):
     @property
     def current_value(self) -> torch.Tensor:
         """ Returns the index corresponding to highest scoring entry """
-        return self.probabilities
+        return self.logits
 
     @property
     def physical_value(self) -> torch.Tensor:
@@ -49,7 +49,7 @@ class OneHotEncoder(torch.nn.Module):
 
     @property
     def probabilities(self) -> torch.Tensor:
-        """ Probabilities for each entry, with a minimal probability of 1%"""
+        """ Probabilities for each entry"""
         return torch.nn.functional.softmax(self.logits, dim=0)
 
     @property
@@ -83,8 +83,8 @@ class ContinuousParameter(torch.nn.Module):
         self.min_value = parameter.min_value if parameter.min_value is not None else -10E10
         self.max_value = parameter.max_value if parameter.max_value is not None else +10E10
         self.boundaries = torch.tensor(np.array([
-            1.1 * (- self.sigma + self.min_value),
-            1.1 * (self.sigma + self.max_value)
+            (- self.sigma + self.min_value) / 1.1,
+            (self.sigma + self.max_value) / 1.1
         ], dtype="float32"))
         self._cost = parameter.cost if parameter.cost is not None else 0.0
 
