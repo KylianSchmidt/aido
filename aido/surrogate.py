@@ -130,7 +130,6 @@ class SurrogateDataset(Dataset):
         self.c_means = [torch.tensor(a).to(device) for a in self.means]
         self.c_stds = [torch.tensor(a).to(device) for a in self.stds]
 
-        self.parameters = self.normalise_features(self.parameters, index=0)
         self.context = self.normalise_features(self.context, index=1)
         self.targets = self.normalise_features(self.targets, index=2)
         self.reconstructed = self.normalise_features(self.reconstructed, index=2)
@@ -162,6 +161,7 @@ class SurrogateDataset(Dataset):
             1 -> Context
             2 -> Targets
         '''
+        assert index != 0, "Do not normalize parameters"
         if isinstance(target, torch.Tensor):
             return (target - self.c_means[index]) / self.c_stds[index]
         elif isinstance(target, np.ndarray):

@@ -169,7 +169,7 @@ class Optimizer(torch.nn.Module):
             for batch_idx, (_parameters, context, targets, _reconstructed) in enumerate(data_loader):
                 context: torch.Tensor = context.to(self.device)
                 targets: torch.Tensor = targets.to(self.device)
-                parameters_batch: torch.Tensor = dataset.normalise_features(self.parameter_module(), index=0)
+                parameters_batch: torch.Tensor = self.parameter_module()
 
                 surrogate_output = self.surrogate_model.sample_forward(
                     parameters_batch,
