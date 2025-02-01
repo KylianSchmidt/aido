@@ -4,6 +4,7 @@ import re
 from typing import Dict, Iterable
 
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import numpy as np
 import pandas as pd
 import torch
@@ -23,8 +24,8 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             parameter_dict_as_tensor: Dict[str, torch.Tensor]
             ) -> torch.Tensor:
 
-        detector_length = 0.0
-        cost = 0.0
+        detector_length_list = []
+        cost_list = []
 
         for i in range(3):
             for name in ["absorber", "scintillator"]:
@@ -37,16 +38,18 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
                 layer_weighted_cost = material_probabilities * material_cost
                 layer_thickness = parameter_dict_as_tensor[f"thickness_{name}_{i}"]
 
-                cost += layer_thickness * layer_weighted_cost
-                detector_length += layer_thickness
+                cost_list.append(layer_thickness * layer_weighted_cost)
+                detector_length_list.append(layer_thickness)
 
         max_loss = parameter_dict["max_length"].current_value
         max_cost = parameter_dict["max_cost"].current_value
-        detector_length_penalty = torch.mean(10.0 * torch.nn.functional.softplus(detector_length - max_loss)**2)
-        max_cost_penalty = torch.mean(torch.nn.functional.softplus(cost - max_cost))**2 / (max_cost)
+        detector_length = torch.stack(detector_length_list).sum()
+        cost = torch.stack(cost_list).sum()
+        detector_length_penalty = torch.mean(10.0 * torch.nn.functional.relu(detector_length - max_loss)**2)
+        max_cost_penalty = torch.mean(torch.nn.functional.relu((cost - max_cost) / max_cost)**2)
         return detector_length_penalty + max_cost_penalty
 
-    def plot(self, parameter_dict: aido.SimulationParameterDictionary) -> None:
+    def plot(self, parameter_dict: aido.SimulationParameterDictionary | None = None) -> None:
 
         def add_plot_header(ax: plt.Axes) -> plt.Axes:
             plt.text(
@@ -64,7 +67,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
                 "Sampling Calorimeter\n"
                 "50% photons and 50% pions\n"
                 r"$20 \times 400$"+" MC Events / Iteration\n"
-                r"$E_0=[1, 20]$" + " GeV",
+                r"$E_\text{true}=[1, 20]$" + " GeV",
                 transform=ax.transAxes, va='top', ha='left'
             )
             return ax
@@ -78,31 +81,34 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
                 ):
             df = pd.read_parquet(file_name)
             e_rec: pd.Series = df["Reconstructed"]["true_energy"] - df["Targets"]["true_energy"]
+            e_rec = e_rec / np.sqrt(df["Targets"]["true_energy"])
             plt.hist(
                 e_rec,
                 bins=bins,
                 color=color,
                 histtype="step",
                 label=label,
-                density=False
+                linewidth=2,
             )
             plt.ylabel(f"Counts / ({(bins[1] - bins[0]):.2f} GeV)")
             plt.xlabel("Energy resolution [GeV]")
-        
+
         def plot_energy_resolution_all() -> None:
             dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
             cmap = plt.get_cmap('coolwarm', len(dirs))
             fig, ax = plt.subplots()
-            bins = np.linspace(-15, 15, 60 + 1)
+            bins = np.linspace(-5, 5, 50 + 1)
 
             for file_name in dirs:
                 iteration = int(re.search(r"iteration=(\d+)", file_name).group(1))
-                plot_energy_resolution_single(
-                    iteration=iteration,
-                    file_name=file_name,
-                    bins=bins,
-                    color=cmap(iteration),
-                    label=(f"Iteration {iteration:3d}" if iteration % 50 == 0 or iteration == len(dirs) - 1 else None))
+                if iteration % 20 == 0:
+                    plot_energy_resolution_single(
+                        iteration=iteration,
+                        file_name=file_name,
+                        bins=bins,
+                        color=cmap(iteration),
+                        label=(f"Iteration {iteration:3d}")
+                    )
 
             handles, labels = ax.get_legend_handles_labels()
             labels, handles = zip(*sorted(zip(labels, handles)))
@@ -161,7 +167,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
             fig, ax = plt.subplots(figsize=(8.5, 5.5))
             ax = add_plot_header(ax)
-            absorber_cmap = plt.get_cmap("copper")
+            absorber_cmap =  mcolors.LinearSegmentedColormap.from_list("blue_black", ["blue", "black"])
             scintillator_cmap = plt.get_cmap("spring")
 
             def get_color(label: str, prob: Iterable):
@@ -234,6 +240,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
                     iteration = int(re.search(r"iteration=(\d+)", file_name).group(1))
                     df = pd.read_parquet(file_name)[0:400]
                     e_rec: pd.Series = df["Reconstructed"]["true_energy"] - df["Targets"]["true_energy"]
+                    e_rec = e_rec**2 / df["Targets"]["true_energy"]
                     e_rec_binned, *_ = plt.hist(
                         e_rec,
                         bins=bins
@@ -263,7 +270,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             plt.xlabel("Iteration")
             plt.ylabel("Energy Resolution [GeV]")
             plt.xlim(0, len(e_rec_array))
-            plt.ylim(bottom=0, top=3.5)
+            plt.ylim(bottom=0, top=2)
             plt.tight_layout()
             plt.savefig(os.path.join(self.results_dir, "plots/energy_resolution_evolution"))
             plt.close()
@@ -284,7 +291,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             for i in range(len(dirs)):
                 sim_param_dict = aido.SimulationParameterDictionary.from_json(f"{self.results_dir}/parameters/param_dict_iter_{i}.json")
                 cost_item = cost(sim_param_dict)
-                cost_list.append(cost_item[0])
+                cost_list.append(cost_item)
 
             fig, ax = plt.subplots(figsize=(8, 2.5))
             plt.plot(cost_list)
@@ -308,35 +315,56 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
 if __name__ == "__main__":
 
-    sigma = 1.5
+    sigma = 2.5
     min_value = 0.0
     parameters = aido.SimulationParameterDictionary([
-        aido.SimulationParameter("thickness_absorber_0", 5.0, min_value=min_value, sigma=sigma),
-        aido.SimulationParameter("thickness_scintillator_0", 5.0, min_value=min_value, sigma=sigma),
-        aido.SimulationParameter("material_absorber_0", "G4_Fe", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
+        aido.SimulationParameter("thickness_absorber_0", 9.030052185058594, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter("thickness_scintillator_0", 37.155208587646484, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter(
+            "material_absorber_0",
+            "G4_Fe",
+            discrete_values=["G4_Pb", "G4_Fe"],
+            cost=[25, 4.166],
+            probabilities=[0.01, 0.99]
+        ),
         aido.SimulationParameter(
             "material_scintillator_0",
-            "G4_PbWO4",
+            "G4_POLYSTYRENE",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
-            cost=[2500.0, 0.01]
+            cost=[2500.0, 0.01],
+            probabilities=[0.99, 0.01]
         ),
-        aido.SimulationParameter("thickness_absorber_1", 5.0, min_value=min_value, sigma=sigma),
-        aido.SimulationParameter("thickness_scintillator_1", 5.0, min_value=min_value, sigma=sigma),
-        aido.SimulationParameter("material_absorber_1", "G4_Fe", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
+        aido.SimulationParameter("thickness_absorber_1", 10.446663856506348, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter("thickness_scintillator_1", 29.665525436401367, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter(
+            "material_absorber_1",
+            "G4_Fe",
+            discrete_values=["G4_Pb", "G4_Fe"],
+            cost=[25, 4.166],
+            probabilities=[0.99, 0.01]
+        ),
         aido.SimulationParameter(
             "material_scintillator_1",
-            "G4_PbWO4",
+            "G4_POLYSTYRENE",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
-            cost=[2500.0, 0.01]
+            cost=[2500.0, 0.01],
+            probabilities=[0.01, 0.99]
         ),
-        aido.SimulationParameter("thickness_absorber_2", 5.0, min_value=min_value, sigma=sigma),
-        aido.SimulationParameter("thickness_scintillator_2", 5.0, min_value=min_value, sigma=sigma),
-        aido.SimulationParameter("material_absorber_2", "G4_Fe", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
+        aido.SimulationParameter("thickness_absorber_2", 36.0, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter("thickness_scintillator_2", 27.5, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter(
+            "material_absorber_2",
+            "G4_Fe",
+            discrete_values=["G4_Pb", "G4_Fe"],
+            cost=[25, 4.166],
+            probabilities=[0.01, 0.99]
+        ),
         aido.SimulationParameter(
             "material_scintillator_2",
-            "G4_PbWO4",
+            "G4_POLYSTYRENE",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
-            cost=[2500.0, 0.01]
+            cost=[2500.0, 0.01],
+            probabilities=[0.01, 0.99]
         ),
         aido.SimulationParameter("num_events", 400, optimizable=False),
         aido.SimulationParameter("max_length", 150, optimizable=False),
@@ -346,17 +374,17 @@ if __name__ == "__main__":
 
     if False:  # only plotting
         ui = UIFullCalorimeter()
-        ui.results_dir = "/work/kschmidt/aido/results_full_calorimeter/results_20250123"
-        ui.plot(os.path.join(ui.results_dir, "/parameters/param_dict_iter_200.json"))
+        ui.results_dir = "/work/kschmidt/aido/results_paper/the_perfect_detector_morphed"
+        ui.plot()
         aido.Plotting.plot(results_dir=ui.results_dir)
-        raise RuntimeError
+        exit()
     aido.optimize(
         parameters=parameters,
         user_interface=UIFullCalorimeter,
         simulation_tasks=20,
-        max_iterations=100,
+        max_iterations=30,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_paper/thin_lead_glass",
+        results_dir="/work/kschmidt/aido/results_paper/the_perfect_detector_morphed_no_inplace",
         description="""
             Full Calorimeter with cost and length constraints.
             With discrete parameters
@@ -364,8 +392,10 @@ if __name__ == "__main__":
             FIX for discrete parameters
             With the new boundaries like in Calo-Opt with 1 / 1.1 factor
             With the correct gradients for the material cost
-            Decreased max cost to 50k
             Softmax boundaries
+            New reconstruction loss
+            No inplace loss changes, instead sum everything in one line
+            Take out normalization of parameters
         """
     )
     os.system("rm *.root")
