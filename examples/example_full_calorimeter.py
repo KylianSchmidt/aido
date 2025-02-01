@@ -41,11 +41,11 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
                 cost_list.append(layer_thickness * layer_weighted_cost)
                 detector_length_list.append(layer_thickness)
 
-        max_loss = parameter_dict["max_length"].current_value
+        max_length = parameter_dict["max_length"].current_value
         max_cost = parameter_dict["max_cost"].current_value
         detector_length = torch.stack(detector_length_list).sum()
         cost = torch.stack(cost_list).sum()
-        detector_length_penalty = torch.mean(10.0 * torch.nn.functional.relu(detector_length - max_loss)**2)
+        detector_length_penalty = torch.mean(torch.nn.functional.relu((detector_length - max_length)/max_length)**2)
         max_cost_penalty = torch.mean(torch.nn.functional.relu((cost - max_cost) / max_cost)**2)
         return detector_length_penalty + max_cost_penalty
 
@@ -384,7 +384,7 @@ if __name__ == "__main__":
         simulation_tasks=20,
         max_iterations=30,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_paper/the_perfect_detector_morphed_no_inplace",
+        results_dir="/work/kschmidt/aido/results_paper/the_perfect_detector_v4",
         description="""
             Full Calorimeter with cost and length constraints.
             With discrete parameters

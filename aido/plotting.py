@@ -128,21 +128,23 @@ class Plotting:
 
         df_loss_list = []
 
-        for file_name in glob.glob(f"{optimizer_loss_dir}/*"):
+        files = glob.glob(f"{optimizer_loss_dir}/*")
+        #sort them first by the iteration number
+        files.sort(key=lambda x: int(re.search(r"optimizer_loss_(\d+)", x).group(1)))
+
+        for i, file_name in enumerate(files):
             df_i = pd.read_csv(file_name, names=["Epoch", "Loss"], dtype="float32", header=1)
-            df_i["Iteration"] = int(re.search(r"optimizer_loss_(\d+)", file_name).group(1))
+            df_i["Iteration"] = i
+            df_i["Scaled Epoch"] = np.linspace(i, i + 1, len(df_i)) 
+
             df_loss_list.append(df_i)
 
-        df_loss: pd.DataFrame = pd.concat(df_loss_list).sort_values(["Iteration", "Epoch"])
+        df_loss: pd.DataFrame = pd.concat(df_loss_list)
 
         if fig_savepath is not None:
             plt.figure(figsize=(8, 6), dpi=400)
-            plt.plot(
-                np.linspace(0, df_loss["Iteration"].to_numpy()[-1], len(df_loss)),
-                df_loss["Loss"].to_numpy().flatten("F"),
-                c="k",
-                label="optimizer_loss"
-            )
+            plt.plot(df_loss["Scaled Epoch"], df_loss["Loss"], c="k", label="optimizer_loss")
+            plt.xlabel("Iteration", loc="right")
             plt.xlim(0, df_loss["Iteration"].to_numpy()[-1])
             plt.xlabel("Epoch", loc="right")
             plt.ylabel("Loss", loc="top")
