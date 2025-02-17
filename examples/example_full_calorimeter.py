@@ -3,8 +3,8 @@ import os
 import re
 from typing import Dict, Iterable
 
-import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
@@ -45,7 +45,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
         max_cost = parameter_dict["max_cost"].current_value
         detector_length = torch.stack(detector_length_list).sum()
         cost = torch.stack(cost_list).sum()
-        detector_length_penalty = torch.mean(torch.nn.functional.relu((detector_length - max_length)/max_length)**2)
+        detector_length_penalty = torch.mean(torch.nn.functional.relu((detector_length - max_length) / max_length)**2)
         max_cost_penalty = torch.mean(torch.nn.functional.relu((cost - max_cost) / max_cost)**2)
         return detector_length_penalty + max_cost_penalty
 
@@ -66,11 +66,61 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
                 0.01, 0.98,
                 "Sampling Calorimeter\n"
                 "50% photons and 50% pions\n"
-                r"$20 \times 400$"+" MC Events / Iteration\n"
+                r"$20 \times 400$" + " MC Events / Iteration\n"
                 r"$E_\text{true}=[1, 20]$" + " GeV",
                 transform=ax.transAxes, va='top', ha='left'
             )
             return ax
+
+        def plot_reco_loss(
+                iteration: int,
+                file_name: str | os.PathLike,
+                bins: np.ndarray,
+                color=None,
+                label: str | None = None,
+                ):
+            df = pd.read_parquet(file_name)[:400]
+            e_rec: pd.Series = df["Loss"]
+            plt.hist(
+                e_rec,
+                bins=bins,
+                color=color,
+                histtype="step",
+                label=label,
+                linewidth=1,
+                zorder=iteration
+            )
+
+        def plot_reco_loss_all() -> None:
+            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
+            sampled_iterations = [0, 10, 20, 200]
+            cmap = plt.get_cmap('coolwarm', len(sampled_iterations))
+            fig, ax = plt.subplots()
+            bins = np.linspace(0, 10, 100 + 1)
+
+            for file_name in dirs:
+                iteration = int(re.search(r"iteration=(\d+)", file_name).group(1))
+                if iteration in sampled_iterations:
+                    plot_reco_loss(
+                        iteration=iteration,
+                        file_name=file_name,
+                        bins=bins,
+                        color=cmap(iteration),
+                        label=(f"Iteration {iteration:3d}"),
+                    )
+
+            handles, labels = ax.get_legend_handles_labels()
+            labels, handles = zip(*sorted(zip(labels, handles)))
+            ax = add_plot_header(ax)
+            ax.legend(handles, labels)
+            plt.yscale("log")
+            plt.xlim(bins[0], bins[-1])
+            plt.ylim(1, 5000)
+            plt.ylabel(f"Counts / ({(bins[1] - bins[0]):.2f} GeV)")
+            plt.xlabel("Reconstruction Loss [GeV]")
+            plt.tight_layout()
+            plt.savefig(os.path.join(self.results_dir, "plots/reco_loss_all"))
+            plt.close()
 
         def plot_energy_resolution_single(
                 iteration: int,
@@ -79,7 +129,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
                 color=None,
                 label: str | None = None,
                 ):
-            df = pd.read_parquet(file_name)
+            df = pd.read_parquet(file_name)[:400]
             e_rec: pd.Series = df["Reconstructed"]["true_energy"] - df["Targets"]["true_energy"]
             e_rec = e_rec / np.sqrt(df["Targets"]["true_energy"])
             plt.hist(
@@ -88,33 +138,37 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
                 color=color,
                 histtype="step",
                 label=label,
-                linewidth=2,
+                linewidth=1,
+                zorder=iteration
             )
-            plt.ylabel(f"Counts / ({(bins[1] - bins[0]):.2f} GeV)")
-            plt.xlabel("Energy resolution [GeV]")
 
         def plot_energy_resolution_all() -> None:
             dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
-            cmap = plt.get_cmap('coolwarm', len(dirs))
+            sampled_iterations = [0, 10, 20, 200]
+            cmap = plt.get_cmap('coolwarm', len(sampled_iterations))
             fig, ax = plt.subplots()
-            bins = np.linspace(-5, 5, 50 + 1)
+            bins = np.linspace(-5, 5, 100 + 1)
 
             for file_name in dirs:
                 iteration = int(re.search(r"iteration=(\d+)", file_name).group(1))
-                if iteration % 20 == 0:
+                if iteration in sampled_iterations:
                     plot_energy_resolution_single(
                         iteration=iteration,
                         file_name=file_name,
                         bins=bins,
                         color=cmap(iteration),
-                        label=(f"Iteration {iteration:3d}")
+                        label=(f"Iteration {iteration:3d}"),
                     )
 
             handles, labels = ax.get_legend_handles_labels()
             labels, handles = zip(*sorted(zip(labels, handles)))
             ax = add_plot_header(ax)
             ax.legend(handles, labels)
+            plt.ylabel(f"Counts / ({(bins[1] - bins[0]):.2f} GeV" + r"$^{1/2}$" + ")")
+            plt.xlabel(r"$(E_\text{rec} - E_\text{true}) / E_\text{true}^{1/2}\, \left[ \text{GeV}^{1/2} \right]$")
             plt.xlim(bins[0], bins[-1])
+            plt.ylim(1, 175)
+            plt.tight_layout()
             plt.savefig(os.path.join(self.results_dir, "plots/energy_resolution_all"))
             plt.close()
 
@@ -167,7 +221,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
             fig, ax = plt.subplots(figsize=(8.5, 5.5))
             ax = add_plot_header(ax)
-            absorber_cmap =  mcolors.LinearSegmentedColormap.from_list("blue_black", ["blue", "black"])
+            absorber_cmap = mcolors.LinearSegmentedColormap.from_list("blue_grey", ["blue", "grey"])
             scintillator_cmap = plt.get_cmap("spring")
 
             def get_color(label: str, prob: Iterable):
@@ -196,11 +250,11 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
             handles, labels = plt.gca().get_legend_handles_labels()
             by_label = dict(zip(labels, handles))
-            #plt.legend(by_label.values(), by_label.keys(), loc="upper right")
+            plt.legend(by_label.values(), by_label.keys(), loc="upper right")
             plt.ylabel("Longitudinal Calorimeter Composition [cm]")
             plt.xlabel("Iteration")
             plt.xlim(0, len(df))
-            plt.ylim(0, 200)
+            plt.ylim(0, 220)
             ax = add_plot_header(ax)
             cbar_absorber = plt.cm.ScalarMappable(cmap=absorber_cmap)
             cbar_absorber.set_array([])
@@ -234,18 +288,13 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
                 dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
                 e_rec_array = np.full(len(dirs), 0.0)
                 e_loss_best_array = np.full(len(dirs), 0.0)
-                bins = np.linspace(-20, 20, 80 + 1)
 
                 for file_name in dirs:
                     iteration = int(re.search(r"iteration=(\d+)", file_name).group(1))
                     df = pd.read_parquet(file_name)[0:400]
                     e_rec: pd.Series = df["Reconstructed"]["true_energy"] - df["Targets"]["true_energy"]
-                    e_rec = e_rec**2 / df["Targets"]["true_energy"]
-                    e_rec_binned, *_ = plt.hist(
-                        e_rec,
-                        bins=bins
-                    )
-                    e_rec_array[iteration] = aido.Plotting.fwhm(bins, e_rec_binned)[0]
+                    e_rec = e_rec**2 / (df["Targets"]["true_energy"] + 1)
+                    e_rec_array[iteration] = np.mean(e_rec)
                     e_loss_best_array[iteration] = np.mean(df["Loss"])
 
                 plt.close()
@@ -259,7 +308,6 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
             fig, ax = plt.subplots()
             ax = add_plot_header(ax)
-            #plt.plot(e_rec_array, label="Energy Resolution (FHWM)")
             plt.plot(e_loss_best_array, label="Mean Reconstruction Loss")
             plt.plot(
                 np.linspace(0, df_loss["Iteration"].to_numpy()[-1], len(df_loss)),
@@ -289,22 +337,24 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
             cost_list = []
             for i in range(len(dirs)):
-                sim_param_dict = aido.SimulationParameterDictionary.from_json(f"{self.results_dir}/parameters/param_dict_iter_{i}.json")
+                sim_param_dict = aido.SimulationParameterDictionary.from_json(
+                    f"{self.results_dir}/parameters/param_dict_iter_{i}.json"
+                )
                 cost_item = cost(sim_param_dict)
                 cost_list.append(cost_item)
 
-            fig, ax = plt.subplots(figsize=(8, 2.5))
+            fig, ax = plt.subplots(figsize=(None, 2.5))
             plt.plot(cost_list)
             plt.xlabel("Iteration")
             plt.ylabel("Cost [EUR]")
             plt.xlim(0, len(cost_list) + 1)
-            #plt.ylim(None, sim_param_dict["max_cost"].current_value)
             plt.ylim(0,)
             plt.tight_layout()
             plt.savefig(os.path.join(self.results_dir, "plots/cost_constraints"))
             plt.close()
 
         plot_energy_resolution_all()
+        plot_reco_loss_all()
         plot_energy_resolution_first_and_last()
         plot_energy_resolution_evolution()
         plot_calorimeter_sideview()
@@ -372,12 +422,6 @@ if __name__ == "__main__":
         aido.SimulationParameter("full_calorimeter", True, optimizable=False)
     ])
 
-    if False:  # only plotting
-        ui = UIFullCalorimeter()
-        ui.results_dir = "/work/kschmidt/aido/results_paper/the_perfect_detector_morphed"
-        ui.plot()
-        aido.Plotting.plot(results_dir=ui.results_dir)
-        exit()
     aido.optimize(
         parameters=parameters,
         user_interface=UIFullCalorimeter,
