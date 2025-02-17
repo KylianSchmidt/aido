@@ -174,12 +174,8 @@ class Reconstruction(torch.nn.Module):
 
         Alternatively: 'torch.nn.MSELoss()(y_pred, y)**(1/2)'
         """
-        y = torch.where(torch.isnan(y_pred), torch.zeros_like(y) + 1., y)
-        y = torch.where(torch.isinf(y_pred), torch.zeros_like(y) + 1., y)
-        y_pred = torch.where(torch.isnan(y_pred), torch.zeros_like(y_pred), y_pred)
-        y_pred = torch.where(torch.isinf(y_pred), torch.zeros_like(y_pred), y_pred)
-
-        return (y_pred - y)**2 / (y**2 + 1)
+        y_den = torch.where(y > 1., y, torch.ones_like(y))
+        return (y_pred - y)**2 / y_den**2
 
     def train_model(self, dataset: ReconstructionDataset, batch_size: int, n_epochs: int, lr: float):
         print(f"Reconstruction Training: {lr=}, {batch_size=}")
