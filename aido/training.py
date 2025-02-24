@@ -12,7 +12,6 @@ from aido.logger import logger
 from aido.optimizer import Optimizer
 from aido.simulation_helpers import SimulationParameterDictionary
 from aido.surrogate import Surrogate, SurrogateDataset
-from aido.surrogate_validation import SurrogateValidation
 
 
 def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
@@ -21,7 +20,7 @@ def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     TODO Reconstruction results are normalized. In the future only expose the un-normalised ones,
     but also requires adjustments to the surrogate dataset
     """
-    model.to('cuda')
+    model.to("cuda" if torch.cuda.is_available() else "cpu")
 
     logger.info('Surrogate: Pre-Training 0')
     model.train_model(dataset, batch_size=512, n_epochs=n_epochs, lr=0.001)
@@ -47,7 +46,6 @@ def training_loop(
 
     results_dir = reco_file_paths_dict["results_dir"]
     output_df_path = reco_file_paths_dict["reco_output_df"]
-    validation_df_path = reco_file_paths_dict["validation_output_df"]
     parameter_dict_input_path = reco_file_paths_dict["current_parameter_dict"]
     surrogate_previous_path = reco_file_paths_dict["surrogate_model_previous_path"]
     optimizer_previous_path = reco_file_paths_dict["optimizer_model_previous_path"]
@@ -108,30 +106,6 @@ def training_loop(
                 n_epochs=n_epochs_main // 2,
                 lr=0.1 * surrogate_lr,
             )
-
-    if validation_df_path is not None:
-        logger.info("Surrogate Validation on Training Data")
-        surrogate_validator = SurrogateValidation(surrogate)
-        validation_df = surrogate_validator.validate(surrogate_dataset)
-        surrogate_validator.plot(
-            validation_df,
-            fig_savepath=os.path.join(results_dir, "plots", "validation_on_training_data"),
-            )
-
-        logger.info("Surrogate Validation")
-        surrogate_validation_dataset = SurrogateDataset(
-            pd.read_parquet(validation_df_path),
-            means=surrogate_dataset.means,
-            stds=surrogate_dataset.stds
-        )
-        surrogate_validator = SurrogateValidation(surrogate)
-        validation_df = surrogate_validator.validate(surrogate_validation_dataset)
-        surrogate_validator.plot(
-            validation_df,
-            fig_savepath=os.path.join(results_dir, "plots", "validation"),
-            )
-
-    torch.save(surrogate, surrogate_save_path)
 
     # Optimization
     optimizer = Optimizer(parameter_dict=parameter_dict)

@@ -105,16 +105,16 @@ class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
         df.to_parquet(reco_input_path, index=range(len(df)))
         return None
 
-    def reconstruct(self, reco_input_path: str, reco_output_path: str):
+    def reconstruct(self, reco_input_path: str, reco_output_path: str, is_validation: bool):
         """ Start your reconstruction algorithm from a local container.
 
         TODO Change to the dockerhub version when deploying to production.
         """
         os.system(
             f"singularity exec --nv -B /work,/ceph /ceph/kschmidt/singularity_cache/minicalosim_latest.sif python3 \
-            examples/calo_opt/reco_script.py {reco_input_path} {reco_output_path} {self.results_dir}"
+            examples/calo_opt/reco_script.py {reco_input_path} {reco_output_path} {is_validation} {self.results_dir}"
         )
-        os.system("rm *.pkl")
+        os.system("rm -f *.pkl")
         return None
 
     def loss(self, y: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:

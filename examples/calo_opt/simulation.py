@@ -164,4 +164,4 @@ if __name__ == "__main__":
             df[column] = df[column].to_list()
 
     df.to_parquet(output_path)
-    os.system("rm ./*.pkl")
+    os.system("rm -f ./*.pkl")
