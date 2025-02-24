@@ -10,8 +10,8 @@
 [ ] Allow for an extra validation step for the reconstruction algorithm for the end user. For example a separate Task that resimulates the same detector configurations and passes it to interface.
 [x] Use a try-except clause to allocate memory for the surrogate and optimizer models (or check if b2luigi can wait until memory is freed up)
 [ ] Argument in scheduler that decides whether to re-raise Exceptions from user-defined plotting (e.g. ignore_plotting_exceptions=True)
-[ ] Check if the min max values are correctly enforced when calling current_value on SimulationParameter
-[ ] Probabilities of discrete parameters are not propagated from the ParameterModule to the SimulationParameterDictionary in Optimizer.
-[ ] Add 'check if all probabilities were changed' in SimulationParameterDictionary
-[ ] Split merge and reconstruct in ReconstructionTask (to allow for multiple envs)
+[x] Check if the min max values are correctly enforced when calling current_value on SimulationParameter
+[x] Probabilities of discrete parameters are not propagated from the ParameterModule to the SimulationParameterDictionary in Optimizer.
+[x] Add 'check if all probabilities were changed' in SimulationParameterDictionary
+[x] Split merge and reconstruct in ReconstructionTask (to allow for multiple envs)
 [ ] Keep the best version of the parameters of the optimizer.

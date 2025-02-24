@@ -2,6 +2,7 @@ results*
 *.ipynb
 *.pyc
 logs
+*.log
 *__pycache__
 build
 *.egg-info
