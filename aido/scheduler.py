@@ -116,6 +116,7 @@ class OptimizationTask(AIDOTask):
     """
     iteration = b2luigi.IntParameter()
     num_simulation_tasks = b2luigi.IntParameter(significant=False)
+    num_validation_tasks = b2luigi.IntParameter(significant=False)
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def output(self) -> Generator:
@@ -124,15 +125,24 @@ class OptimizationTask(AIDOTask):
             yield self.add_to_output("param_dict.json")
 
     def requires(self) -> Generator:
-        if self.iteration >= 0:
-            for validation in [False]:
-                yield ReconstructionTask(
-                    iteration=self.iteration,
-                    validation=validation,
-                    num_simulation_tasks=self.num_simulation_tasks,
-                    start_param_dict_filepath=f"{self.results_dir}/parameters/param_dict_iter_{self.iteration}.json",
-                    results_dir=self.results_dir,
-                )
+        """ Starts the Reconstruction Tasks for regular reconstruction and for validation (the latter only
+        if 'num_validation_tasks' > 0).
+        """
+
+        def start_reconstruction_task(num_simulations: int):
+            yield ReconstructionTask(
+                iteration=self.iteration,
+                validation=num_simulations,
+                num_simulation_tasks=self.num_simulation_tasks,
+                start_param_dict_filepath=f"{self.results_dir}/parameters/param_dict_iter_{self.iteration}.json",
+                results_dir=self.results_dir,
+            )
+
+        if self.iteration < 0:
+            return None
+
+        start_reconstruction_task(self.num_validation_tasks) if self.num_validation_tasks else ...
+        start_reconstruction_task(self.num_simulation_tasks)
 
     def create_reco_path_dict(self) -> Dict:
 
@@ -184,7 +194,8 @@ class OptimizationTask(AIDOTask):
                 new_param_dict = training_loop(
                     reco_file_paths_dict=self.reco_paths_dict["own_path"],
                     reconstruction_loss_function=interface.loss,
-                    constraints=interface.constraints
+                    constraints=interface.constraints,
+                    validate_surrogate_func=interface.validate_surrogate
                 )
             except torch.cuda.OutOfMemoryError as e:
                 training_loop_out_of_memory = True
@@ -214,7 +225,8 @@ def start_scheduler(
         simulation_tasks: int,
         max_iterations: int,
         threads: int,
-        results_dir: str | os.PathLike
+        results_dir: str | os.PathLike,
+        validation_tasks: int | None = None,
         ):
     b2luigi.set_setting("result_dir", f"{results_dir}/task_outputs")
     os.makedirs(f"{results_dir}", exist_ok=True)
@@ -251,6 +263,7 @@ def start_scheduler(
     b2luigi.process(
         OptimizationTask(
             num_simulation_tasks=simulation_tasks,
+            num_validation_tasks=validation_tasks,
             iteration=max_iterations - 1,
             results_dir=results_dir
         ),
