@@ -106,6 +106,8 @@ def training_loop(
                 n_epochs=n_epochs_main // 2,
                 lr=0.1 * surrogate_lr,
             )
+    
+    torch.save(surrogate, surrogate_save_path)
 
     # Optimization
     optimizer = Optimizer(parameter_dict=parameter_dict)
