@@ -409,7 +409,7 @@ class Surrogate(torch.nn.Module):
         for i_o in range(oversample):
 
             for batch_idx, (parameters, context, targets, _reconstructed) in enumerate(data_loader):
-                logger.info(f'Surrogate batch: {batch_idx} / {len(data_loader)}', end='\r')
+                logger.info(f'Surrogate batch: {batch_idx} / {len(data_loader)}')
                 parameters: torch.Tensor = parameters.to(self.device)
                 context: torch.Tensor = context.to(self.device)
                 targets: torch.Tensor = targets.to(self.device)
