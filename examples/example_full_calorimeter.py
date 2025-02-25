@@ -51,27 +51,6 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
     def plot(self, parameter_dict: aido.SimulationParameterDictionary | None = None) -> None:
 
-        def add_plot_header(ax: plt.Axes) -> plt.Axes:
-            plt.text(
-                0.0, 1.06,
-                "AIDO",
-                transform=ax.transAxes, fontsize=14, fontweight='bold', va='top', ha='left'
-            )
-            plt.text(
-                0.125, 1.06,
-                "Detector Optimization",
-                transform=ax.transAxes, fontsize=14, style='italic', va='top', ha='left'
-            )
-            plt.text(
-                0.01, 0.98,
-                "Sampling Calorimeter\n"
-                "50% photons and 50% pions\n"
-                r"$20 \times 400$" + " MC Events / Iteration\n"
-                r"$E_\text{true}=[1, 20]$" + " GeV",
-                transform=ax.transAxes, va='top', ha='left'
-            )
-            return ax
-
         def plot_reco_loss(
                 iteration: int,
                 file_name: str | os.PathLike,
@@ -111,7 +90,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
             handles, labels = ax.get_legend_handles_labels()
             labels, handles = zip(*sorted(zip(labels, handles)))
-            ax = add_plot_header(ax)
+            ax = self.add_plot_header(ax)
             ax.legend(handles, labels)
             plt.yscale("log")
             plt.xlim(bins[0], bins[-1])
@@ -162,7 +141,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
             handles, labels = ax.get_legend_handles_labels()
             labels, handles = zip(*sorted(zip(labels, handles)))
-            ax = add_plot_header(ax)
+            ax = self.add_plot_header(ax)
             ax.legend(handles, labels)
             plt.ylabel(f"Counts / ({(bins[1] - bins[0]):.2f} GeV" + r"$^{1/2}$" + ")")
             plt.xlabel(r"$(E_\text{rec} - E_\text{true}) / E_\text{true}^{1/2}\, \left[ \text{GeV}^{1/2} \right]$")
@@ -174,7 +153,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
         def plot_energy_resolution_first_and_last() -> None:
             fig, ax = plt.subplots()
-            ax = add_plot_header(ax)
+            ax = self.add_plot_header(ax)
             dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
             cmap = plt.get_cmap('coolwarm', len(dirs))
             bins = np.linspace(-20, 20, 80 + 1)
@@ -220,7 +199,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             df_materials.columns = df.columns
 
             fig, ax = plt.subplots(figsize=(8.5, 5.5))
-            ax = add_plot_header(ax)
+            ax = self.add_plot_header(ax)
             absorber_cmap = mcolors.LinearSegmentedColormap.from_list("blue_grey", ["blue", "grey"])
             scintillator_cmap = plt.get_cmap("spring")
 
@@ -255,7 +234,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             plt.xlabel("Iteration")
             plt.xlim(0, len(df))
             plt.ylim(0, 220)
-            ax = add_plot_header(ax)
+            ax = self.add_plot_header(ax)
             cbar_absorber = plt.cm.ScalarMappable(cmap=absorber_cmap)
             cbar_absorber.set_array([])
             cbar1 = plt.colorbar(
@@ -307,7 +286,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             df_loss: pd.DataFrame = aido.Plotting.optimizer_loss(results_dir=self.results_dir)
 
             fig, ax = plt.subplots()
-            ax = add_plot_header(ax)
+            ax = self.add_plot_header(ax)
             plt.plot(e_loss_best_array, label="Mean Reconstruction Loss")
             plt.plot(
                 np.linspace(0, df_loss["Iteration"].to_numpy()[-1], len(df_loss)),
