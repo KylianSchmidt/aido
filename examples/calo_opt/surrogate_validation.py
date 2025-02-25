@@ -1,10 +1,10 @@
-import datetime
 import os
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+from interface_simple import AIDOUserInterfaceExample
 from torch.utils.data import DataLoader
 
 from aido.logger import logger
@@ -16,13 +16,13 @@ class SurrogateValidation():
             self,
             surrogate_model: Surrogate,
             ):
-        self.surrogate_model = surrogate_model
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.surrogate_model = surrogate_model.to(self.device)
 
     def validate(
             self,
             dataset: SurrogateDataset,
-            batch_size: int = 512
+            batch_size: int = 512,
             ):
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         validation_df = dataset.df
@@ -32,12 +32,11 @@ class SurrogateValidation():
             parameters = parameters.to(self.device)
             context = context.to(self.device)
             targets = targets.to(self.device)
-            reconstructed = reconstructed.to(self.device)
 
             surrogate_output = self.surrogate_model.sample_forward(
                 parameters,
                 context,
-                targets
+                targets,
             )
             surrogate_output = dataset.unnormalise_features(surrogate_output, index=2)
             surrogate_output = surrogate_output.detach().cpu().numpy().flatten()
@@ -53,65 +52,60 @@ class SurrogateValidation():
         """ Plot the reconstructed 'true_energy'
         """
         os.makedirs(fig_savepath, exist_ok=True)
-        bins = np.linspace(0, 20, 100 + 1)
-        val_reco = validation_df["Reconstructed"]["true_energy"]
-        surr_reco = validation_df["Surrogate"]
+        bins = np.linspace(0, 20, 40 + 1)
+        true_energy = validation_df["Targets"]["true_energy"]
+        validation_energy = validation_df["Reconstructed"]["true_energy"]
+        surrogate_energy = validation_df["Surrogate"]
 
-        fig, axes = plt.subplots(2, 1, figsize=(10, 8))
-
-        bins = np.linspace(0, 20, 100 + 1)
-        axes[0].hist(val_reco, bins=bins, label="Validation", histtype="step")
-        axes[0].hist(surr_reco, bins=bins, label="Surrogate", histtype="step")
-        axes[0].set_xlim(bins[0], bins[-1])
-        axes[0].set_xlabel("Predicted Energy")
-        axes[0].set_ylabel(f"Counts / {(bins[1] - bins[0]):.2f}")
-        axes[0].legend()
-
-        bins_diff = np.linspace(-10, 10, 100 + 1)
-        axes[1].hist(val_reco - surr_reco, bins=bins_diff, color='orange', alpha=0.7)
-        axes[1].set_xlabel("Surrogate Accuracy (Difference)")
-        axes[1].set_xlim(bins_diff[0], bins_diff[-1])
-        axes[1].set_ylabel("Counts")
-
-        fig.tight_layout()
-
-        filename = os.path.join(
-            fig_savepath,
-            f"validation_surrogate_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        fig, ax = plt.subplots()
+        ax = AIDOUserInterfaceExample.add_plot_header(ax)
+        plt.hist(
+            [validation_energy, surrogate_energy, true_energy],
+            bins=bins,
+            label=["Validation", "Surrogate", "Simulation"],
+            color=["blue", "red", "black"],
+            histtype="step",
         )
-        plt.savefig(filename)
-        plt.close()
-        logger.info(f"Validation Plots Saved: {filename}")
-        return None
+        plt.legend()
+        plt.tight_layout()
+        plt.ylabel(f"Counts / ({(bins[1] - bins[0]):.2f} [GeV])")
+        plt.xlabel("Initial Energy [GeV]")
+        plt.xlim(bins[0], bins[-1])
+        plt.ylim(0, 300)
+        plt.savefig(os.path.join(fig_savepath, "validation.png"))
 
 
-def validate_surrogate(
+def validate_surrogate_func(
         surrogate: Surrogate,
-        surrogate_dataset: SurrogateDataset,
         results_dir: str,
         validation_df_path: str,
-        surrogate_save_path: str,
-) -> None:
-    logger.info("Surrogate Validation on Training Data")
-    surrogate_validator = SurrogateValidation(surrogate)
-    validation_df = surrogate_validator.validate(surrogate_dataset)
-    surrogate_validator.plot(
-        validation_df,
-        fig_savepath=os.path.join(results_dir, "plots", "validation", "surrogate", "on_trainingData"),
-        )
+        ) -> None:
+    if not validation_df_path:
+        return None
 
     logger.info("Surrogate Validation")
     surrogate_validation_dataset = SurrogateDataset(
         pd.read_parquet(validation_df_path),
-        means=surrogate_dataset.means,
-        stds=surrogate_dataset.stds
+        normalise_parameters=True,
+        means=surrogate.means,
+        stds=surrogate.stds,
     )
     surrogate_validator = SurrogateValidation(surrogate)
     validation_df = surrogate_validator.validate(surrogate_validation_dataset)
     surrogate_validator.plot(
         validation_df,
-        fig_savepath=os.path.join(results_dir, "plots", "validation", "surrogate", "on_validationData"),
-        )
-
-    torch.save(surrogate, surrogate_save_path)
+        fig_savepath=os.path.join(results_dir, "plots"),
+    )
     return None
+
+
+if __name__ == "__main__":
+    plt.style.use("belle2")
+    logger.setLevel("DEBUG")
+    dataset_path = "results_paper/results_20250129_3/task_outputs/iteration=100/validation=False/reco_output_df"
+    surrogate_model: Surrogate = torch.load("results_paper/results_20250129_3/models/surrogate_100.pt")
+    validate_surrogate_func(
+        surrogate=surrogate_model,
+        validation_df_path=dataset_path,
+        results_dir="results_paper/results_20250129_3",
+    )
