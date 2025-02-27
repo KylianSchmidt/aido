@@ -111,10 +111,9 @@ def validate_surrogate_func(
 
 
 if __name__ == "__main__":
-    plt.style.use("belle2")
     logger.setLevel("DEBUG")
-    results_dir = "results_paper/results_20250129_3"
-    iteration = 5
+    results_dir: str = ...
+    iteration: int = ...
     dataset_path = f"{results_dir}/task_outputs/iteration={iteration}/validation=True/validation_output_df"
     surrogate_model: Surrogate = torch.load(f"{results_dir}/models/surrogate_{iteration}.pt")
     validate_surrogate_func(
