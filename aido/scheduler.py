@@ -195,7 +195,6 @@ class OptimizationTask(AIDOTask):
                     reco_file_paths_dict=self.reco_paths_dict["own_path"],
                     reconstruction_loss_function=interface.loss,
                     constraints=interface.constraints,
-                    validate_surrogate_func=interface.validate_surrogate
                 )
             except torch.cuda.OutOfMemoryError as e:
                 training_loop_out_of_memory = True

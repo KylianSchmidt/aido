@@ -51,7 +51,8 @@ def optimize(
         max_iterations: int = 50,
         threads: int = 1,
         results_dir: str | os.PathLike = "./results/",
-        description: str = ""
+        description: str = "",
+        validation_tasks: int | None = None,
         ):
     """
     Args:
@@ -72,6 +73,10 @@ def optimize(
             each other.
         description (str, optional): Additional text associated with the run. Is saved in the parameter
             json files under 'metadata.description"
+        validation_tasks (int): Control the number of simulation tasks dedicated only for validation
+            purposes on top of the regular simulation tasks 'simulation_tasks'. Defaults to 'None' which
+            is no validation tasks. This will also disable the call of 'interface.reconstruct' with
+            'is_validation=True'.
     """
     if isinstance(parameters, list):
         parameters = SimulationParameterDictionary(parameters)
@@ -84,7 +89,8 @@ def optimize(
         simulation_tasks=simulation_tasks,
         max_iterations=max_iterations,
         threads=threads,
-        results_dir=results_dir
+        results_dir=results_dir,
+        validation_tasks=validation_tasks,
     )
 
 
@@ -96,9 +102,12 @@ def check_results_folder_format(directory: str | os.PathLike) -> bool:
         directory (str | os.PathLike): The path to the directory to check.
 
     Returns:
-        bool: True if the directory contains all the required folders
+        bool
+            - True if the directory contains all the required folders
+
                 ("loss", "models", "parameters", "plots", "task_outputs"),
-                False otherwise.
+
+            - False otherwise.
     """
     existing_folders = set(os.listdir(directory))
     required_folders = set(["loss", "models", "parameters", "plots", "task_outputs"])

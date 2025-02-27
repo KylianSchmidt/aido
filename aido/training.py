@@ -36,7 +36,6 @@ def training_loop(
         reco_file_paths_dict: dict | str | os.PathLike,
         reconstruction_loss_function: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         constraints: None | Callable[[SimulationParameterDictionary], float | torch.Tensor] = None,
-        validate_surrogate_func: None | Callable[[Surrogate, SurrogateDataset], None] = None,
         ):
     
     if isinstance(reco_file_paths_dict, (str, os.PathLike)):
@@ -109,7 +108,6 @@ def training_loop(
             )
     
     torch.save(surrogate, surrogate_save_path)
-    validate_surrogate_func(surrogate, surrogate_dataset)
 
     # Optimization
     optimizer = Optimizer(parameter_dict=parameter_dict)
