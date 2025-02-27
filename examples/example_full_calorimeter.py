@@ -284,20 +284,24 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
                 e_loss_best_array = np.fromfile(".eloss_array_checkpoint")
             
             df_loss: pd.DataFrame = aido.Plotting.optimizer_loss(results_dir=self.results_dir)
+            df_loss = df_loss[["Scaled Epoch", "Loss"]]
+            df_loss = df_loss.set_index("Scaled Epoch")
 
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(7, 5))
             ax = self.add_plot_header(ax)
-            plt.plot(e_loss_best_array, label="Mean Reconstruction Loss")
             plt.plot(
-                np.linspace(0, df_loss["Iteration"].to_numpy()[-1], len(df_loss)),
-                df_loss["Loss"].to_numpy().flatten("F"),
-                label="Optimizer Loss"
+                e_loss_best_array,
+                label="Mean Reconstruction Loss" + r"$\mathcal{L}_\text{reco}$",
             )
-            plt.legend(loc="center right")
+            plt.plot(
+                df_loss.rolling(window=30).mean(),
+                label="Optimizer Loss" + r"$\mathcal{L}'$"
+            )
+            plt.legend()
             plt.xlabel("Iteration")
             plt.ylabel("Energy Resolution [GeV]")
             plt.xlim(0, len(e_rec_array))
-            plt.ylim(bottom=0, top=2)
+            plt.yscale("log")
             plt.tight_layout()
             plt.savefig(os.path.join(self.results_dir, "plots/energy_resolution_evolution"))
             plt.close()
@@ -332,12 +336,12 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             plt.savefig(os.path.join(self.results_dir, "plots/cost_constraints"))
             plt.close()
 
-        plot_energy_resolution_all()
-        plot_reco_loss_all()
-        plot_energy_resolution_first_and_last()
+        # plot_energy_resolution_all()
+        # plot_reco_loss_all()
+        # plot_energy_resolution_first_and_last()
         plot_energy_resolution_evolution()
-        plot_calorimeter_sideview()
-        plot_constraints()
+        # plot_calorimeter_sideview()
+        # plot_constraints()
         plt.close("all")
         return None
 
@@ -400,7 +404,12 @@ if __name__ == "__main__":
         aido.SimulationParameter("max_cost", 50_000, optimizable=False),
         aido.SimulationParameter("full_calorimeter", True, optimizable=False)
     ])
-
+    if True:
+        ui = UIFullCalorimeter()
+        ui.results_dir = "/work/kschmidt/aido/results_paper/results_20250129_3"
+        ui.plot(os.path.join(ui.results_dir, "/parameters/param_dict_iter_200.json"))
+        aido.Plotting.plot(results_dir=ui.results_dir)
+        raise RuntimeError
     aido.optimize(
         parameters=parameters,
         user_interface=UIFullCalorimeter,

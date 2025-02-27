@@ -127,7 +127,8 @@ class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
         y_den = torch.where(y > 1., y, torch.ones_like(y))
         return (y_pred - y)**2 / y_den**2
 
-    def add_plot_header(ax: plt.Axes) -> plt.Axes:
+    @classmethod
+    def add_plot_header(cls, ax: plt.Axes) -> plt.Axes:
         plt.text(
             0.0, 1.06,
             "AIDO",

@@ -52,27 +52,38 @@ class SurrogateValidation():
         """ Plot the reconstructed 'true_energy'
         """
         os.makedirs(fig_savepath, exist_ok=True)
-        bins = np.linspace(0, 20, 40 + 1)
+        bins = np.linspace(0, 21, 42 + 1)
         true_energy = validation_df["Targets"]["true_energy"]
         validation_energy = validation_df["Reconstructed"]["true_energy"]
         surrogate_energy = validation_df["Surrogate"]
+        print(f"{len(validation_energy)=}")
 
         fig, ax = plt.subplots()
         ax = AIDOUserInterfaceExample.add_plot_header(ax)
         plt.hist(
             [validation_energy, surrogate_energy, true_energy],
             bins=bins,
-            label=["Validation", "Surrogate", "Simulation"],
+            label=[
+                r"$E_\text{reco}$" + " (Validation)",
+                r"$E'$" + " (Surrogate)",
+                r"$E_\text{true}$" + " (Simulation)",
+            ],
             color=["blue", "red", "black"],
             histtype="step",
         )
+        plt.text(
+            x=0.01,
+            y=0.7,
+            s=f"Iteration = {iteration}",
+            transform=ax.transAxes, va='top', ha='left',
+        )
         plt.legend()
-        plt.tight_layout()
-        plt.ylabel(f"Counts / ({(bins[1] - bins[0]):.2f} [GeV])")
+        plt.ylabel(f"Counts / ({(bins[1] - bins[0]):.2f} GeV)")
         plt.xlabel("Initial Energy [GeV]")
         plt.xlim(bins[0], bins[-1])
-        plt.ylim(0, 300)
-        plt.savefig(os.path.join(fig_savepath, "validation.png"))
+        plt.ylim(0, 150)
+        plt.tight_layout()
+        plt.savefig(os.path.join(fig_savepath, f"validation_{iteration}.png"))
 
 
 def validate_surrogate_func(
@@ -102,10 +113,12 @@ def validate_surrogate_func(
 if __name__ == "__main__":
     plt.style.use("belle2")
     logger.setLevel("DEBUG")
-    dataset_path = "results_paper/results_20250129_3/task_outputs/iteration=100/validation=False/reco_output_df"
-    surrogate_model: Surrogate = torch.load("results_paper/results_20250129_3/models/surrogate_100.pt")
+    results_dir = "results_paper/results_20250129_3"
+    iteration = 5
+    dataset_path = f"{results_dir}/task_outputs/iteration={iteration}/validation=True/validation_output_df"
+    surrogate_model: Surrogate = torch.load(f"{results_dir}/models/surrogate_{iteration}.pt")
     validate_surrogate_func(
         surrogate=surrogate_model,
         validation_df_path=dataset_path,
-        results_dir="results_paper/results_20250129_3",
+        results_dir=f"{results_dir}",
     )
