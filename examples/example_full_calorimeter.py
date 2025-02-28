@@ -1,18 +1,11 @@
-import glob
 import os
-import re
-from typing import Dict, Iterable
+from typing import Dict
 
-import matplotlib.colors as mcolors
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
 import torch
 from calo_opt.interface_simple import AIDOUserInterfaceExample  # Import your derived class
+from calo_opt.plotting import CaloOptPlotting
 
 import aido
-
-plt.style.use("belle2")
 
 
 class UIFullCalorimeter(AIDOUserInterfaceExample):
@@ -23,14 +16,26 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             parameter_dict: aido.SimulationParameterDictionary,
             parameter_dict_as_tensor: Dict[str, torch.Tensor]
             ) -> torch.Tensor:
+        """ Additional constraints to add to the Loss.
+
+        Use the Tensors found in 'parameter_dict_as_tensor' (Dict) to compute the constraints
+        and return a 1-dimnentional Tensor. Note that missing gradients at this stage will
+        negatively impact the training of the optimizer.
+
+        Use the usual 'parameter_dict' instance to access additional information such as
+        boundaries, costs per item and all other stored values.
+
+        In this example, we add the cost per layer for all six layers by looping over the
+        index of the layer (0, 1, 2) and their type (absorber / scintillator). Using the
+
+        """
 
         detector_length_list = []
         cost_list = []
 
         for i in range(3):
             for name in ["absorber", "scintillator"]:
-                material_log_probabilities = parameter_dict_as_tensor[f"material_{name}_{i}"]
-                material_probabilities = torch.nn.functional.softmax(material_log_probabilities, dim=0)
+                material_probabilities = parameter_dict_as_tensor[f"material_{name}_{i}"]
                 material_cost = torch.tensor(
                     parameter_dict[f"material_{name}_{i}"].cost,
                     device=material_probabilities.device
@@ -49,294 +54,9 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
         max_cost_penalty = torch.mean(torch.nn.functional.relu((cost - max_cost) / max_cost)**2)
         return detector_length_penalty + max_cost_penalty
 
-    def plot(self, parameter_dict: aido.SimulationParameterDictionary | None = None) -> None:
-
-        def plot_reco_loss(
-                iteration: int,
-                file_name: str | os.PathLike,
-                bins: np.ndarray,
-                color=None,
-                label: str | None = None,
-                ):
-            df = pd.read_parquet(file_name)[:400]
-            e_rec: pd.Series = df["Loss"]
-            plt.hist(
-                e_rec,
-                bins=bins,
-                color=color,
-                histtype="step",
-                label=label,
-                linewidth=1,
-                zorder=iteration
-            )
-
-        def plot_reco_loss_all() -> None:
-            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
-            sampled_iterations = [0, 10, 20, 200]
-            cmap = plt.get_cmap('coolwarm', len(sampled_iterations))
-            fig, ax = plt.subplots()
-            bins = np.linspace(0, 10, 100 + 1)
-
-            for file_name in dirs:
-                iteration = int(re.search(r"iteration=(\d+)", file_name).group(1))
-                if iteration in sampled_iterations:
-                    plot_reco_loss(
-                        iteration=iteration,
-                        file_name=file_name,
-                        bins=bins,
-                        color=cmap(iteration),
-                        label=(f"Iteration {iteration:3d}"),
-                    )
-
-            handles, labels = ax.get_legend_handles_labels()
-            labels, handles = zip(*sorted(zip(labels, handles)))
-            ax = self.add_plot_header(ax)
-            ax.legend(handles, labels)
-            plt.yscale("log")
-            plt.xlim(bins[0], bins[-1])
-            plt.ylim(1, 5000)
-            plt.ylabel(f"Counts / ({(bins[1] - bins[0]):.2f} GeV)")
-            plt.xlabel("Reconstruction Loss [GeV]")
-            plt.tight_layout()
-            plt.savefig(os.path.join(self.results_dir, "plots/reco_loss_all"))
-            plt.close()
-
-        def plot_energy_resolution_single(
-                iteration: int,
-                file_name: str | os.PathLike,
-                bins: np.ndarray,
-                color=None,
-                label: str | None = None,
-                ):
-            df = pd.read_parquet(file_name)[:400]
-            e_rec: pd.Series = df["Reconstructed"]["true_energy"] - df["Targets"]["true_energy"]
-            e_rec = e_rec / np.sqrt(df["Targets"]["true_energy"])
-            plt.hist(
-                e_rec,
-                bins=bins,
-                color=color,
-                histtype="step",
-                label=label,
-                linewidth=1,
-                zorder=iteration
-            )
-
-        def plot_energy_resolution_all() -> None:
-            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
-            sampled_iterations = [0, 10, 20, 200]
-            cmap = plt.get_cmap('coolwarm', len(sampled_iterations))
-            fig, ax = plt.subplots()
-            bins = np.linspace(-5, 5, 100 + 1)
-
-            for file_name in dirs:
-                iteration = int(re.search(r"iteration=(\d+)", file_name).group(1))
-                if iteration in sampled_iterations:
-                    plot_energy_resolution_single(
-                        iteration=iteration,
-                        file_name=file_name,
-                        bins=bins,
-                        color=cmap(iteration),
-                        label=(f"Iteration {iteration:3d}"),
-                    )
-
-            handles, labels = ax.get_legend_handles_labels()
-            labels, handles = zip(*sorted(zip(labels, handles)))
-            ax = self.add_plot_header(ax)
-            ax.legend(handles, labels)
-            plt.ylabel(f"Counts / ({(bins[1] - bins[0]):.2f} GeV" + r"$^{1/2}$" + ")")
-            plt.xlabel(r"$(E_\text{rec} - E_\text{true}) / E_\text{true}^{1/2}\, \left[ \text{GeV}^{1/2} \right]$")
-            plt.xlim(bins[0], bins[-1])
-            plt.ylim(1, 175)
-            plt.tight_layout()
-            plt.savefig(os.path.join(self.results_dir, "plots/energy_resolution_all"))
-            plt.close()
-
-        def plot_energy_resolution_first_and_last() -> None:
-            fig, ax = plt.subplots()
-            ax = self.add_plot_header(ax)
-            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
-            cmap = plt.get_cmap('coolwarm', len(dirs))
-            bins = np.linspace(-20, 20, 80 + 1)
-
-            for file_name in dirs:
-                iteration = int(re.search(r"iteration=(\d+)", file_name).group(1))
-
-                if iteration == 0 or iteration == len(dirs) - 1:
-                    df = pd.read_parquet(file_name)
-                    e_rec = (df["Targets"] - df["Reconstructed"])
-                    e_rec_binned, *_ = plt.hist(
-                        e_rec,
-                        bins=bins,
-                        color=cmap(iteration),
-                        histtype="step",
-                        label=f"Iteration {iteration:3d}",
-                    )
-                    ax = aido.Plotting.fwhm(bins, e_rec_binned, ax=ax)
-            plt.legend()
-            plt.xlim(-10, 10)
-            plt.xlabel(r"Energy Resolution $E_{\text{true}} - E_{\text{rec}}$ [GeV]")
-            plt.ylabel(f"Counts {(bins[1] - bins[0]):.2f}")
-            plt.savefig(os.path.join(self.results_dir, "plots/energy_resolution_first_and_last"))
-            plt.close()
-
-        def plot_calorimeter_sideview() -> None:
-            df_list = []
-            df_materials_list = []
-            parameter_dir = os.path.join(self.results_dir, "parameters/")
-
-            for file_name in os.listdir(parameter_dir):
-                param_dict = aido.SimulationParameterDictionary.from_json(parameter_dir + file_name)
-                df_list.append(pd.DataFrame(
-                    param_dict.get_current_values(format="dict", types="continuous"),
-                    index=[param_dict.iteration],
-                ))
-                df_materials = pd.DataFrame(param_dict.get_probabilities()).drop(index=0)
-                df_materials.index = [param_dict.iteration]
-                df_materials_list.append(df_materials)
-
-            df: pd.DataFrame = pd.concat(df_list, axis=0).sort_index()
-            df_materials: pd.DataFrame = pd.concat(df_materials_list, axis=0).sort_index()
-            df_materials.columns = df.columns
-
-            fig, ax = plt.subplots(figsize=(8.5, 5.5))
-            ax = self.add_plot_header(ax)
-            absorber_cmap = mcolors.LinearSegmentedColormap.from_list("blue_grey", ["blue", "grey"])
-            scintillator_cmap = plt.get_cmap("spring")
-
-            def get_color(label: str, prob: Iterable):
-                if "absorber" in label:
-                    return absorber_cmap(prob)
-                if "scintillator" in label:
-                    return scintillator_cmap(prob)
-                else:
-                    return "white"
-
-            for i in df.index:
-                bottom = 0
-                plt.gca().set_prop_cycle(None)
-
-                for column in df.columns:
-                    plt.bar(
-                        i,
-                        df[column][i],
-                        bottom=bottom,
-                        color=get_color(column, df_materials[column][i]),
-                        width=1,
-                        align="edge",
-                        label=column.replace("_", " ").removeprefix("thickness ").capitalize(),
-                    )
-                    bottom += df[column][i]
-
-            handles, labels = plt.gca().get_legend_handles_labels()
-            by_label = dict(zip(labels, handles))
-            plt.legend(by_label.values(), by_label.keys(), loc="upper right")
-            plt.ylabel("Longitudinal Calorimeter Composition [cm]")
-            plt.xlabel("Iteration")
-            plt.xlim(0, len(df))
-            plt.ylim(0, 220)
-            ax = self.add_plot_header(ax)
-            cbar_absorber = plt.cm.ScalarMappable(cmap=absorber_cmap)
-            cbar_absorber.set_array([])
-            cbar1 = plt.colorbar(
-                cbar_absorber,
-                ax=ax,
-                fraction=0.04,
-                location="right",
-            )
-            cbar1.ax.invert_yaxis()  # Invert so Fe is high and Pb is low
-            cbar1.ax.set_yticks([0, 1], labels=['Pb', 'Fe'], rotation=90, va='center')  # Custom ticks
-
-            # Add colormap for "scintillator" with labels "Polystyrene" and "PbWO4"
-            cbar_scintillator = plt.cm.ScalarMappable(cmap=scintillator_cmap)
-            cbar_scintillator.set_array([])
-            cbar2 = plt.colorbar(
-                cbar_scintillator,
-                ax=ax,
-                fraction=0.04,
-                location="right",
-            )
-            cbar2.ax.invert_yaxis()
-            cbar2.ax.set_yticks([0, 1], labels=['PbWO4', 'Polystyrene'], rotation=90, va='center')  # Custom ticks
-            plt.tight_layout()
-            plt.savefig(os.path.join(self.results_dir, "plots/calorimeter_sideview"))
-            plt.close()
-
-        def plot_energy_resolution_evolution(use_checkpoint: bool = False) -> None:
-                
-            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
-            e_rec_array = np.full(len(dirs), 0.0)
-            e_loss_best_array = np.full(len(dirs), 0.0)
-
-            for file_name in dirs:
-                iteration = int(re.search(r"iteration=(\d+)", file_name).group(1))
-                df = pd.read_parquet(file_name)[0:400]
-                e_rec: pd.Series = df["Reconstructed"]["true_energy"] - df["Targets"]["true_energy"]
-                e_rec = e_rec**2 / (df["Targets"]["true_energy"] + 1)
-                e_rec_array[iteration] = np.mean(e_rec)
-                e_loss_best_array[iteration] = np.mean(df["Loss"])
-
-            plt.close()
-
-            df_loss: pd.DataFrame = aido.Plotting.optimizer_loss(results_dir=self.results_dir)
-            df_loss = df_loss[["Scaled Epoch", "Loss"]]
-            df_loss = df_loss.set_index("Scaled Epoch")
-
-            fig, ax = plt.subplots(figsize=(7, 5))
-            ax = self.add_plot_header(ax)
-            plt.plot(
-                e_loss_best_array,
-                label="Mean Reconstruction Loss" + r"$\mathcal{L}_\text{reco}$",
-            )
-            plt.plot(
-                df_loss.rolling(window=30).mean(),
-                label="Optimizer Loss" + r"$\mathcal{L}'$"
-            )
-            plt.legend()
-            plt.xlabel("Iteration")
-            plt.ylabel("Energy Resolution [GeV]")
-            plt.xlim(0, len(e_rec_array))
-            plt.yscale("log")
-            plt.tight_layout()
-            plt.savefig(os.path.join(self.results_dir, "plots/energy_resolution_evolution"))
-            plt.close()
-        
-        def plot_constraints() -> None:
-            def cost(parameter_dict: aido.SimulationParameterDictionary) -> torch.Tensor:
-                cost = 0.0
-                for i in range(3):
-                    for name in ["absorber", "scintillator"]:
-                        cost += (
-                            parameter_dict[f"thickness_{name}_{i}"].current_value
-                            * np.array(parameter_dict[f"material_{name}_{i}"].weighted_cost)
-                        )
-                return cost
-
-            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
-            cost_list = []
-            for i in range(len(dirs)):
-                sim_param_dict = aido.SimulationParameterDictionary.from_json(
-                    f"{self.results_dir}/parameters/param_dict_iter_{i}.json"
-                )
-                cost_item = cost(sim_param_dict)
-                cost_list.append(cost_item)
-
-            fig, ax = plt.subplots(figsize=(None, 2.5))
-            plt.plot(cost_list)
-            plt.xlabel("Iteration")
-            plt.ylabel("Cost [EUR]")
-            plt.xlim(0, len(cost_list) + 1)
-            plt.ylim(0,)
-            plt.tight_layout()
-            plt.savefig(os.path.join(self.results_dir, "plots/cost_constraints"))
-            plt.close()
-
-        plot_energy_resolution_all()
-        plot_reco_loss_all()
-        plot_energy_resolution_first_and_last()
-        plot_energy_resolution_evolution()
-        plot_calorimeter_sideview()
-        plot_constraints()
-        plt.close("all")
+    def plot(self, parameter_dict: aido.SimulationParameterDictionary) -> None:
+        plotter = CaloOptPlotting(self.results_dir)
+        plotter.plot()
         return None
 
 

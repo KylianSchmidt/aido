@@ -39,8 +39,8 @@ class OneHotEncoder(torch.nn.Module):
 
     @property
     def current_value(self) -> torch.Tensor:
-        """ Returns the index corresponding to highest scoring entry """
-        return self.logits
+        """ Returns the probability Tensor """
+        return self.probabilities
 
     @property
     def physical_value(self) -> torch.Tensor:
