@@ -226,6 +226,7 @@ def start_scheduler(
         threads: int,
         results_dir: str | os.PathLike,
         validation_tasks: int | None = None,
+        **kwargs,
         ):
     b2luigi.set_setting("result_dir", f"{results_dir}/task_outputs")
     os.makedirs(f"{results_dir}", exist_ok=True)
@@ -267,4 +268,5 @@ def start_scheduler(
             results_dir=results_dir
         ),
         workers=threads,
+        **kwargs,
     )

@@ -152,5 +152,5 @@ class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
             r"$20 \times 400$" + " MC Events / Iteration\n"
             r"$E_\text{true}=[1, 20]$" + " GeV",
             transform=ax.transAxes, va='top', ha='left'
-        )
+        )  # Adjust the text as fitting
         return ax
