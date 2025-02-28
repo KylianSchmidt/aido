@@ -90,7 +90,7 @@ class SimulationParameter:
             else:
                 assert (
                     sigma is None
-                ), "Unable to asign standard deviation to discrete or non-optimizable parameter."
+                ), "Unable to assign standard deviation to discrete or non-optimizable parameter."
 
         def check_cost() -> None:
             if cost is None:

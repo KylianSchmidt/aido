@@ -67,7 +67,7 @@ class SurrogateDataset(Dataset):
         
             ["Parameters", "Context", "Loss"]
 
-    TODO: Accomodate for discrete parameters
+    TODO: Accommodate for discrete parameters
     """
     def __init__(
             self,

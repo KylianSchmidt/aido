@@ -8,7 +8,7 @@ import b2luigi
 import torch
 
 from aido.config import AIDOConfig
-from aido.interface import AIDOBaseUserInterface
+from aido.interface import UserInterfaceBase
 from aido.logger import logger
 from aido.plotting import Plotting
 from aido.simulation_helpers import SimulationParameterDictionary
@@ -220,7 +220,7 @@ class OptimizationTask(AIDOTask):
 
 def start_scheduler(
         parameters: SimulationParameterDictionary,
-        user_interface: AIDOBaseUserInterface,
+        user_interface: UserInterfaceBase,
         simulation_tasks: int,
         max_iterations: int,
         threads: int,
@@ -249,8 +249,8 @@ def start_scheduler(
         user_interface = user_interface()
 
     assert (
-        issubclass(type(user_interface), AIDOBaseUserInterface)
-    ), f"The class {user_interface} must inherit from {AIDOBaseUserInterface}."
+        issubclass(type(user_interface), UserInterfaceBase)
+    ), f"The class {user_interface} must inherit from {UserInterfaceBase}."
 
     global config
     config = AIDOConfig.from_json("config.json")
