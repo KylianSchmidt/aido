@@ -7,7 +7,7 @@ import torch
 import aido
 
 
-class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
+class AIDOUserInterfaceExample(aido.UserInterfaceBase):
     """ This class is an example of how to implement the 'AIDOUserInterface' class.
 
     We use the following container:

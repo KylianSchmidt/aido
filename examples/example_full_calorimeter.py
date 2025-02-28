@@ -19,7 +19,7 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
         """ Additional constraints to add to the Loss.
 
         Use the Tensors found in 'parameter_dict_as_tensor' (Dict) to compute the constraints
-        and return a 1-dimnentional Tensor. Note that missing gradients at this stage will
+        and return a 1-dimensional Tensor. Note that missing gradients at this stage will
         negatively impact the training of the optimizer.
 
         Use the usual 'parameter_dict' instance to access additional information such as
