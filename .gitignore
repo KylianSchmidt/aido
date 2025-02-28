@@ -2,6 +2,7 @@ results*
 *.ipynb
 *.pyc
 logs
+*.log
 *__pycache__
 build
 *.egg-info
@@ -9,4 +10,9 @@ build
 *.aido*
 *.json
 *pkl
-docs
+docs/_build/
+docs/.doctrees/
+docs/.DS_Store
+*.png
+*.parquet
+TODO.md

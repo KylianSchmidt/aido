@@ -1,0 +1,20 @@
+{
+    "optimizer": {
+        "lr": 0.01,
+        "batch_size": 1024,
+        "n_epochs": 150
+    },
+    "surrogate": {
+        "n_epoch_pre": 1,
+        "n_epochs_main": 40
+    },
+    "simulation": {
+        "generate_scaling": 1.2,
+        "sigma": 2.5,
+        "sigma_mode": "flat"
+    },
+    "scheduler": {
+        "training_num_retries": 20,
+        "training_delay_between_retries": 60
+    }
+}

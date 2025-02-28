@@ -1,9 +1,12 @@
-from typing import Callable, Tuple
+import os
+from typing import Callable, Dict, Tuple
 
 import numpy as np
+import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
+from aido.logger import logger
 from aido.optimization_helpers import ParameterModule
 from aido.simulation_helpers import SimulationParameterDictionary
 from aido.surrogate import Surrogate, SurrogateDataset
@@ -22,49 +25,40 @@ class Optimizer(torch.nn.Module):
     '''
     def __init__(
             self,
-            surrogate_model: Surrogate,
-            starting_parameter_dict: SimulationParameterDictionary,
-            lr: float = 0.001,
-            batch_size: int = 128,
+            parameter_dict: SimulationParameterDictionary,
+            device: str | None = None
             ):
         """
         Initializes the optimizer with the given surrogate model and parameters.
         Args:
-            surrogate_model (Surrogate): The surrogate model to be optimized.
             starting_parameter_dict (Dict): A dictionary containing the initial parameters.
-            lr (float, optional): Learning rate for the optimizer. Defaults to 0.001.
-            batch_size (int, optional): Batch size for the optimizer. Defaults to 128.
-
-        TODO Surrogate Model is not needed at instantiation, can be moved to optimize() method
+            device (str): Defaults to 'cuda'
         """
-
         super().__init__()
-        self.surrogate_model = surrogate_model
-        self.starting_parameter_dict = starting_parameter_dict
-        self.parameter_dict = self.starting_parameter_dict
-        self.lr = lr
-        self.batch_size = batch_size
-        self.device = torch.device("cuda")
-
-        self.parameter_module = ParameterModule(self.parameter_dict)
-        self.starting_parameters_continuous = self.parameter_module.tensor("continuous")
-        self.parameter_box = self.parameter_module.constraints
-        self.covariance = self.parameter_module.covariance
-        self.to(self.device)
-        self.optimizer = torch.optim.Adam(self.parameter_module.parameters(), lr=self.lr)
+        self.parameter_dict = parameter_dict
+        
+        dev = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = dev or torch.device(dev)
+        
+        self.parameter_module = ParameterModule(self.parameter_dict).to(self.device)
+        self.optimizer = torch.optim.Adam(self.parameter_module.parameters())
 
     def to(self, device: str | torch.device, **kwargs):
         """ Move all Tensors and modules to 'device'.
         """
         self.device = device if isinstance(device, torch.device) else torch.device(device)
-        self.surrogate_model.to(self.device)
-        self.starting_parameters_continuous = self.starting_parameters_continuous.to(self.device)
-        self.parameter_box = self.parameter_box.to(self.device)
-        self.parameter_module = self.parameter_module.to(self.device)
         super().to(self.device, **kwargs)
         return self
+    
+    def check_parameters_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:
+        """ Assure that the predicted parameters by the optimizer are within the bounds of the covariance
+        matrix spanned by the 'sigma' of each parameter.
+        """
+        diff = updated_parameters - self.starting_parameters_continuous
+        diff = diff.detach().cpu().numpy()
+        return np.dot(diff, np.dot(np.linalg.inv(self.parameter_dict.covariance), diff)) < scale
 
-    def loss_box_constraints(self) -> torch.Tensor:
+    def boundaries(self) -> torch.Tensor:
         """ Adds penalties for parameters that are outside of the boundaries spaned by 'self.parameter_box'. This
         ensures that the optimizer does not propose new values that are outside of the scope of the Surrogate and
         therefore largely unknown to the current iteration.
@@ -72,19 +66,24 @@ class Optimizer(torch.nn.Module):
         -------
             float
         """
-        if len(self.parameter_box) != 0:
-            parameters_continuous_tensor = self.parameter_module.tensor("continuous")
-            return (
-                torch.mean(0.5 * torch.nn.ReLU()(self.parameter_box[:, 0] - parameters_continuous_tensor)**2)
-                + torch.mean(0.5 * torch.nn.ReLU()(- self.parameter_box[:, 1] + parameters_continuous_tensor)**2)
+        parameter_box = self.parameter_module.constraints.to(self.device)
+        if len(parameter_box) != 0:
+            parameters_continuous_tensor = self.parameter_module.continuous_tensors()
+            lower_boundary_loss = torch.mean(
+                0.5 * torch.nn.ReLU()(parameter_box[:, 0] - parameters_continuous_tensor)**2
             )
+            upper_boundary_loss = torch.mean(
+                0.5 * torch.nn.ReLU()(parameters_continuous_tensor - parameter_box[:, 1])**2
+            )
+            return lower_boundary_loss + upper_boundary_loss
         else:
             return torch.Tensor([0.0])
 
     def other_constraints(
             self,
-            constraints_func: None | Callable[[SimulationParameterDictionary], float | torch.Tensor]
-            ) -> float:
+            constraints_func: None | Callable[[SimulationParameterDictionary, Dict], torch.Tensor],
+            parameter_dict_as_tensor: Dict[str, torch.nn.Parameter | torch.Tensor]
+            ) -> torch.Tensor:
         """ Adds user-defined constraints defined in 'interface.py:AIDOUserInterface.constraints()'. If no constraints
         were added manually, this method defaults to calculating constraints based on the cost per parameter specified
         in ParameterDict. Returns a float or torch.Tensor which can be considered as a penalty loss.
@@ -92,28 +91,76 @@ class Optimizer(torch.nn.Module):
         if constraints_func is None:
             loss = self.parameter_module.cost_loss
         else:
-            loss = constraints_func(self.parameter_dict)
-        if isinstance(loss, torch.Tensor):
-            loss = loss.item()
-        return loss
+            loss = constraints_func(self.parameter_dict, parameter_dict_as_tensor)
+        return loss if loss is not None else torch.tensor(0.0)
+
+    def save_parameters(
+            self,
+            epoch: int,
+            batch_index: int,
+            loss: float,
+            filepath: str | os.PathLike = "parameter_optimizer_df.parquet",
+            ) -> None:
+        df = self.parameter_dict.to_df(display_discrete="as_probabilities")
+        df["Epoch"] = epoch
+        df["Batch"] = batch_index
+        df["Surrogate_Prediction"] = loss
+
+        if not os.path.exists(filepath):
+            df.to_parquet(filepath)
+        else:
+            try:
+                updated_parameter_optimizer_df = pd.concat([pd.read_parquet(filepath), df], ignore_index=True)
+                updated_parameter_optimizer_df.to_parquet(filepath)
+            except KeyboardInterrupt:
+                logger.warning("Saving the Optimizer Parameters to file before stopping...")
+                updated_parameter_optimizer_df.to_parquet(filepath)
+                raise
+
+    def print_grads(self) -> None:
+        for name, param in self.named_parameters():
+            if param.requires_grad and not name.startswith("surrogate_model"):
+                logger.debug(f"Optimizer {name}: Data={param.data}, grads={param.grad}")
 
     def optimize(
             self,
+            surrogate_model: Surrogate,
             dataset: SurrogateDataset,
             batch_size: int,
             n_epochs: int,
-            lr: float,
-            additional_constraints: None | Callable[[SimulationParameterDictionary], float | torch.Tensor] = None,
+            reconstruction_loss: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+            additional_constraints: None | Callable[[SimulationParameterDictionary, Dict], torch.Tensor] = None,
+            parameter_optimizer_savepath: str | os.PathLike | None = None,
+            device: str | None = None,
+            lr: float = 0.01,
             ) -> Tuple[SimulationParameterDictionary, bool]:
-        """ Perform the optimization step. First, the ParameterModules forward() method generates new parameters.
-        Second, the Surrogate Model computes the corresponding Reconstruction Loss (based on its interpolation).
-        The Optimizer Loss is the Sum of the Reconstruction Loss, user-defined Parameter Loss (e.g. cost constraints)
-        and the Parameter Box Loss (which ensures that the Parameters stay within acceptable boundaries during
-        training). Fourth, the optimizer applies backprogation and updates the current ParameterDict
+        """ Perform the optimization step.
+
+        1. The ParameterModule().forward() method generates new parameters.
+        2. The Surrogate Model computes the corresponding Reconstruction Loss (based on its interpolation).
+        3. The Optimizer Loss is the Sum of the Reconstruction Loss, user-defined Parameter Loss
+            (e.g. cost constraints) and the Parameter Box Loss (which ensures that the Parameters stay
+            within acceptable boundaries during training).
+        4. The optimizer applies backprogation and updates the current ParameterDict
+
+        Return:
+        ------
+            SimulationParameterDictionary
+            bool
         """
-        self.optimizer.lr = lr
+        self.starting_parameter_dict = self.parameter_dict
+        self.surrogate_model = surrogate_model
+        self.device = device or self.device
+        self.to(self.device)
+
+        self.starting_parameters_continuous = self.parameter_module.continuous_tensors().clone().detach()
+
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = lr
+
         self.surrogate_model.eval()
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
         self.optimizer_loss = []
         self.constraints_loss = []
 
@@ -122,43 +169,60 @@ class Optimizer(torch.nn.Module):
             epoch_constraints_loss = 0.0
             stop_epoch = False
 
-            for batch_idx, (parameters, context, reconstructed) in enumerate(data_loader):
-                context = context.to(self.device)
-
-                parameters_batch = self.parameter_module()
-                self.parameter_dict.update_current_values(self.parameter_module.physical_values(format="dict"))
-                self.parameter_dict.update_probabilities(self.parameter_module.get_probabilities())
+            for batch_idx, (_parameters, context, targets, _reconstructed) in enumerate(data_loader):
+                context: torch.Tensor = context.to(self.device)
+                targets: torch.Tensor = targets.to(self.device)
+                parameters_batch: torch.Tensor = self.parameter_module()
 
                 surrogate_output = self.surrogate_model.sample_forward(
                     parameters_batch,
-                    context
+                    context,
+                    targets
                 )
-                loss = surrogate_output.mean()
+                surrogate_reconstruction_loss = reconstruction_loss(
+                    dataset.unnormalise_features(targets, index=2),
+                    dataset.unnormalise_features(surrogate_output, index=2)
+                )
+                loss = surrogate_reconstruction_loss.mean()
                 surrogate_loss_detached = loss.item()
-                loss += self.other_constraints(additional_constraints)
-                loss += self.loss_box_constraints()
+                constraints_loss = self.other_constraints(
+                    additional_constraints,
+                    self.parameter_module.current_values()
+                )
+                loss += constraints_loss
+                loss += self.boundaries()
 
-                self.optimizer.zero_grad()
                 loss.backward()
 
                 if np.isnan(loss.item()):
-                    # Save parameters, reset the optimizer as if it made a step but without updating the parameters
-                    print("Optimizer: NaN loss, exiting.")
+                    logger.error("Optimizer: NaN loss, exiting.")
                     self.optimizer.step()
-                    return self.starting_parameter_dict, False
+                    return self.parameter_dict, False
 
                 self.optimizer.step()
-                epoch_loss += loss.item()
-                epoch_constraints_loss += self.other_constraints(additional_constraints)
+                self.optimizer.zero_grad()
 
-                if not self.parameter_module.check_parameters_are_local(self.parameter_module.tensor("continuous")):
+                self.parameter_dict.update_current_values(self.parameter_module.physical_values(format="dict"))
+                self.parameter_dict.update_probabilities(self.parameter_module.probabilities)
+                self.save_parameters(epoch, batch_idx, surrogate_loss_detached, parameter_optimizer_savepath)
+
+                epoch_loss += loss.item()
+                epoch_constraints_loss += constraints_loss.item()
+
+                if not self.check_parameters_are_local(
+                    updated_parameters=self.parameter_module.continuous_tensors(),
+                    scale=0.8
+                ):
                     stop_epoch = True
+                    logger.error("Optimizer: Parameters are not local")
                     break
 
-            print(f"Optimizer Epoch: {epoch} \tLoss: {surrogate_loss_detached:.5f} (reco)", end="\t")
-            print(f"+ {(self.other_constraints(additional_constraints)):.5f} (constraints)", end="\t")
-            print(f"+ {(self.loss_box_constraints()):.5f} (boundaries)", end="\t")
-            print(f"= {loss.item():.5f} (total)")
+            logger.info(
+                f"Optimizer Epoch: {epoch} \tLoss: {surrogate_loss_detached:.5f} (reco)\t"
+                + f"+ {(constraints_loss.item()):.5f} (constraints)\t"
+                + f"+ {(self.boundaries().item()):.5f} (boundaries)\t"
+                + f"= {loss.item():.5f} (total)"
+            )
 
             epoch_loss /= batch_idx + 1
             epoch_constraints_loss /= batch_idx + 1
@@ -168,11 +232,11 @@ class Optimizer(torch.nn.Module):
             if stop_epoch:
                 break
 
-        self.covariance = self.parameter_module.adjust_covariance(
-            self.parameter_module.tensor("continuous").to(self.device)
+        self.parameter_dict.covariance = self.parameter_module.adjust_covariance(
+            self.parameter_module.continuous_tensors().to(self.device)
             - self.starting_parameters_continuous.to(self.device)
-            )
-        return self.boosted_parameter_dict, True
+        ).astype(float)
+        return self.parameter_dict, True
 
     @property
     def boosted_parameter_dict(self) -> SimulationParameterDictionary:

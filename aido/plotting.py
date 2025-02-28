@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from aido.logger import logger
 from aido.simulation_helpers import SimulationParameterDictionary
 
 
@@ -48,7 +49,7 @@ class Plotting:
         for plot_type in plot_types:
             getattr(cls, plot_type)(results_dir=results_dir)
 
-        print(f"aido.Plotting: Saved all figures to {results_dir}")
+        logger.info(f"Saved all figures to {results_dir}")
 
     def parameter_evolution(
             fig_savepath: str | os.PathLike | None = "/plots/parameter_evolution",
@@ -86,11 +87,19 @@ class Plotting:
 
         if fig_savepath is not None:
             plt.figure(figsize=(8, 6), dpi=400)
-            plt.plot(df, label=df.columns)
+            cmap = plt.get_cmap("Set2")
 
             for i, col in enumerate(df.columns):
+                plt.plot(df[col], label=col, color=cmap(i))
+
                 if np.any(sigma[i]):
-                    plt.fill_between(df[col].index, df[col] - sigma[i], df[col] + sigma[i], alpha=0.5)
+                    plt.fill_between(
+                        df[col].index,
+                        df[col] - sigma[i],
+                        df[col] + sigma[i],
+                        alpha=0.5,
+                        color=cmap(i)
+                    )
 
             plt.legend()
             plt.xlabel("Iteration", loc="right")
@@ -119,25 +128,25 @@ class Plotting:
 
         df_loss_list = []
 
-        for file_name in glob.glob(f"{optimizer_loss_dir}/*"):
+        files = glob.glob(f"{optimizer_loss_dir}/*")
+        files.sort(key=lambda x: int(re.search(r"optimizer_loss_(\d+)", x).group(1)))
+
+        for i, file_name in enumerate(files):
             df_i = pd.read_csv(file_name, names=["Epoch", "Loss"], dtype="float32", header=1)
-            df_i["Iteration"] = int(re.search(r"optimizer_loss_(\d+)", file_name).group(1))
+            df_i["Iteration"] = i
+            df_i["Scaled Epoch"] = np.linspace(i, i + 1, len(df_i))
+
             df_loss_list.append(df_i)
 
-        df_loss: pd.DataFrame = pd.concat(df_loss_list).sort_values(["Iteration", "Epoch"])
+        df_loss: pd.DataFrame = pd.concat(df_loss_list)
 
         if fig_savepath is not None:
             plt.figure(figsize=(8, 6), dpi=400)
-            plt.plot(
-                np.linspace(0, df_loss["Iteration"].to_numpy()[-1], len(df_loss)),
-                df_loss["Loss"].to_numpy().flatten("F"),
-                c="k",
-                label="optimizer_loss"
-            )
+            plt.plot(df_loss["Scaled Epoch"], df_loss["Loss"], c="k", label="optimizer_loss")
+            plt.xlabel("Iteration", loc="right")
             plt.xlim(0, df_loss["Iteration"].to_numpy()[-1])
             plt.xlabel("Epoch", loc="right")
             plt.ylabel("Loss", loc="top")
-            plt.yscale("log")
             plt.legend()
             plt.savefig(fig_savepath)
             plt.close()
@@ -147,7 +156,8 @@ class Plotting:
     def simulation_samples(
             fig_savepath: str | os.PathLike | None = "/plots/simulation_samples",
             results_dir: str = "./results/",
-            sampled_param_dict_filepath: str | os.PathLike = "/task_outputs/iteration=*/"
+            parameter_dir: str = "/parameters/",
+            sampled_param_dict_filepath: str | os.PathLike = "/task_outputs/iteration=*/validation=False"
             ) -> Tuple[pd.DataFrame, np.ndarray]:
         """ Generate a DataFrame of simulation parameters and their values for each iteration and task.
         Args:
@@ -155,6 +165,7 @@ class Plotting:
                 Defaults to "./results/plots/simulation_samples".
             sampled_param_dict_filepath (str | os.PathLike, optional): Path to the sampled parameter dictionary files.
                 Defaults to "./results/task_outputs/simulation_task*".
+            parameter_dir (str): Where the parameters are stored in the results folder. Defaults to 'parametersÄ.
         Returns:
             Tuple(pd.DataFrame, np.ndarray): A tuple containing the DataFrame of simulation parameters and a
                 numpy array of sigma values.
@@ -169,7 +180,7 @@ class Plotting:
 
         for iteration_dir in glob.glob(sampled_param_dict_filepath):
             
-            for simulation_dir in glob.glob(iteration_dir + "/simulation_task_id=*"):
+            for file_order, simulation_dir in enumerate(glob.glob(iteration_dir + "/simulation_task_id=*")):
 
                 df = SimulationParameterDictionary.from_json(
                     simulation_dir + "/param_dict.json"
@@ -189,9 +200,10 @@ class Plotting:
             df_optim, sigma = Plotting.parameter_evolution(None, results_dir=results_dir)
 
             plt.figure(figsize=(8, 6), dpi=400)
-            plt.plot(df_optim, label=df_optim.columns)
 
             for i, col in enumerate(df_optim.columns):
+                plt.plot(df_optim[col], label=col, color=cmap(i))
+
                 if np.any(sigma[i]):
                     plt.fill_between(
                         df_optim[col].index,

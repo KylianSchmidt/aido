@@ -1,8 +1,9 @@
 import os
+from typing import Dict
 
-import numpy as np
 import torch
 from calo_opt.interface_simple import AIDOUserInterfaceExample  # Import your derived class
+from calo_opt.plotting import CaloOptPlotting
 
 import aido
 
@@ -10,76 +11,123 @@ import aido
 class UIFullCalorimeter(AIDOUserInterfaceExample):
 
     @classmethod
-    def constraints(self, parameter_dict: aido.SimulationParameterDictionary) -> torch.Tensor:
+    def constraints(
+            self,
+            parameter_dict: aido.SimulationParameterDictionary,
+            parameter_dict_as_tensor: Dict[str, torch.Tensor]
+            ) -> torch.Tensor:
+        """ Additional constraints to add to the Loss.
 
-        detector_length = 0.0
-        cost = 0.0
+        Use the Tensors found in 'parameter_dict_as_tensor' (Dict) to compute the constraints
+        and return a 1-dimensional Tensor. Note that missing gradients at this stage will
+        negatively impact the training of the optimizer.
+
+        Use the usual 'parameter_dict' instance to access additional information such as
+        boundaries, costs per item and all other stored values.
+
+        In this example, we add the cost per layer for all six layers by looping over the
+        index of the layer (0, 1, 2) and their type (absorber / scintillator). Using the
+
+        """
+
+        detector_length_list = []
+        cost_list = []
 
         for i in range(3):
             for name in ["absorber", "scintillator"]:
-                cost += (
-                    parameter_dict[f"thickness_{name}_{i}"].current_value
-                    * np.array(parameter_dict[f"material_{name}_{i}"].weighted_cost)
+                material_probabilities = parameter_dict_as_tensor[f"material_{name}_{i}"]
+                material_cost = torch.tensor(
+                    parameter_dict[f"material_{name}_{i}"].cost,
+                    device=material_probabilities.device
                 )
-                detector_length += parameter_dict[f"thickness_{name}_{i}"].current_value
+                layer_weighted_cost = material_probabilities * material_cost
+                layer_thickness = parameter_dict_as_tensor[f"thickness_{name}_{i}"]
 
-        detector_length_loss = torch.mean(
-            10.0 * torch.nn.ReLU()(torch.tensor(detector_length - parameter_dict["max_length"].current_value)) ** 2
-        )
+                cost_list.append(layer_thickness * layer_weighted_cost)
+                detector_length_list.append(layer_thickness)
+
+        max_length = parameter_dict["max_length"].current_value
         max_cost = parameter_dict["max_cost"].current_value
-        max_cost_penalty = torch.mean(2.0 / max_cost * torch.nn.ReLU()(torch.tensor(cost) - max_cost) ** 2)
-        return detector_length_loss + max_cost_penalty
+        detector_length = torch.stack(detector_length_list).sum()
+        cost = torch.stack(cost_list).sum()
+        detector_length_penalty = torch.mean(torch.nn.functional.relu((detector_length - max_length) / max_length)**2)
+        max_cost_penalty = torch.mean(torch.nn.functional.relu((cost - max_cost) / max_cost)**2)
+        return detector_length_penalty + max_cost_penalty
+
+    def plot(self, parameter_dict: aido.SimulationParameterDictionary) -> None:
+        plotter = CaloOptPlotting(self.results_dir)
+        plotter.plot()
+        return None
 
 
 if __name__ == "__main__":
 
-    sigma = 1.0
+    sigma = 2.5
+    min_value = 0.0
     parameters = aido.SimulationParameterDictionary([
-        aido.SimulationParameter("thickness_absorber_0", 10.0, min_value=0.1, sigma=sigma),
-        aido.SimulationParameter("thickness_scintillator_0", 5.0, min_value=1.0, sigma=sigma),
-        aido.SimulationParameter("material_absorber_0", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
+        aido.SimulationParameter("thickness_absorber_0", 9.030052185058594, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter("thickness_scintillator_0", 37.155208587646484, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter(
+            "material_absorber_0",
+            "G4_Fe",
+            discrete_values=["G4_Pb", "G4_Fe"],
+            cost=[25, 4.166],
+            probabilities=[0.01, 0.99]
+        ),
         aido.SimulationParameter(
             "material_scintillator_0",
             "G4_POLYSTYRENE",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
-            cost=[2500.0, 0.01]
+            cost=[2500.0, 0.01],
+            probabilities=[0.99, 0.01]
         ),
-        aido.SimulationParameter("thickness_absorber_1", 15.0, min_value=0.1, sigma=sigma),
-        aido.SimulationParameter("thickness_scintillator_1", 10.0, min_value=1.0, sigma=sigma),
-        aido.SimulationParameter("material_absorber_1", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
+        aido.SimulationParameter("thickness_absorber_1", 10.446663856506348, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter("thickness_scintillator_1", 29.665525436401367, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter(
+            "material_absorber_1",
+            "G4_Fe",
+            discrete_values=["G4_Pb", "G4_Fe"],
+            cost=[25, 4.166],
+            probabilities=[0.99, 0.01]
+        ),
         aido.SimulationParameter(
             "material_scintillator_1",
-            "G4_PbWO4",
+            "G4_POLYSTYRENE",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
-            cost=[2500.0, 0.01]
+            cost=[2500.0, 0.01],
+            probabilities=[0.01, 0.99]
         ),
-        aido.SimulationParameter("thickness_absorber_2", 20.0, min_value=0.1, sigma=sigma),
-        aido.SimulationParameter("thickness_scintillator_2", 2.0, min_value=1.0, sigma=sigma),
-        aido.SimulationParameter("material_absorber_2", "G4_Pb", discrete_values=["G4_Pb", "G4_Fe"], cost=[25, 4.166]),
+        aido.SimulationParameter("thickness_absorber_2", 36.0, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter("thickness_scintillator_2", 27.5, min_value=min_value, sigma=sigma),
+        aido.SimulationParameter(
+            "material_absorber_2",
+            "G4_Fe",
+            discrete_values=["G4_Pb", "G4_Fe"],
+            cost=[25, 4.166],
+            probabilities=[0.01, 0.99]
+        ),
         aido.SimulationParameter(
             "material_scintillator_2",
-            "G4_PbWO4",
+            "G4_POLYSTYRENE",
             discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
-            cost=[2500.0, 0.01]
+            cost=[2500.0, 0.01],
+            probabilities=[0.01, 0.99]
         ),
         aido.SimulationParameter("num_events", 400, optimizable=False),
-        aido.SimulationParameter("max_length", 200, optimizable=False),
+        aido.SimulationParameter("max_length", 150, optimizable=False),
         aido.SimulationParameter("max_cost", 50_000, optimizable=False),
         aido.SimulationParameter("full_calorimeter", True, optimizable=False)
     ])
-
     aido.optimize(
         parameters=parameters,
         user_interface=UIFullCalorimeter,
         simulation_tasks=20,
-        max_iterations=2,
+        max_iterations=30,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_full_calorimeter/results_20241107",
+        results_dir="result_example",
         description="""
-            Full Calorimeter with cost and length constraints.
-            Improved normalization of reconstructed array in Surrogate Model
-            Using boosted parameter dict output by optimizer
-            Reduced sigma
-        """
+Optimization of a sampling calorimeter with cost and length constraints.
+Includes the optimization of discrete parameters, specific plotting functions
+"""
     )
     os.system("rm *.root")

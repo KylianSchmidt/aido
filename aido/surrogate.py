@@ -5,6 +5,8 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader, Dataset
 
+from aido.logger import logger
+
 
 def ddpm_schedules(beta1: float, beta2: float, n_time_steps: int) -> dict[str, torch.Tensor]:
     """
@@ -65,20 +67,23 @@ class SurrogateDataset(Dataset):
         
             ["Parameters", "Context", "Loss"]
 
-    TODO: Accomodate for discrete parameters
+    TODO: Accommodate for discrete parameters
     """
     def __init__(
             self,
             input_df: pd.DataFrame,
             parameter_key: str = "Parameters",
             context_key: str = "Context",
-            reco_loss_key: str = "Loss",
-            device: str = "cuda",
-            norm_reco_loss: bool = True
+            target_key: str = "Targets",
+            reconstructed_key: str = "Reconstructed",
+            device: str = "cuda" if torch.cuda.is_available() else "cpu",
+            means: List[np.float32] | None = None,
+            stds: List[np.float32] | None = None,
+            normalise_parameters: bool = False,
             ):
         """
         Initializes the Surrogate model with the provided DataFrame and keys. All inputs must be
-        unnormalized and will be kept as such. Normalization for training is left to the caller.
+        unnormalized and will be normalized internally.
 
         Args:
         ----
@@ -87,38 +92,52 @@ class SurrogateDataset(Dataset):
                 Defaults to "Parameters".
             context_key (str, optional): The key for the context column in the DataFrame.
                 Defaults to "Context".
-            reco_loss_key (str, optional): The key for the reconstruction loss column in the DataFrame.
+            target_key (str, optional): The kry for the target column in the DataFrame.
+                Defaults to "Targets".
+            reconstructed_key (str, optional): The key for the reconstruction loss column in the DataFrame.
                 Defaults to "Loss".
+            device (str): Torch device. Defaults to 'cuda'
         """
         self.df = input_df
         self.parameters = self.df[parameter_key].to_numpy(np.float32)
         self.context = self.df[context_key].to_numpy(np.float32)
-        self.reconstructed = self.df[reco_loss_key].to_numpy(np.float32)
-        self.norm_reco_loss = norm_reco_loss
-
-        assert np.all(self.reconstructed >= 0.0), "Reconstruction Loss must only have positive entries"
+        self.targets = self.df[target_key].to_numpy(np.float32)
+        self.reconstructed = self.df[reconstructed_key].to_numpy(np.float32)
+        self.normalise_parameters = normalise_parameters
 
         self.shape: List[int] = (
             self.parameters.shape[1],
             self.context.shape[1],
+            self.targets.shape[1],
             self.reconstructed.shape[1]
         )
-        self.means: List[np.float32] = [
-            np.mean(self.parameters, axis=0),
-            np.mean(self.context, axis=0),
-            np.mean(self.reconstructed, axis=0)
-        ]
-        self.stds: List[np.float32] = [
-            np.std(self.parameters, axis=0) + 1e-10,
-            np.std(self.context, axis=0) + 1e-10,
-            np.std(self.reconstructed, axis=0) + 1e-10
-        ]
+        if means is None:
+            self.means: List[np.float32] = [
+                np.mean(self.parameters, axis=0),
+                np.mean(self.context, axis=0),
+                np.mean(self.targets, axis=0),
+            ]
+        else:
+            self.means = means
+
+        if stds is None:
+            self.stds: List[np.float32] = [
+                np.std(self.parameters, axis=0) + 1e-10,
+                np.std(self.context, axis=0) + 1e-10,
+                np.std(self.targets, axis=0) + 1e-10,
+            ]
+        else:
+            self.stds = stds
+
         self.c_means = [torch.tensor(a).to(device) for a in self.means]
         self.c_stds = [torch.tensor(a).to(device) for a in self.stds]
 
-        if self.norm_reco_loss is True:
-            self.reconstructed = self.normalise_reconstructed(self.reconstructed)
-
+        if self.normalise_parameters:
+            logger.info("Normalized parameters")
+            self.parameters = self.normalise_features(self.parameters, index=0)
+        self.context = self.normalise_features(self.context, index=1)
+        self.targets = self.normalise_features(self.targets, index=2)
+        self.reconstructed = self.normalise_features(self.reconstructed, index=2)
         self.df = self.filter_infs_and_nans(self.df)
 
     def filter_infs_and_nans(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -128,49 +147,36 @@ class SurrogateDataset(Dataset):
         df = df.dropna(axis=0, ignore_index=True)
         return df
 
-    def unnormalise_features(self, target: torch.Tensor, index: int) -> torch.Tensor:
+    def unnormalise_features(
+            self,
+            target: torch.Tensor | np.ndarray,
+            index: int
+            ) -> torch.Tensor | np.ndarray:
         ''' Return the physically meaningful target from the normalised target
         Index:
             0 -> Parameters
             1 -> Context
-            2 -> Reconstructed
+            2 -> Targets
         '''
-        assert index in [0, 1, 2]
-        if index == 2:
-            return self.unnormalise_reconstructed(target)
-        elif index == 0 or index == 1:
+        if isinstance(target, torch.Tensor):
             return target * self.c_stds[index] + self.c_means[index]
+        elif isinstance(target, np.ndarray):
+            return target * self.stds[index] + self.means[index]
 
-    def normalise_features(self, target: torch.Tensor, index: int) -> torch.Tensor:
+    def normalise_features(self, target: torch.Tensor | np.ndarray, index: int) -> torch.Tensor | np.ndarray:
         ''' Normalize a feature
         Index:
             0 -> Parameters
             1 -> Context
-            2 -> Reconstructed
+            2 -> Targets
         '''
-        assert index in [0, 1, 2]
-        if index == 2:
-            return self.normalise_reconstructed(target)
-        elif index == 0 or index == 1:
+        if isinstance(target, torch.Tensor):
             return (target - self.c_means[index]) / self.c_stds[index]
-
-    def normalise_reconstructed(
-            self,
-            target: torch.Tensor | np.ndarray
-            ) -> torch.Tensor | np.ndarray:
-        """ Normalize the Reconstruction Loss. Important if the Loss is highly negatively skewed.
-        Currently, no normalization is applied
-        """
-        return target
-
-    def unnormalise_reconstructed(
-            self,
-            target: torch.Tensor | np.ndarray
-            ) -> torch.Tensor | np.ndarray:
-        return target
+        elif isinstance(target, np.ndarray):
+            return (target - self.means[index]) / self.stds[index]
 
     def __getitem__(self, idx: int):
-        return self.parameters[idx], self.context[idx], self.reconstructed[idx]
+        return self.parameters[idx], self.context[idx], self.targets[idx], self.reconstructed[idx]
 
     def __len__(self) -> int:
         return len(self.reconstructed)
@@ -203,9 +209,12 @@ class Surrogate(torch.nn.Module):
             self,
             num_parameters: int,
             num_context: int,
+            num_targets: int,
             num_reconstructed: int,
-            n_time_steps: int = 100,
-            betas: Tuple[float] = (1e-4, 0.02)
+            initial_means: List[np.float32],
+            initial_stds: List[np.float32],
+            n_time_steps: int = 50,
+            betas: Tuple[float] = (1e-4, 0.02),
             ):
         """
         Initializes the surrogate model.
@@ -213,7 +222,9 @@ class Surrogate(torch.nn.Module):
             num_parameters (int): Number of input parameters.
             num_context (int): Number of context variables.
             num_reconstructed (int): Number of reconstructed variables.
-            n_time_steps (int, optional): Number of time steps for the DDPM schedule. Defaults to 100.
+            n_time_steps (int, optional): Number of time steps for the DDPM schedule. Defaults to 50. Setting
+                it higher might lead to divergence towards infinity which will register as NaN when reaching
+                float32 accuracy ~= 2e9.
             betas (Tuple[float], optional): Tuple containing the start and end values for the beta schedule.
                 Defaults to (1e-4, 0.02).
         """
@@ -221,21 +232,32 @@ class Surrogate(torch.nn.Module):
 
         self.num_parameters = num_parameters
         self.num_context = num_context
+        self.num_targets = num_targets
         self.num_reconstructed = num_reconstructed
+        self.means = initial_means
+        self.stds = initial_stds
         self.layers = torch.nn.Sequential(
-            torch.nn.Linear(self.num_parameters + self.num_context + self.num_reconstructed + 1, 200),
+            torch.nn.Linear(
+                self.num_parameters
+                + self.num_context
+                + self. num_targets
+                + self.num_reconstructed
+                + 1, 100
+            ),
             torch.nn.ELU(),
-            torch.nn.Linear(200, 100),
+            torch.nn.Linear(100, 100),
             torch.nn.ELU(),
             torch.nn.Linear(100, 100),
             torch.nn.ELU(),
             torch.nn.Linear(100, num_reconstructed),
         )
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
+        self.loss_mse = torch.nn.MSELoss()
         self.surrogate_loss = []
         self.n_time_steps = n_time_steps
-        self.device = torch.device('cuda')
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.t_is = torch.tensor([i / self.n_time_steps for i in range(self.n_time_steps + 1)]).to(self.device)
+        self.best_surrogate_loss = 1e10
 
         for k, v in ddpm_schedules(*betas, n_time_steps).items():
             self.register_buffer(k, v)
@@ -244,6 +266,7 @@ class Surrogate(torch.nn.Module):
             self,
             parameters: torch.Tensor,
             context: torch.Tensor,
+            targets: torch.Tensor,
             reconstructed: torch.Tensor,
             time_step: torch.Tensor
             ):
@@ -257,7 +280,9 @@ class Surrogate(torch.nn.Module):
         if parameters.shape[0] == 1:
             parameters = parameters.repeat(context.shape[0], 1)
 
-        return self.layers(torch.cat([parameters, context, reconstructed, time_step.view(-1, 1)], dim=1))
+        return self.layers(torch.cat([
+            parameters, context, targets, reconstructed, time_step.view(-1, 1)
+        ], dim=1))
 
     def to(self, device: str = None):
         if device is None:
@@ -268,6 +293,13 @@ class Surrogate(torch.nn.Module):
         self.sqrtab = self.sqrtab.to(device)
         self.sqrtmab = self.sqrtmab.to(device)
         return self
+
+    def update_best_surrogate_loss(self, loss: torch.Tensor) -> bool:
+        if loss < self.best_surrogate_loss:
+            self.best_surrogate_loss = loss
+            return True
+
+        return loss < 4.0 * self.best_surrogate_loss
 
     def create_noisy_input(
             self,
@@ -295,6 +327,7 @@ class Surrogate(torch.nn.Module):
             self,
             parameters: torch.Tensor,
             context: torch.Tensor,
+            targets: torch.Tensor,
             ) -> torch.Tensor:
 
         n_sample = context.shape[0]
@@ -306,7 +339,7 @@ class Surrogate(torch.nn.Module):
             z = torch.randn(n_sample, 1).to(self.device) if i > 1 else 0
 
             # Split predictions and compute weighting
-            eps = self(parameters, context, predicted_reco, t_is)
+            eps = self(parameters, context, targets, predicted_reco, t_is)
             predicted_reco = (
                 self.oneover_sqrta[i] * (predicted_reco - eps * self.mab_over_sqrtmab[i]) + self.sqrt_beta_t[i] * z
             )
@@ -323,32 +356,32 @@ class Surrogate(torch.nn.Module):
         noise.
         """
         train_loader = DataLoader(surrogate_dataset, batch_size=batch_size, shuffle=True)
-        self.optimizer.lr = lr
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = lr
         self.to(self.device)
         self.train()
-        self.loss_mse = torch.nn.MSELoss()
 
         for epoch in range(n_epochs):
 
-            for batch_idx, (parameters, context, reconstructed) in enumerate(train_loader):
+            for batch_idx, (parameters, context, targets, reconstructed) in enumerate(train_loader):
                 parameters: torch.Tensor = parameters.to(self.device)
-                reconstructed: torch.Tensor = reconstructed.to(self.device)
                 context: torch.Tensor = context.to(self.device)
+                targets: torch.Tensor = targets.to(self.device)
+                reconstructed: torch.Tensor = reconstructed.to(self.device)
 
                 reco_noisy, noise, time_step = self.create_noisy_input(reconstructed)
-                model_out: torch.Tensor = self(parameters, context, reco_noisy, time_step / self.n_time_steps)
+                model_out: torch.Tensor = self(parameters, context, targets, reco_noisy, time_step / self.n_time_steps)
 
                 loss: torch.Tensor = self.loss_mse(noise, model_out)
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
 
-            print(
-                f"Surrogate Epoch: {epoch}",
-                f"Loss: {loss.item():.5f}",
-                f"Prediction: {self.sample_forward(parameters, context).mean().item():.5f}",
+            logger.info(
+                f"Surrogate Epoch: {epoch}\t"
+                f"Loss: {loss.item():.5f}\t"
+                f"Prediction: {self.sample_forward(parameters, context, targets).mean().item():.5f}\t"
                 f"Reconstructed: {reconstructed.mean().item():.5f}",
-                sep="\t"
             )
             self.surrogate_loss.append(loss.item())
 
@@ -383,12 +416,14 @@ class Surrogate(torch.nn.Module):
 
         for i_o in range(oversample):
 
-            for batch_idx, (parameters, context, _reconstructed) in enumerate(data_loader):
-                print(f'Surrogate batch: {batch_idx} / {len(data_loader)}', end='\r')
-                parameters = parameters.to(self.device)
-                context = context.to(self.device)
+            for batch_idx, (parameters, context, targets, _reconstructed) in enumerate(data_loader):
+                logger.info(f'Surrogate batch: {batch_idx} / {len(data_loader)}')
+                parameters: torch.Tensor = parameters.to(self.device)
+                context: torch.Tensor = context.to(self.device)
+                targets: torch.Tensor = targets.to(self.device)
 
-                reco_surrogate = self.sample_forward(parameters, context)
+                reco_surrogate = self.sample_forward(parameters, context, targets)
+                reco_surrogate = dataset.unnormalise_features(reco_surrogate, index=2)
 
                 start_inject_index = i_o * len(dataset) + batch_idx * batch_size
                 end_inject_index = i_o * len(dataset) + (batch_idx + 1) * batch_size

@@ -46,21 +46,73 @@ class Simulation():
 
             for i in range(3):
                 self.cw.addLayer(
-                    parameter_dict[f"thickness_absorber_{i}"]["current_value"],
+                    max(parameter_dict[f"thickness_absorber_{i}"]["current_value"], 1e-3),
                     parameter_dict[f"material_absorber_{i}"]["current_value"],
                     False,
                     1
                 )
                 self.cw.addLayer(
-                    parameter_dict[f"thickness_scintillator_{i}"]["current_value"],
+                    max(parameter_dict[f"thickness_scintillator_{i}"]["current_value"], 1e-3),
                     parameter_dict[f"material_scintillator_{i}"]["current_value"],
                     True,
                     1
                 )
+        elif "nikhil_material_choice" in parameter_dict:
+            self.cw = GeometryDescriptor()
+
+            for i in range(3):
+                absorber_thickness = max([
+                    1e-3,
+                    self.parameter_dict[f"thickness_absorber_{i}"]["current_value"]]
+                )
+                scintillator_thickness = max([
+                    1e-3,
+                    self.parameter_dict[f"thickness_scintillator_{i}"]["current_value"]]
+                )
+                materials = {
+                    "absorber": {"costly": "G4_Pb", "cheap": "G4_Fe"},
+                    "scintillator": {"costly": "G4_PbWO4", "cheap": "G4_POLYSTYRENE"}
+                }
+
+                if self.parameter_dict[f"material_absorber_{i}"]["current_value"] >= 0:
+                    self.cw.addLayer(absorber_thickness, materials["absorber"]["costly"], False)
+                else:
+                    self.cw.addLayer(absorber_thickness, materials["absorber"]["cheap"], False)
+
+                if self.parameter_dict[f"material_scintillator_{i}"]["current_value"] >= 0:
+                    self.cw.addLayer(scintillator_thickness, materials["scintillator"]["costly"], True, 1)
+                else:
+                    self.cw.addLayer(scintillator_thickness, materials["scintillator"]["cheap"], True, 1)
+
+        elif "two_layers" in parameter_dict:
+            self.cw = GeometryDescriptor()
+
+            absorber_thickness = max([
+                1e-3,
+                self.parameter_dict["thickness_absorber_0"]["current_value"]]
+            )
+            scintillator_thickness = max([
+                1e-3,
+                self.parameter_dict["thickness_scintillator_0"]["current_value"]]
+            )
+            materials = {
+                "absorber": {"costly": "G4_Pb", "cheap": "G4_Fe"},
+                "scintillator": {"costly": "G4_PbWO4", "cheap": "G4_POLYSTYRENE"}
+            }
+
+            if self.parameter_dict["material_absorber_0"]["current_value"] >= 0:
+                self.cw.addLayer(absorber_thickness, materials["absorber"]["costly"], False)
+            else:
+                self.cw.addLayer(absorber_thickness, materials["absorber"]["cheap"], False)
+
+            if self.parameter_dict["material_scintillator_0"]["current_value"] >= 0:
+                self.cw.addLayer(scintillator_thickness, materials["scintillator"]["costly"], True, 1)
+            else:
+                self.cw.addLayer(scintillator_thickness, materials["scintillator"]["cheap"], True, 1)
 
     def run_simulation(self) -> pd.DataFrame:
         dfs = []
-        particles = {'pi+': 0.211, 'gamma': 0.22}
+        particles = {"pi+": 0.211, "gamma": 0.22}
 
         for particle in particles.items():
             name, pid = particle
@@ -70,7 +122,8 @@ class Simulation():
                 particleSpec=name,
                 minEnergy_GeV=1.,
                 maxEnergy_GeV=20.,
-                no_mp=True
+                no_mp=True,
+                manual_seed=self.parameter_dict["metadata"]["rng_seed"]
             )
             df = df.assign(true_pid=np.full(len(df), pid, dtype='float32'))
             dfs.append(df)
@@ -111,4 +164,4 @@ if __name__ == "__main__":
             df[column] = df[column].to_list()
 
     df.to_parquet(output_path)
-    os.system("rm ./*.pkl")
+    os.system("rm -f ./*.pkl")

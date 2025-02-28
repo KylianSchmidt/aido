@@ -6,11 +6,14 @@ from typing import Any, Dict, Iterable, Iterator, List, Literal, Type
 import numpy as np
 import pandas as pd
 
+from aido.config import AIDOConfig
+
+config = AIDOConfig.from_json("config.json")
+
 
 class SimulationParameter:
     """Base class for all parameters used in the simulation
     """
-
     def __init__(
             self,
             name: str,
@@ -21,6 +24,7 @@ class SimulationParameter:
             min_value: float | None = None,
             max_value: float | None = None,
             sigma: float | None = None,
+            sigma_mode: Literal["flat", "scale"] | None = None,
             discrete_values: Iterable | None = None,
             probabilities: Iterable[float] | None = None,
             cost: float | Iterable | None = None
@@ -31,12 +35,17 @@ class SimulationParameter:
         ----
             name (str): The name of the parameter.
             starting_value (Any): The starting value of the parameter.
-            current_value (Any, optional): The current value of the parameter. Defaults to None.
+            current_value (Any, optional): The current value of the parameter. Defaults to None, in which case
+                it set to the starting value instead.
             units (str, optional): The units of the parameter. Defaults to None.
             optimizable (bool, optional): Whether the parameter is optimizable. Defaults to True.
             min_value (float, optional): The minimum value of the parameter. Defaults to None.
             max_value (float, optional): The maximum value of the parameter. Defaults to None.
-            sigma (float, optional): The standard deviation of the parameter. Defaults to None.
+            sigma (float, optional): The standard deviation of the parameter. Defaults to 0.5 for continuous
+            (float) parameters and remains None otherwise.
+            sigma_mode (str, optional): Whether to set the sampling distribution standard deviation to sigma ("flat")
+                or scale sigma with the current value ("scale"). Defaults to "flat". If "sigma" is not defined,
+                this parameter has not action. Can be changed class-wide using the cls.set_sigma_mode() classmethod.
             discrete_values (Iterable, optional): The allowed discrete values of the parameter. Defaults to None.
             probabilities (Iterable[float], optional): A list of the same length as 'discrete_values' used to
                 sample from 'discrete_values', if set to None, an equally-distributed array is created.
@@ -45,78 +54,83 @@ class SimulationParameter:
                 Defaults to None. For discrete parameters, this parameter must be an Iterable (e.g. list) of the
                 same length as 'discrete_values'.
         """
-        assert isinstance(name, str), "Name must be a string"
+        def check_boundaries() -> None:
+            assert (
+                isinstance(min_value, type(starting_value)) or min_value is None
+                ), "Only float parameters are allowed to have lower bounds"
 
+            assert (
+                isinstance(max_value, type(starting_value)) or max_value is None
+            ), "Only float parameters are allowed to have upper bounds"
+
+        def check_discrete_parameters() -> None:
+            assert (
+                isinstance(self._current_value, float) is True or (discrete_values is not None or optimizable is False)
+            ), "Specify discrete values when the parameter is not a float, but is optimizable"
+
+            if discrete_values is not None:
+                if optimizable is False:
+                    raise AssertionError(
+                        "Non-optimizable parameters are excluded from requiring allowed discrete values"
+                    )
+                assert (
+                    self._current_value in discrete_values
+                ), "Current value must be included in the list of allowed discrete values"
+                assert (
+                    starting_value in discrete_values
+                ), "Starting value must be included in the list of allowed discrete values"
+                assert (
+                    min_value is None and max_value is None
+                ), "Not allowed to specify min and max value for parameter with discrete values"
+
+        def check_sigma() -> None:
+            if discrete_values is None and optimizable:
+                if sigma is not None:
+                    assert sigma > 0.0, "Sigma parameter must be a positive float"
+            else:
+                assert (
+                    sigma is None
+                ), "Unable to assign standard deviation to discrete or non-optimizable parameter."
+
+        def check_cost() -> None:
+            if cost is None:
+                pass
+            elif self.discrete_values:
+                assert (
+                    isinstance(cost, Iterable)
+                ), "Parameter 'cost' must be an iterable of the same length as 'discrete_values'"
+                assert (
+                    len(cost) == len(self.discrete_values)
+                ), f"Length of 'cost' ({len(cost)}) is different"
+                f"from that of 'discrete_values' ({len(self.discrete_values)})"
+                assert (
+                    (isinstance(cost_item, float) and cost_item > 0.0 for cost_item in cost)
+                ), "Entries of argument 'cost' must be positive floats"
+            elif self.discrete_values is None:
+                assert (
+                    isinstance(cost, float) and cost > 0.0
+                ), "Cost argument must be a positive float for continuous parameters."
+
+        assert isinstance(name, str), "Name must be a string"
         self.name = name
+
+        check_boundaries()
         self._starting_value = starting_value
         self._optimizable = optimizable
-        self.sigma = sigma
         self.units = units
-
-        assert (
-            isinstance(min_value, type(starting_value)) or min_value is None
-            ), "Only float parameters are allowed to have lower bounds"
-
-        assert (
-            isinstance(max_value, type(starting_value)) or max_value is None
-        ), "Only float parameters are allowed to have upper bounds"
-
         self.min_value = min_value
         self.max_value = max_value
+        self._current_value = current_value if current_value is not None else starting_value
 
-        if current_value is not None:
-            self._current_value = current_value
-        else:
-            self._current_value = starting_value
-
-        assert (
-            isinstance(self._current_value, float) is True or (discrete_values is not None or optimizable is False)
-        ), "Specify discrete values when the parameter is not a float, but is optimizable"
-
+        check_discrete_parameters()
         self.discrete_values = discrete_values
+        self.probabilities = probabilities if discrete_values is not None else None
 
-        if self.discrete_values is not None:
-            if optimizable is False:
-                raise AssertionError("Non-optimizable parameters are excluded from requiring allowed discrete values")
-            assert (
-                self._current_value in self.discrete_values
-            ), "Current value must be included in the list of allowed discrete values"
-            assert (
-                starting_value in self.discrete_values
-            ), "Starting value must be included in the list of allowed discrete values"
-            assert (
-                self.min_value is None and self.max_value is None
-            ), "Not allowed to specify min and max value for parameter with discrete values"
-            if probabilities is None:
-                self.probabilities = np.full(len(self.discrete_values), 1.0 / len(self.discrete_values))
-            else:
-                self.probabilities = probabilities
+        check_sigma()
+        self.sigma = sigma
+        self.sigma_mode = sigma_mode or config.simulation.sigma_mode
 
-        if sigma is None:
-            if discrete_values is None and optimizable is True:
-                self.sigma = 0.1 * self.current_value
-        else:
-            assert (
-                isinstance(sigma, float) and discrete_values is None and optimizable is True
-            ), "Unable to asign standard deviation to discrete or non-optimizable parameter."
-
-        if cost is None:
-            pass
-        elif self.discrete_values:
-            assert (
-                isinstance(cost, Iterable)
-            ), "Parameter 'cost' must be an iterable of the same length as 'discrete_values'"
-            assert (
-                len(cost) == len(self.discrete_values)
-            ), f"Length of 'cost' ({len(cost)}) is different"
-            f"from that of 'discrete_values' ({len(self.discrete_values)})"
-            assert (
-                (isinstance(cost_item, float) and cost_item > 0.0 for cost_item in cost)
-            ), "Entries of argument 'cost' must be positive floats"
-        elif self.discrete_values is None:
-            assert (
-                isinstance(cost, float) and cost > 0.0
-            ), "Cost argument must be a positive float for continuous parameters."
+        check_cost()
         self.cost = cost
 
     def __str__(self) -> str:
@@ -153,23 +167,41 @@ class SimulationParameter:
         assert (
             self.discrete_values is None or value in self.discrete_values
         ), "Updated discrete parameter value is not in the list of allowed discrete values."
-        if isinstance(value, float):
-            if self.max_value is not None and value > self.max_value:
-                value = self.max_value
-            if self.min_value is not None and value < self.min_value:
-                value = self.min_value
         self._current_value = value
 
     @property
     def optimizable(self) -> bool:
         return self._optimizable
+    
+    @property
+    def sigma(self) -> float | None:
+        if self.discrete_values is not None or not self.optimizable:
+            return None
+        if self.sigma_mode == "scale":
+            return self._sigma * self.current_value
+        elif self.sigma_mode == "flat":
+            return self._sigma
+
+    @sigma.setter
+    def sigma(self, value: float | None):
+        if self.discrete_values is None and self.optimizable:
+            if value is None:
+                value = config.simulation.sigma
+            assert value > 0.0
+        else:
+            assert value is None
+        self._sigma = value
 
     @property
     def probabilities(self) -> List[float]:
         return self._probabilities
 
     @probabilities.setter
-    def probabilities(self, value: Iterable[float]):
+    def probabilities(self, value: Iterable[float] | None):
+        if self.discrete_values is None:
+            return None
+        if value is None:
+            value = np.full(len(self.discrete_values), 1.0 / len(self.discrete_values))
         assert (
             len(value) == len(self.discrete_values)
         ), f"Length of 'probabilities' ({len(value)}) must match length"
@@ -251,6 +283,7 @@ class SimulationParameterDictionary:
         self.creation_time = str(datetime.datetime.now())
         self.rng_seed: int | None = None
         self.description = ""
+        self._covariance: np.ndarray | None = None
         self.parameter_list = parameter_list
         self.parameter_dict = self.to_dict(serialized=False)
 
@@ -273,10 +306,11 @@ class SimulationParameterDictionary:
     def __len__(self) -> int:
         return len(self.parameter_list)
 
-    def to_dict(self, serialized=True) -> Dict[str, SimulationParameter]:
+    def to_dict(self, serialized=True) -> Dict[str, SimulationParameter | Dict]:
         """Converts the parameter list to a dictionary.
 
-        :param serialized: A boolean indicating wh["current_value"]n-readable strings.\n
+        :param serialized: A boolean indicating whether to return a Dict of SimulationParameters or
+            a Dict of Dict (by serializing each SimulationParameter in turn)
             If False, the SimulationParameter objects will be included as is. This is used by this class to allow
                 dictionary-style access to the individual parameters\n
         :return: A dictionary where the keys are the names of the SimulationParameter objects and the values are either
@@ -301,7 +335,7 @@ class SimulationParameterDictionary:
             self,
             df_length: int | None = 1,
             include_non_optimizables: bool = False,
-            one_hot: bool = False,
+            display_discrete: Literal["default", "as_probabilities", "as_one_hot"] = "default",
             types: Literal["all", "continuous", "discrete"] = "all",
             **kwargs
             ) -> pd.DataFrame:
@@ -312,8 +346,13 @@ class SimulationParameterDictionary:
             df_length (int): The length of the DataFrame to be created. Default is None.
             include_non_optimizables (bool): Whether to include non-optimizable parameters in the
                 df. Defaults to False.
-            one_hot (bool): Format discrete parameters as one-hot encoded categoricals. Relevant for
-                training with discrete parameters. Defaults to False
+            display_discrete (Literal):
+                - 'default': Simply write the current value of the Parameter (default)
+                - 'as_probabilities': Write the probability of each category (from the list of available
+                    discrete parameter).
+                - 'as_one_hot':Write the current value as a one-hot encoded array. All categories are set
+                    to zero except for the 'current_value' which is set to one.
+                    Ref. https://pytorch.org/docs/stable/generated/torch.nn.functional.one_hot.html
             types (str): Choose what kind of parameters will be added to the pd.DataFrame. All includes
                 all parameters, continuous only those with no 'discrete_values' and discrete only
                 those with 'discrete_values'.
@@ -326,7 +365,7 @@ class SimulationParameterDictionary:
             kwargs["index"] = range(df_length)
 
         return pd.DataFrame(
-            self.get_current_values("dict", include_non_optimizables, one_hot=one_hot, types=types),
+            self.get_current_values("dict", include_non_optimizables, display_discrete=display_discrete, types=types),
             **kwargs,
         )
 
@@ -334,15 +373,15 @@ class SimulationParameterDictionary:
             self,
             format: Literal["list", "dict"] = "dict",
             include_non_optimizables: bool = False,
-            one_hot: bool = False,
+            display_discrete: Literal["default", "as_probabilities", "as_one_hot"] = "default",
             types: Literal["all", "continuous", "discrete"] = "all",
             ) -> List | Dict:
-        if format == "list" and one_hot:
+        if format == "list" and display_discrete != "default":
             raise NotImplementedError("One-Hot Encoding is only available with the 'list' format")
-        if types == "continuous" and one_hot:
+        if types == "continuous" and display_discrete != "default":
             raise ValueError(
                 "Continuous parameters can not be displayed as one-hot encoded, only discrete parameters."
-                "Setting types == 'continuous' and one_hot=True are incompatible"
+                "Setting types == 'continuous' and 'display_discrete' other than 'default' are incompatible"
             )
 
         def get_parameters() -> Iterator[SimulationParameter]:
@@ -364,10 +403,14 @@ class SimulationParameterDictionary:
             current_values = {}
 
             for parameter in get_parameters():
-                if parameter.discrete_values and one_hot is True:
+                if parameter.discrete_values and not display_discrete == "default":
 
-                    for index, val in enumerate(parameter.probabilities):
-                        current_values[f"{parameter.name}_{parameter.discrete_values[index]}"] = val
+                    for index, val in enumerate(parameter.discrete_values):
+                        key = f"{parameter.name}_{parameter.discrete_values[index]}"
+                        if display_discrete == "as_probabilities":
+                            current_values[key] = parameter.probabilities[index]
+                        elif display_discrete == "as_one_hot":
+                            current_values[key] = 1 if val == parameter.current_value else 0
                 else:
                     current_values[parameter.name] = parameter.current_value
 
@@ -391,7 +434,7 @@ class SimulationParameterDictionary:
 
         return self
 
-    def update_probabilities(self, probabilities_dict: dict):
+    def update_probabilities(self, probabilities_dict: dict[str, List | np.ndarray]):
         for key, value in probabilities_dict.items():
             assert (
                 key in self.parameter_dict.keys()
@@ -401,28 +444,62 @@ class SimulationParameterDictionary:
                 self.parameter_dict[key].probabilities = value
 
         return self
+    
+    @property
+    def sigma_array(self) -> np.ndarray:
+        """ Diagonal matrix with the standard deviation of each continuous parameter
+        """
+        sigma_array = []
+
+        for parameter in self.parameter_list:
+            if parameter.optimizable is True and parameter.discrete_values is None:
+                sigma_array.append(parameter.sigma**2)
+
+        return np.diag(np.array(sigma_array))
 
     @property
     def covariance(self) -> np.ndarray:
-        covariance_matrix = []
+        """ Get the current covariance matrix. If no covariance was set, it defaults
+        to the 'sigma_array' squared (covariance matrix with no correlations).
+        """
+        if self._covariance is not None:
+            return self._covariance
+        else:
+            return self.sigma_array
 
-        for parameter in self.parameter_list:
-            if parameter.optimizable is True:
-                covariance_matrix.append(parameter.sigma)
-
-        return np.diag(np.array(covariance_matrix))
+    @covariance.setter
+    def covariance(self, new_covariance=np.ndarray) -> None:
+        """ Set the input matrix as the new covariance matrix
+        """
+        assert (
+            isinstance(new_covariance, np.ndarray)
+        ), f"Covariance must be a numpy array, but is type {type(new_covariance)}"
+        assert (
+            np.allclose(new_covariance, new_covariance.T)
+        ), "Covariance matrix is not symmetric"
+        assert (
+            np.all(np.linalg.eigvals(new_covariance) >= 0)
+        ), "Covariance matrix is not positive semi-definite (negative eigenvalues detected)"
+        assert (
+            np.all(np.diag(new_covariance) >= 0)
+        ), "Covariance matrix has negative variances on the diagonal"
+        self._covariance = new_covariance
 
     @property
-    def metadata(self) -> Dict[str, int | str]:
+    def metadata(self) -> Dict[str, int | str | List]:
         return {
             "iteration": self.iteration,
             "creation_time": self.creation_time,
             "rng_seed": self.rng_seed,
-            "description": self.description
+            "description": self.description,
+            "covariance": self.covariance.tolist()
         }
 
     @metadata.setter
     def metadata(self, new_metadata_dict: Dict[str, int | str]):
+        if "covariance" in new_metadata_dict.keys():
+            self.covariance = np.array(new_metadata_dict.pop("covariance"))
+
         for name, value in new_metadata_dict.items():
             if name in self.metadata:
                 self.__setattr__(name, value)
@@ -432,7 +509,7 @@ class SimulationParameterDictionary:
         """Create an instance from dictionary
         TODO Make sure it is a serialized dict, not a dict of SimulationParameters
         """
-        metadata = parameter_dict.pop("metadata")
+        metadata: Dict = parameter_dict.pop("metadata")
         instance = cls([SimulationParameter.from_dict(parameter) for parameter in parameter_dict.values()])
         instance.metadata = metadata
         return instance
@@ -444,7 +521,12 @@ class SimulationParameterDictionary:
             parameter_dicts: Dict = json.load(file)
         return cls.from_dict(parameter_dicts)
 
-    def generate_new(self, rng_seed: int | None = None):
+    def generate_new(
+            self,
+            rng_seed: int | None = None,
+            discrete_index: int | None = None,
+            scaling_factor: float = 1.0
+            ):
         """
         Generates a new set of values for each parameter, bounded by specified minimum and maximum
         values for float parameters. For discrete parameters, the new value is randomly chosen from
@@ -454,50 +536,38 @@ class SimulationParameterDictionary:
         ----
         rng_seed (int | None): Optional seed for the random number generator. If an integer is provided,
             the random number generator is initialized with that seed to ensure reproducibility. If None,
-            a pseudo-random seed is generated based on the current time and the process ID, ensuring that
-            each execution results in different random values:
-
-            rng_seed = int(time.time()) + os.getpid()
+            a pseudo-random seed is generated by numpy.random.default_rng()
+        discrete_index (int | None): Optional indexing of the discrete parameters catergories in order to
+            ensure that a certain category is represented. If 'discrete_index' > len(parameter.discrete_values),
+            a random sampling is uses. Otherwise the chosen value is parameter.discrete_values['discrete_index']
         """
 
-        def generate_continuous(parameter: SimulationParameter, retries: int = 100):
-            if parameter.optimizable is False:
-                return parameter.current_value
-
-            for i in range(retries):
-                new_value = rng.normal(parameter.current_value, parameter.sigma)
-
-                if (
-                    parameter.min_value is not None and parameter.current_value >= parameter.min_value
-                    or parameter.max_value is not None and parameter.current_value <= parameter.max_value
-                    or parameter.min_value is None and parameter.max_value is None
-                ):
-                    break
-            else:
-                new_value = parameter.current_value
-                print(f"Warning: unable to set new current value for parameter {parameter.name}")
-            return new_value
-
         def generate_discrete(parameter: SimulationParameter):
-            return parameter.discrete_values[
-                rng.choice(len(parameter.discrete_values), p=parameter.probabilities)
-            ]
+            if parameter.discrete_values is None:
+                return None
+            if discrete_index is not None and discrete_index < len(parameter.discrete_values):
+                return parameter.discrete_values[discrete_index]
+            else:
+                return parameter.discrete_values[
+                    rng.choice(len(parameter.discrete_values), p=parameter.probabilities)
+                ]
 
         rng = np.random.default_rng(rng_seed)
         rng_seed = rng_seed or int(rng.integers(9_999_999))
-        new_parameter_list = copy.deepcopy(self.parameter_list)  # Prevents the modification of this instance
+        new_instance = copy.deepcopy(self)  # Prevents the modification of this instance
 
-        for parameter in new_parameter_list:
-            if parameter.optimizable is False:
-                continue
+        for parameter in self.parameter_list:
+            if parameter.discrete_values is not None:
+                new_instance[parameter.name].current_value = generate_discrete(parameter)
 
-            elif parameter.discrete_values is not None:
-                parameter.current_value = generate_discrete(parameter)
+        new_continuous_parameter_list = rng.multivariate_normal(
+            mean=np.array(self.get_current_values(format="list", types="continuous")),
+            cov=self.covariance * scaling_factor
+        )
 
-            elif isinstance(parameter.current_value, float) and parameter.optimizable:
-                parameter.current_value = generate_continuous(parameter)
+        for index, key in enumerate(self.get_current_values(types="continuous").keys()):
+            new_instance[key].current_value = float(new_continuous_parameter_list[index])
 
-        new_instance = type(self)(new_parameter_list)
         new_instance.metadata = self.metadata
         new_instance.rng_seed = rng_seed
         return new_instance
