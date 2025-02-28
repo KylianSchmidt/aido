@@ -1,8 +1,13 @@
+
+import os
+
 import numpy as np
 import pytest
 
 import aido
 import aido.config
+
+config = aido.config.AIDOConfig.from_json("config.json")
 
 
 @pytest.fixture
@@ -18,6 +23,7 @@ def sim_param_dict() -> aido.SimulationParameterDictionary:
 def test_save_load(sim_param_dict: aido.SimulationParameterDictionary):
     sim_param_dict.to_json("./sim_param_dict")
     aido.SimulationParameterDictionary.from_json("./sim_param_dict")
+    os.remove("./sim_param_dict")
 
 
 def test_generate_new(sim_param_dict: aido.SimulationParameterDictionary):
@@ -85,7 +91,7 @@ def test_sigma_mode() -> None:
 
 def test_sigma() -> None:
     sim_param_dict = aido.SimulationParameter("foo", 1.0)
-    assert sim_param_dict.sigma == 1.5
+    assert sim_param_dict.sigma == config.simulation.sigma
 
     sim_param_dict = aido.SimulationParameter("foo", 4.0, sigma_mode="scale", sigma=1.5)
     assert sim_param_dict.sigma == 6.0
@@ -109,7 +115,7 @@ def test_set_sigma() -> None:
         aido.SimulationParameter("material_absorber_0", -1, optimizable=False)
     ])
     assert sim_param_dict["thickness_absorber_0"].discrete_values is None
-    assert sim_param_dict["thickness_absorber_0"].sigma == 1.5
+    assert sim_param_dict["thickness_absorber_0"].sigma == config.simulation.sigma
 
 
 def test_covariance() -> None:
@@ -126,6 +132,7 @@ def test_covariance() -> None:
     sim_param_dict.to_json("test_param_dict")
     sim_param_dict_2 = aido.SimulationParameterDictionary.from_json("test_param_dict")
     assert np.all(sim_param_dict_2.covariance == np.diag([25, 1, 4]))
+    os.remove("./sim_param_dict")
 
 
 def test_current_value(sim_param_dict: aido.SimulationParameterDictionary) -> None:
