@@ -263,26 +263,20 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
 
         def plot_energy_resolution_evolution(use_checkpoint: bool = False) -> None:
                 
-            if True:
-                dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
-                e_rec_array = np.full(len(dirs), 0.0)
-                e_loss_best_array = np.full(len(dirs), 0.0)
+            dirs = glob.glob(f"{self.results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
+            e_rec_array = np.full(len(dirs), 0.0)
+            e_loss_best_array = np.full(len(dirs), 0.0)
 
-                for file_name in dirs:
-                    iteration = int(re.search(r"iteration=(\d+)", file_name).group(1))
-                    df = pd.read_parquet(file_name)[0:400]
-                    e_rec: pd.Series = df["Reconstructed"]["true_energy"] - df["Targets"]["true_energy"]
-                    e_rec = e_rec**2 / (df["Targets"]["true_energy"] + 1)
-                    e_rec_array[iteration] = np.mean(e_rec)
-                    e_loss_best_array[iteration] = np.mean(df["Loss"])
+            for file_name in dirs:
+                iteration = int(re.search(r"iteration=(\d+)", file_name).group(1))
+                df = pd.read_parquet(file_name)[0:400]
+                e_rec: pd.Series = df["Reconstructed"]["true_energy"] - df["Targets"]["true_energy"]
+                e_rec = e_rec**2 / (df["Targets"]["true_energy"] + 1)
+                e_rec_array[iteration] = np.mean(e_rec)
+                e_loss_best_array[iteration] = np.mean(df["Loss"])
 
-                plt.close()
-                e_rec_array.tofile(".erec_array_checkpoint")
-                e_loss_best_array.tofile(".eloss_array_checkpoint")
-            else:
-                e_rec_array = np.fromfile(".erec_array_checkpoint")
-                e_loss_best_array = np.fromfile(".eloss_array_checkpoint")
-            
+            plt.close()
+
             df_loss: pd.DataFrame = aido.Plotting.optimizer_loss(results_dir=self.results_dir)
             df_loss = df_loss[["Scaled Epoch", "Loss"]]
             df_loss = df_loss.set_index("Scaled Epoch")
@@ -336,12 +330,12 @@ class UIFullCalorimeter(AIDOUserInterfaceExample):
             plt.savefig(os.path.join(self.results_dir, "plots/cost_constraints"))
             plt.close()
 
-        # plot_energy_resolution_all()
-        # plot_reco_loss_all()
-        # plot_energy_resolution_first_and_last()
+        plot_energy_resolution_all()
+        plot_reco_loss_all()
+        plot_energy_resolution_first_and_last()
         plot_energy_resolution_evolution()
-        # plot_calorimeter_sideview()
-        # plot_constraints()
+        plot_calorimeter_sideview()
+        plot_constraints()
         plt.close("all")
         return None
 
@@ -404,30 +398,16 @@ if __name__ == "__main__":
         aido.SimulationParameter("max_cost", 50_000, optimizable=False),
         aido.SimulationParameter("full_calorimeter", True, optimizable=False)
     ])
-    if True:
-        ui = UIFullCalorimeter()
-        ui.results_dir = "/work/kschmidt/aido/results_paper/results_20250129_3"
-        ui.plot(os.path.join(ui.results_dir, "/parameters/param_dict_iter_200.json"))
-        aido.Plotting.plot(results_dir=ui.results_dir)
-        raise RuntimeError
     aido.optimize(
         parameters=parameters,
         user_interface=UIFullCalorimeter,
         simulation_tasks=20,
         max_iterations=30,
         threads=20,
-        results_dir="/work/kschmidt/aido/results_paper/the_perfect_detector_v4",
+        results_dir="result_example",
         description="""
-            Full Calorimeter with cost and length constraints.
-            With discrete parameters
-            ReLU cost constraints
-            FIX for discrete parameters
-            With the new boundaries like in Calo-Opt with 1 / 1.1 factor
-            With the correct gradients for the material cost
-            Softmax boundaries
-            New reconstruction loss
-            No inplace loss changes, instead sum everything in one line
-            Take out normalization of parameters
-        """
+Optimization of a sampling calorimeter with cost and length constraints.
+Includes the optimization of discrete parameters, specific plotting functions
+"""
     )
     os.system("rm *.root")
