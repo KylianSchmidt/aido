@@ -1,7 +1,6 @@
 import os
 from typing import Dict, Iterable, List
 
-import matplotlib.pyplot as plt
 import pandas as pd
 import torch
 
@@ -132,25 +131,3 @@ class AIDOUserInterfaceExample(aido.AIDOBaseUserInterface):
         """
         y_denominator = torch.where(y > 1., y, torch.ones_like(y))
         return (y_pred - y)**2 / y_denominator**2
-
-    @classmethod
-    def add_plot_header(cls, ax: plt.Axes) -> plt.Axes:
-        plt.text(
-            0.0, 1.06,
-            "AIDO",
-            transform=ax.transAxes, fontsize=14, fontweight='bold', va='top', ha='left'
-        )
-        plt.text(
-            0.125, 1.06,
-            "Detector Optimization",
-            transform=ax.transAxes, fontsize=14, style='italic', va='top', ha='left'
-        )
-        plt.text(
-            0.01, 0.98,
-            "Sampling Calorimeter\n"
-            "50% photons and 50% pions\n"
-            r"$20 \times 400$" + " MC Events / Iteration\n"
-            r"$E_\text{true}=[1, 20]$" + " GeV",
-            transform=ax.transAxes, va='top', ha='left'
-        )  # Adjust the text as fitting
-        return ax
