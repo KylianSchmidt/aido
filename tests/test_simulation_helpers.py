@@ -132,7 +132,7 @@ def test_covariance() -> None:
     sim_param_dict.to_json("test_param_dict")
     sim_param_dict_2 = aido.SimulationParameterDictionary.from_json("test_param_dict")
     assert np.all(sim_param_dict_2.covariance == np.diag([25, 1, 4]))
-    os.remove("./sim_param_dict")
+    os.remove("./test_param_dict")
 
 
 def test_current_value(sim_param_dict: aido.SimulationParameterDictionary) -> None:
