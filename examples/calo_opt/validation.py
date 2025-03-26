@@ -9,8 +9,6 @@ import torch
 import torch.utils.data
 from reconstruction import Reconstruction, ReconstructionDataset
 
-from aido.logger import logger
-
 matplotlib.use("agg")
 
 
@@ -96,5 +94,5 @@ class ReconstructionValidation():
         plt.savefig(os.path.join(fig_savepath, f"validation_recoModel_{datetime.datetime.now()}.png"))
         plt.close()
 
-        logger.info("Validation Plots Saved")
+        print("Validation Plots Saved")
         return None

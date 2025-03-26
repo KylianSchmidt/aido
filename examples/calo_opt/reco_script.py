@@ -1,3 +1,4 @@
+# python3.9
 import os
 import sys
 
@@ -27,10 +28,10 @@ def pre_train(model: Reconstruction, dataset: Dataset, n_epochs: int):
 
 
 def train(
-        input_df_path: str | os.PathLike,
-        output_df_path: str | os.PathLike,
+        input_df_path: str,
+        output_df_path: str,
         isVal: bool,
-        results_dir: str | os.PathLike
+        results_dir: str,
         ):
     simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
      
