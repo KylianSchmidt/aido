@@ -54,7 +54,7 @@ def optimize(
         threads: int = 1,
         results_dir: str | os.PathLike = "./results/",
         description: str = "",
-        validation_tasks: int | None = None,
+        validation_tasks: int = 0,
         **kwargs,
         ):
     """
