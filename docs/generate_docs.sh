@@ -1,4 +1,5 @@
 export LC_ALL=en_US.UTF-8
+ln -s ../config.json config.json
 make html
 sphinx-build -b markdown . _build/markdown
 
