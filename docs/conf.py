@@ -41,8 +41,7 @@ source_suffix = {
     ".rst": "restructuredtext",
     ".md": "markdown"
 }
-sys.path.insert(0, os.path.abspath("../aido"))
-sys.path.append(os.path.abspath("../config.json"))
+sys.path.insert(0, os.path.abspath(".."))
 myst_enable_extensions = ["deflist", "colon_fence"]
 
 # Autodoc settings
