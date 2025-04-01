@@ -14,6 +14,6 @@ Documentation of the AI Detector Optimization (AIDO) package
 Indices and Tables
 ==================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+* :ref:`<genindex>`
+* :ref:`<modindex>`
+* :ref:`<search>`
