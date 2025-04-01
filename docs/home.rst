@@ -1,4 +1,4 @@
-Documentation of the AI Detector Optimzation (AIDO) package
+Documentation of the AI Detector Optimization (AIDO) package
 ===========================================================
 
 .. automodule:: aido

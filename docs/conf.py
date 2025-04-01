@@ -42,6 +42,7 @@ source_suffix = {
     ".md": "markdown"
 }
 sys.path.insert(0, os.path.abspath("../aido"))
+sys.path.append(os.path.abspath("../config.json"))
 myst_enable_extensions = ["deflist", "colon_fence"]
 
 # Autodoc settings
