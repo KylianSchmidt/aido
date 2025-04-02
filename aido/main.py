@@ -4,8 +4,7 @@ design of particle physics detectors. By interpolating the results of simulation
 with slightly different geometries, it can iteratively find the best set of detector
 parameters.
 
-This framework fragments the workflow into
-`b2luigi<https://b2luigi.readthedocs.io/en/stable/index.html>`_
+This framework fragments the workflow into [b2luigi](https://b2luigi.readthedocs.io/en/stable/index.html)
 Tasks for parallel simulations and the training of ML models on GPUs.
 
 In order to use this framework, you need:
