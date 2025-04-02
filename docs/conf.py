@@ -12,7 +12,7 @@ import sys
 project = 'aido'
 copyright = '2024, Kylian Schmidt, Dr. Jan Kieseler'
 author = 'Kylian Schmidt, Dr. Jan Kieseler'
-release = "0.0.3"
+release = "0.1.2"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -48,7 +48,4 @@ myst_enable_extensions = ["deflist", "colon_fence"]
 autodoc_member_order = "bysource"
 autodoc_default_options = {
     "members": True,
-    "undoc-members": True,
-    "private-members": True,
-    "show-inheritance": True
 }
