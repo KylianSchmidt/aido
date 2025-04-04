@@ -25,6 +25,7 @@ extensions = [
     'sphinx.ext.mathjax',           # For LaTeX math rendering,
     'myst_parser',                  # For .md files
     "sphinx.ext.intersphinx",       # For genindex and other files
+    "sphinx.ext.viewcode",          # Reference code
 ]
 
 templates_path = ['_templates']
