@@ -10,8 +10,8 @@ if [ ! -d "$WIKI_DIR" ]; then
 fi
 
 echo "Copying Wiki from $(WIKI_DIR) to $(TARGET_DIR)"
-find "$WIKI_DIR" -name "*.md" -exec cp {} "$TARGET_DIR/" \;
-cd $TARGET_DIR || exit 1
+cp "$WIKI_DIR/*" "$TARGET_DIR/"
+cd $TARGET_DIR/aido.wiki || exit 1
 git add .
 git commit -m "$COMMIT_MSG"  || echo "Auto-Update: No changes to commit"
-git push origin_github_
+git push origin master
