@@ -23,11 +23,6 @@ else
     fi
 fi
 
-# Make documentation and copy to WIKI_DIR
-cd "$DOCS_DIR"
-bash generate_docs.sh
-cp -r "$DOCS_DIR/_build/markdown/"* "$WIKI_DIR/"
-
 # 
 cd "$WIKI_DIR"
 echo "Git the docs to gitlab"
