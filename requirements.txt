@@ -27,6 +27,7 @@ fonttools==4.54.1
 fsspec==2024.6.1
 gitdb==4.0.11
 GitPython==3.1.43
+html2text==2024.2.26
 identify==2.6.0
 idna==3.10
 imagesize==1.4.1
@@ -78,12 +79,15 @@ nvidia-nvjitlink-cu12==12.5.82
 nvidia-nvtx-cu12==12.1.105
 packaging==24.1
 pandas==2.2.2
+pandoc==2.4
 parse==1.20.2
 parso==0.8.4
 pexpect==4.9.0
 pillow==10.4.0
 platformdirs==4.3.6
 pluggy==1.5.0
+plumbum==1.9.0
+ply==3.11
 pre-commit==3.8.0
 prompt_toolkit==3.0.48
 psutil==6.1.0
@@ -96,6 +100,9 @@ pydantic_core==2.23.4
 pyflakes==3.2.0
 Pygments==2.18.0
 pyparsing==3.2.0
+PyQt5==5.15.11
+PyQt5-Qt5==5.15.16
+PyQt5_sip==12.16.1
 pytest==8.3.3
 pytest-mock==3.14.0
 python-daemon==3.0.1
@@ -103,6 +110,7 @@ python-dateutil==2.9.0.post0
 pytz==2024.1
 PyYAML==6.0.2
 pyzmq==26.2.0
+qrcode==8.1
 requests==2.32.3
 retry2==0.9.5
 scipy==1.14.1
