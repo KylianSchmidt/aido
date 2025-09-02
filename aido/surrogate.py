@@ -393,7 +393,7 @@ class Surrogate(torch.nn.Module):
             dataset: SurrogateDataset,
             batch_size: int,
             oversample: int = 1,
-            ):
+            ) -> torch.Tensor:
         """
         Applies the model to the given dataset in batches and returns the results.
 
@@ -403,8 +403,7 @@ class Surrogate(torch.nn.Module):
             oversample (int, optional): The number of times to oversample the dataset. Default is 1.
 
         Returns:
-            tuple: A tuple containing three elements:
-                - results (torch.Tensor): The surrogate model's predictions.
+            torch.Tensor: The surrogate model's predictions.
 
         Remarks: In most cases the resulting Tensor with sampled Data is not of importance, only the
             model weights.
