@@ -1,4 +1,0 @@
-[submodule "examples/minicalosim"]
-    path = examples/minicalosim
-    url = git@github.com:jkiesele/minicalosim.git
-    branch = main
