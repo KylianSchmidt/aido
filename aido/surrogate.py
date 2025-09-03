@@ -79,7 +79,7 @@ class SurrogateDataset(Dataset):
             device: str = "cuda" if torch.cuda.is_available() else "cpu",
             means: List[np.float32] | None = None,
             stds: List[np.float32] | None = None,
-            normalise_parameters: bool = False,
+            normalize_parameters: bool = False,
             ):
         """
         Initializes the Surrogate model with the provided DataFrame and keys. All inputs must be
@@ -103,7 +103,7 @@ class SurrogateDataset(Dataset):
         self.context = self.df[context_key].to_numpy(np.float32)
         self.targets = self.df[target_key].to_numpy(np.float32)
         self.reconstructed = self.df[reconstructed_key].to_numpy(np.float32)
-        self.normalise_parameters = normalise_parameters
+        self.normalize_parameters = normalize_parameters
 
         self.shape: List[int] = (
             self.parameters.shape[1],
@@ -132,9 +132,10 @@ class SurrogateDataset(Dataset):
         self.c_means = [torch.tensor(a).to(device) for a in self.means]
         self.c_stds = [torch.tensor(a).to(device) for a in self.stds]
 
-        if self.normalise_parameters:
+        if self.normalize_parameters:
             logger.info("Normalized parameters")
             self.parameters = self.normalize_features(self.parameters, index=0)
+
         self.context = self.normalize_features(self.context, index=1)
         self.targets = self.normalize_features(self.targets, index=2)
         self.reconstructed = self.normalize_features(self.reconstructed, index=2)
@@ -152,7 +153,7 @@ class SurrogateDataset(Dataset):
             target: torch.Tensor | np.ndarray,
             index: int
             ) -> torch.Tensor | np.ndarray:
-        ''' Return the physically meaningful target from the normalised target
+        ''' Return the physically meaningful target from the normalized target
         Index:
             0 -> Parameters
             1 -> Context

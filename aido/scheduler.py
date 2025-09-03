@@ -12,7 +12,7 @@ from aido.interface import UserInterfaceBase
 from aido.logger import logger
 from aido.plotting import Plotting
 from aido.simulation_helpers import SimulationParameterDictionary
-from aido.task import AIDOTask
+from aido.task import AIDOTask, torch_safe_wrapper
 from aido.training import training_loop
 
 
@@ -198,7 +198,8 @@ class OptimizationTask(AIDOTask):
         while training_loop_out_of_memory:
             try:
                 training_loop_out_of_memory = False
-                new_param_dict = training_loop(
+                new_param_dict = torch_safe_wrapper(
+                    training_loop,
                     reco_file_paths_dict=self.reco_paths_dict["own_path"],
                     reconstruction_loss_function=interface.loss,
                     constraints=interface.constraints,

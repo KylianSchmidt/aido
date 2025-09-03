@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 from typing import Callable
 
 import numpy as np
@@ -17,7 +16,7 @@ from aido.surrogate import Surrogate, SurrogateDataset
 def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     """ Pre-train the Surrogate Model.
 
-    TODO Reconstruction results are normalized. In the future only expose the un-normalised ones,
+    TODO Reconstruction results are normalized. In the future only expose the un-normalized ones,
     but also requires adjustments to the surrogate dataset
     """
     model.to("cuda" if torch.cuda.is_available() else "cpu")
@@ -56,9 +55,8 @@ def training_loop(
     constraints_loss_save_path = reco_file_paths_dict["constraints_loss_save_path"]
     parameter_optimizer_savepath = os.path.join(results_dir, "models", "parameter_optimizer_df")
 
+    # Surrogate
     parameter_dict = SimulationParameterDictionary.from_json(parameter_dict_input_path)
-
-    # Surrogate:
     surrogate_df = pd.read_parquet(output_df_path)
 
     if os.path.isfile(surrogate_save_path):
@@ -144,11 +142,3 @@ def training_loop(
     ).to_csv(constraints_loss_save_path)
 
     return updated_parameter_dict
-
-
-if __name__ == "__main__":
-
-    with open(sys.argv[1], "r") as file:
-        reco_file_paths_dict = json.load(file)
-
-    training_loop(reco_file_paths_dict, reconstruction_loss_function=torch.nn.MSELoss, constraints=None)
