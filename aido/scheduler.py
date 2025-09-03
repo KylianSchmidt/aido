@@ -21,6 +21,7 @@ class SimulationTask(AIDOTask):
     validation = b2luigi.BoolParameter()
     simulation_task_id = b2luigi.IntParameter()
     num_simulation_tasks = b2luigi.IntParameter(significant=False)
+    num_validation_tasks = b2luigi.IntParameter(significant=False)
     start_param_dict_filepath = b2luigi.PathParameter(hashed=True, significant=False)
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
@@ -29,7 +30,8 @@ class SimulationTask(AIDOTask):
             return OptimizationTask(
                 iteration=self.iteration - 1,
                 num_simulation_tasks=self.num_simulation_tasks,
-                results_dir=self.results_dir
+                num_validation_tasks=self.num_validation_tasks,
+                results_dir=self.results_dir,
             )
 
     def output(self) -> Generator:
@@ -60,20 +62,26 @@ class ReconstructionTask(AIDOTask):
     iteration = b2luigi.IntParameter()
     validation = b2luigi.BoolParameter()
     num_simulation_tasks = b2luigi.IntParameter(significant=False)
+    num_validation_tasks = b2luigi.IntParameter(significant=False)
     start_param_dict_filepath = b2luigi.PathParameter(hashed=True, significant=False)
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def requires(self) -> Generator:
-        
-        for i in range(self.num_simulation_tasks):
-            if self.validation is True and i >= 5:
-                break
+        assert isinstance(self.validation, bool), "'validation' parameter must be of type bool."
+
+        if self.validation:
+            num_simulations = self.num_validation_tasks
+        else:
+            num_simulations = self.num_simulation_tasks
+
+        for i in range(num_simulations):
             yield self.clone(
                 SimulationTask,
                 iteration=self.iteration,
                 validation=self.validation,
                 simulation_task_id=i,
                 num_simulation_tasks=self.num_simulation_tasks,
+                num_validation_tasks=self.num_validation_tasks,
                 start_param_dict_filepath=self.start_param_dict_filepath,
                 results_dir=self.results_dir
             )
@@ -111,7 +119,7 @@ class ReconstructionTask(AIDOTask):
 class OptimizationTask(AIDOTask):
     """ This Task requires n='num_simulation_tasks' of StartSimulationTask before running. If the output of
     this Task exists, then it will be completely skipped.
-    When running, it calls the user-provided 'interface.merge()' and 'interface.reconstruct' methods. The
+    When running, it calls the user-provided 'interface.merge()' and 'interface.reconstruct()' methods. The
     output of the later is passed to the Surrogate/Optimizer.
     """
     iteration = b2luigi.IntParameter()
@@ -128,12 +136,12 @@ class OptimizationTask(AIDOTask):
         """ Starts the Reconstruction Tasks for regular reconstruction and for validation (the latter only
         if 'num_validation_tasks' > 0).
         """
-
-        def start_reconstruction_task(num_simulations: int):
+        def start_reconstruction_task(num_simulations: int, validation: bool = False) -> Generator:
             yield ReconstructionTask(
                 iteration=self.iteration,
-                validation=num_simulations,
-                num_simulation_tasks=self.num_simulation_tasks,
+                validation=validation,
+                num_simulation_tasks=num_simulations,
+                num_validation_tasks=self.num_validation_tasks,
                 start_param_dict_filepath=f"{self.results_dir}/parameters/param_dict_iter_{self.iteration}.json",
                 results_dir=self.results_dir,
             )
@@ -141,11 +149,11 @@ class OptimizationTask(AIDOTask):
         if self.iteration < 0:
             return None
 
-        start_reconstruction_task(self.num_validation_tasks) if self.num_validation_tasks else ...
-        start_reconstruction_task(self.num_simulation_tasks)
+        if self.num_validation_tasks:
+            yield from start_reconstruction_task(self.num_validation_tasks, validation=True)
+        yield from start_reconstruction_task(self.num_simulation_tasks)
 
     def create_reco_path_dict(self) -> Dict:
-
         return {
             "results_dir": str(self.results_dir),
             "own_path": str(self.get_output_file_name("reco_paths_dict")),
@@ -166,9 +174,6 @@ class OptimizationTask(AIDOTask):
     def run(self) -> None:
         """ For each root file produced by the simulation Task, start a container with the reconstruction algorithm.
         Afterwards, the parameter dictionary used to generate these results are also passed as output
-        Alternative container:
-
-            /cvmfs/unpacked.cern.ch/registry.hub.docker.com/cernml4reco/deepjetcore3:latest
 
         Current parameter dict is the main parameter dict of this iteration that was used to generate the
             simulations. It is fed to the Reconstruction and Surrogate/Optimizer models as input
@@ -221,15 +226,15 @@ class OptimizationTask(AIDOTask):
 
 
 def start_scheduler(
-        parameters: SimulationParameterDictionary,
-        user_interface: UserInterfaceBase,
-        simulation_tasks: int,
-        max_iterations: int,
-        threads: int,
-        results_dir: str | os.PathLike,
-        validation_tasks: int | None = None,
-        **kwargs,
-        ):
+    parameters: SimulationParameterDictionary,
+    user_interface: UserInterfaceBase,
+    simulation_tasks: int,
+    max_iterations: int,
+    threads: int,
+    results_dir: str | os.PathLike,
+    validation_tasks: int = 0,
+    **kwargs,
+):
     b2luigi.set_setting("result_dir", f"{results_dir}/task_outputs")
     os.makedirs(f"{results_dir}", exist_ok=True)
     assert os.path.isdir(results_dir), f"Provided results directory '{results_dir}' is not valid."
