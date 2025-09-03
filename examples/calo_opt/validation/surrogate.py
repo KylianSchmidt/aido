@@ -1,14 +1,19 @@
+"""
+Generate plots to validate the surrogate model for the example "full_calorimeter"
+"""
 import os
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
-from interface_simple import AIDOUserInterfaceExample
+from plotting import CaloOptPlotting
 from torch.utils.data import DataLoader
 
 from aido.logger import logger
 from aido.surrogate import Surrogate, SurrogateDataset
+
+plt.style.use("belle2")
 
 
 class SurrogateValidation():
@@ -23,7 +28,7 @@ class SurrogateValidation():
             self,
             dataset: SurrogateDataset,
             batch_size: int = 512,
-            ):
+            ) -> pd.DataFrame:
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         validation_df = dataset.df
         surrogate_reconstructed_array = np.full(len(dataset), -1.0)
@@ -38,7 +43,7 @@ class SurrogateValidation():
                 context,
                 targets,
             )
-            surrogate_output = dataset.unnormalise_features(surrogate_output, index=2)
+            surrogate_output = dataset.unnormalize_features(surrogate_output, index=2)
             surrogate_output = surrogate_output.detach().cpu().numpy().flatten()
             surrogate_reconstructed_array[batch_idx * batch_size: (batch_idx + 1) * batch_size] = surrogate_output
             logger.info(f"Validation batch {batch_idx} / {len(data_loader)}\r")
@@ -48,7 +53,12 @@ class SurrogateValidation():
         return validation_df
 
     @classmethod
-    def plot(cls, validation_df: pd.DataFrame, fig_savepath: os.PathLike | str) -> None:
+    def plot(
+        cls,
+        validation_df: pd.DataFrame,
+        fig_savepath: os.PathLike | str,
+        iteration: int,
+    ) -> None:
         """ Plot the reconstructed 'true_energy'
         """
         os.makedirs(fig_savepath, exist_ok=True)
@@ -59,7 +69,6 @@ class SurrogateValidation():
         print(f"{len(validation_energy)=}")
 
         fig, ax = plt.subplots()
-        ax = AIDOUserInterfaceExample.add_plot_header(ax)
         plt.hist(
             [validation_energy, surrogate_energy, true_energy],
             bins=bins,
@@ -82,14 +91,16 @@ class SurrogateValidation():
         plt.xlabel("Initial Energy [GeV]")
         plt.xlim(bins[0], bins[-1])
         plt.ylim(0, 150)
+        ax = CaloOptPlotting.add_plot_header(ax)
         plt.tight_layout()
-        plt.savefig(os.path.join(fig_savepath, f"validation_{iteration}.png"))
+        plt.savefig(os.path.join(fig_savepath, f"validation_{iteration}.png"), dpi=600)
 
 
 def validate_surrogate_func(
         surrogate: Surrogate,
         results_dir: str,
         validation_df_path: str,
+        iteration: int,
         ) -> None:
     if not validation_df_path:
         return None
@@ -106,6 +117,7 @@ def validate_surrogate_func(
     surrogate_validator.plot(
         validation_df,
         fig_savepath=os.path.join(results_dir, "plots"),
+        iteration=iteration,
     )
     return None
 
@@ -113,11 +125,13 @@ def validate_surrogate_func(
 if __name__ == "__main__":
     logger.setLevel("DEBUG")
     results_dir: str = ...
-    iteration: int = ...
-    dataset_path = f"{results_dir}/task_outputs/iteration={iteration}/validation=True/validation_output_df"
-    surrogate_model: Surrogate = torch.load(f"{results_dir}/models/surrogate_{iteration}.pt")
-    validate_surrogate_func(
-        surrogate=surrogate_model,
-        validation_df_path=dataset_path,
-        results_dir=f"{results_dir}",
-    )
+
+    for iteration in (5, 200):
+        dataset_path = f"{results_dir}/task_outputs/iteration={iteration}/validation=True/validation_output_df"
+        surrogate_model: Surrogate = torch.load(f"{results_dir}/models/surrogate_{iteration}.pt")
+        validate_surrogate_func(
+            surrogate=surrogate_model,
+            validation_df_path=dataset_path,
+            results_dir=f"{results_dir}",
+            iteration=iteration,
+        )

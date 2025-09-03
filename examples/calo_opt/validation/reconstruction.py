@@ -1,13 +1,11 @@
-import datetime
-import os
-
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
-import torch.utils.data
-from reconstruction import Reconstruction, ReconstructionDataset
+
+import aido.logger as logger
+from examples.calo_opt.reconstruction.model import Reconstruction, ReconstructionDataset
 
 matplotlib.use("agg")
 
@@ -53,46 +51,28 @@ class ReconstructionValidation():
         return output_df_val
 
     @classmethod
-    def plot(cls, validation_df: pd.DataFrame, fig_savepath: str) -> None:
-        """ Plots
-            - The energy distribution of the Reconstructed and validated datasets
-            - The reconstruction accuracy
-        """
+    def plot(cls, validation_df: pd.DataFrame, fig_savepath: str | None = None) -> None:
 
-        bins_energy = np.linspace(0, 20, 100 + 1)
-        bins_difference = np.linspace(-10, 10, 100 + 1)
+        reco = validation_df["Reconstructed"]["true_energy"].values
+        true = validation_df["Targets"]["true_energy"].values
 
-        val_reco = validation_df["Reconstructed"]["true_energy"].values
-        reco_out = validation_df["Targets"]["true_energy"].values
+        fig, ax = plt.subplots()
+        bins = np.linspace(0, 20, 40 + 1)
 
-        diff = np.zeros(len(val_reco))
-
-        for i in range(len(val_reco)):
-            diff[i] = val_reco[i] - reco_out[i]
-
-        difference = val_reco - reco_out
-
-        # Create the figure with subplots
-        fig, ax = plt.subplots(1, 2, figsize=(14, 6))
-
-        # First plot: energy distributions
-        ax[0].hist(val_reco, bins=bins_energy, label="Reconstruction", histtype="step")
-        ax[0].hist(reco_out, bins=bins_energy, label="Validation", histtype="step")
-        ax[0].set_xlim(bins_energy[0], bins_energy[-1])
-        ax[0].set_xlabel("Predicted Energy")
-        ax[0].set_ylabel(f"Counts / {(bins_energy[1] - bins_energy[0]):.2f}")
-        ax[0].legend()
-
-        # Second plot: distribution of differences
-        ax[1].hist(difference, bins=bins_difference, histtype="step")
-        ax[1].set_xlim(bins_difference[0], bins_difference[-1])
-        ax[1].set_xlabel("Reco_model Accuracy")
-        ax[1].set_ylabel("Counts")
-
-        # Save the combined figure
+        plt.hist(true, bins=bins, label=r"$E_\text{true}$" + " (Simulation)", histtype="step", color="green")
+        plt.hist(reco, bins=bins, label=r"$E_\text{reco}$" + " (Reconstruction)", histtype="step", color="blue")
+        plt.xlim(0.0, 20)
+        plt.xlabel("Energy [GeV]")
+        plt.ylim(0, 150)
+        plt.ylabel(f"Counts / ({(bins[1] - bins[0]):.2f} GeV)")
+        plt.legend()
         plt.tight_layout()
-        plt.savefig(os.path.join(fig_savepath, f"validation_recoModel_{datetime.datetime.now()}.png"))
-        plt.close()
 
-        print("Validation Plots Saved")
-        return None
+        if fig_savepath is not None:
+            plt.savefig(fig_savepath)
+            plt.close()
+
+            logger.info(f"Validation Plots Saved to '{fig_savepath}'")
+            return None
+        else:
+            return fig, ax, bins

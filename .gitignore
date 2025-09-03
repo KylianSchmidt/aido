@@ -11,6 +11,8 @@ build
 *.json
 *pkl
 docs/_build/
-docs/doctrees/
+docs/.doctrees/
+docs/.DS_Store
 *.png
 *.parquet
+TODO.md

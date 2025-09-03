@@ -19,96 +19,21 @@ class Simulation():
         else:
             self.n_events_per_var = 100
 
-        if "absorber_material" in parameter_dict:
-            absorber_material = parameter_dict["absorber_material"]["current_value"]
-        else:
-            absorber_material = "G4_Pb"
+        self.cw = GeometryDescriptor()
 
-        if "scintillator_material" in parameter_dict:
-            scintillator_material = parameter_dict["scintillator_material"]["current_value"]
-        else:
-            scintillator_material = "G4_PbWO4"
-
-        if "num_blocks" in parameter_dict:  # Case for discrete number of absorber/scintillator blocks
-            self.cw = GeometryDescriptor()
-
-            for _ in range(parameter_dict["num_blocks"]["current_value"]):
-                self.cw.addLayer(
-                    parameter_dict["thickness_absorber"]["current_value"], absorber_material, False, 1
-                )
-                self.cw.addLayer(
-                    parameter_dict["thickness_scintillator"]["current_value"], scintillator_material, True, 1
-                )
-        elif "simple_setup" in parameter_dict:
-            self.cw = self.produce_descriptor(parameter_dict)
-        elif "full_calorimeter" in parameter_dict:
-            self.cw = GeometryDescriptor()
-
-            for i in range(3):
-                self.cw.addLayer(
-                    max(parameter_dict[f"thickness_absorber_{i}"]["current_value"], 1e-3),
-                    parameter_dict[f"material_absorber_{i}"]["current_value"],
-                    False,
-                    1
-                )
-                self.cw.addLayer(
-                    max(parameter_dict[f"thickness_scintillator_{i}"]["current_value"], 1e-3),
-                    parameter_dict[f"material_scintillator_{i}"]["current_value"],
-                    True,
-                    1
-                )
-        elif "nikhil_material_choice" in parameter_dict:
-            self.cw = GeometryDescriptor()
-
-            for i in range(3):
-                absorber_thickness = max([
-                    1e-3,
-                    self.parameter_dict[f"thickness_absorber_{i}"]["current_value"]]
-                )
-                scintillator_thickness = max([
-                    1e-3,
-                    self.parameter_dict[f"thickness_scintillator_{i}"]["current_value"]]
-                )
-                materials = {
-                    "absorber": {"costly": "G4_Pb", "cheap": "G4_Fe"},
-                    "scintillator": {"costly": "G4_PbWO4", "cheap": "G4_POLYSTYRENE"}
-                }
-
-                if self.parameter_dict[f"material_absorber_{i}"]["current_value"] >= 0:
-                    self.cw.addLayer(absorber_thickness, materials["absorber"]["costly"], False)
-                else:
-                    self.cw.addLayer(absorber_thickness, materials["absorber"]["cheap"], False)
-
-                if self.parameter_dict[f"material_scintillator_{i}"]["current_value"] >= 0:
-                    self.cw.addLayer(scintillator_thickness, materials["scintillator"]["costly"], True, 1)
-                else:
-                    self.cw.addLayer(scintillator_thickness, materials["scintillator"]["cheap"], True, 1)
-
-        elif "two_layers" in parameter_dict:
-            self.cw = GeometryDescriptor()
-
-            absorber_thickness = max([
-                1e-3,
-                self.parameter_dict["thickness_absorber_0"]["current_value"]]
+        for i in range(3):
+            self.cw.addLayer(
+                max(parameter_dict[f"thickness_absorber_{i}"]["current_value"], 1e-3),
+                parameter_dict[f"material_absorber_{i}"]["current_value"],
+                False,
+                1
             )
-            scintillator_thickness = max([
-                1e-3,
-                self.parameter_dict["thickness_scintillator_0"]["current_value"]]
+            self.cw.addLayer(
+                max(parameter_dict[f"thickness_scintillator_{i}"]["current_value"], 1e-3),
+                parameter_dict[f"material_scintillator_{i}"]["current_value"],
+                True,
+                1
             )
-            materials = {
-                "absorber": {"costly": "G4_Pb", "cheap": "G4_Fe"},
-                "scintillator": {"costly": "G4_PbWO4", "cheap": "G4_POLYSTYRENE"}
-            }
-
-            if self.parameter_dict["material_absorber_0"]["current_value"] >= 0:
-                self.cw.addLayer(absorber_thickness, materials["absorber"]["costly"], False)
-            else:
-                self.cw.addLayer(absorber_thickness, materials["absorber"]["cheap"], False)
-
-            if self.parameter_dict["material_scintillator_0"]["current_value"] >= 0:
-                self.cw.addLayer(scintillator_thickness, materials["scintillator"]["costly"], True, 1)
-            else:
-                self.cw.addLayer(scintillator_thickness, materials["scintillator"]["cheap"], True, 1)
 
     def run_simulation(self) -> pd.DataFrame:
         dfs = []

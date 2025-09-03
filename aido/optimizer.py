@@ -180,8 +180,8 @@ class Optimizer(torch.nn.Module):
                     targets
                 )
                 surrogate_reconstruction_loss = reconstruction_loss(
-                    dataset.unnormalise_features(targets, index=2),
-                    dataset.unnormalise_features(surrogate_output, index=2)
+                    dataset.unnormalize_features(targets, index=2),
+                    dataset.unnormalize_features(surrogate_output, index=2)
                 )
                 loss = surrogate_reconstruction_loss.mean()
                 surrogate_loss_detached = loss.item()

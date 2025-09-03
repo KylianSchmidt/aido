@@ -18,19 +18,18 @@ from aido.training import training_loop
 
 class SimulationTask(AIDOTask):
     iteration = b2luigi.IntParameter()
+    validation = b2luigi.BoolParameter()
     simulation_task_id = b2luigi.IntParameter()
     num_simulation_tasks = b2luigi.IntParameter(significant=False)
-    num_validation_tasks = b2luigi.IntParameter(significant=False)
     start_param_dict_filepath = b2luigi.PathParameter(hashed=True, significant=False)
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def requires(self):
         if self.iteration > 0:
-            yield OptimizationTask(
+            return OptimizationTask(
                 iteration=self.iteration - 1,
                 num_simulation_tasks=self.num_simulation_tasks,
-                num_validation_tasks=self.num_validation_tasks,
-                results_dir=self.results_dir,
+                results_dir=self.results_dir
             )
 
     def output(self) -> Generator:
@@ -53,39 +52,37 @@ class SimulationTask(AIDOTask):
         else:
             parameters = start_parameters.generate_new()
 
-        print(f"DEBUG {output_parameter_dict_path=}")
-        print(f"DEBUG {output_path=}")
-        print(f"DEBUG {self.results_dir=}")
-        print(f"DEBUG {b2luigi.get_setting("result_dir")}")
         parameters.to_json(output_parameter_dict_path)
         interface.simulate(output_parameter_dict_path, output_path)
 
 
 class ReconstructionTask(AIDOTask):
     iteration = b2luigi.IntParameter()
-    is_validation = b2luigi.BoolParameter(significant=True)
+    validation = b2luigi.BoolParameter()
     num_simulation_tasks = b2luigi.IntParameter(significant=False)
-    num_validation_tasks = b2luigi.IntParameter(significant=False)
     start_param_dict_filepath = b2luigi.PathParameter(hashed=True, significant=False)
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def requires(self) -> Generator:
+        
         for i in range(self.num_simulation_tasks):
+            if self.validation is True and i >= 5:
+                break
             yield self.clone(
                 SimulationTask,
                 iteration=self.iteration,
+                validation=self.validation,
                 simulation_task_id=i,
                 num_simulation_tasks=self.num_simulation_tasks,
-                num_validation_tasks=self.num_validation_tasks,
                 start_param_dict_filepath=self.start_param_dict_filepath,
-                results_dir=self.results_dir,
+                results_dir=self.results_dir
             )
 
     def output(self) -> Generator:
         """
         Define the output files for the task based on the validation parameter.
         """
-        if self.is_validation:
+        if self.validation:
             yield self.add_to_output("validation_input_df")
             yield self.add_to_output("validation_output_df")
         else:
@@ -96,7 +93,7 @@ class ReconstructionTask(AIDOTask):
         """
         Run the reconstruction process. The type of processing depends on the validation flag.
         """
-        output_type = "reco" if not self.is_validation else "validation"
+        output_type = "reco" if not self.validation else "validation"
         
         interface.merge(
             parameter_dict_file_paths=self.get_input_file_names("param_dict.json"),
@@ -107,7 +104,7 @@ class ReconstructionTask(AIDOTask):
         interface.reconstruct(
             reco_input_path=self.get_output_file_name(f"{output_type}_input_df"),
             reco_output_path=self.get_output_file_name(f"{output_type}_output_df"),
-            is_validation=self.is_validation,
+            is_validation=self.validation
         )
 
 
@@ -131,33 +128,23 @@ class OptimizationTask(AIDOTask):
         """ Starts the Reconstruction Tasks for regular reconstruction and for validation (the latter only
         if 'num_validation_tasks' > 0).
         """
-        def start_reconstruction_task(is_validation: bool):
+
+        def start_reconstruction_task(num_simulations: int):
             yield ReconstructionTask(
                 iteration=self.iteration,
-                is_validation=is_validation,
+                validation=num_simulations,
                 num_simulation_tasks=self.num_simulation_tasks,
-                num_validation_tasks=self.num_validation_tasks,
                 start_param_dict_filepath=f"{self.results_dir}/parameters/param_dict_iter_{self.iteration}.json",
                 results_dir=self.results_dir,
             )
+
         if self.iteration < 0:
             return None
 
-        if self.num_validation_tasks > 0:
-            yield from start_reconstruction_task(is_validation=True)
-        yield from start_reconstruction_task(is_validation=False)
+        start_reconstruction_task(self.num_validation_tasks) if self.num_validation_tasks else ...
+        start_reconstruction_task(self.num_simulation_tasks)
 
     def create_reco_path_dict(self) -> Dict:
-        reco_output: str | None = None
-        try:
-            reco_output = str(self.get_input_file_names("reco_output_df")[0])
-        except Exception:
-            ...
-        validation_output: str | None = None
-        try:
-            validation_output = str(self.get_input_file_names("validation_output_df")[0])
-        except Exception:
-            ...
 
         return {
             "results_dir": str(self.results_dir),
@@ -169,8 +156,8 @@ class OptimizationTask(AIDOTask):
             "optimizer_model_save_path": f"{self.results_dir}/models/optimizer_{self.iteration}.pt",
             "current_parameter_dict": f"{self.results_dir}/parameters/param_dict_iter_{self.iteration}.json",
             "next_parameter_dict": f"{self.results_dir}/parameters/param_dict_iter_{self.iteration + 1}.json",
-            "reco_output_df": reco_output,
-            "validation_output_df": validation_output,
+            "reco_output_df": str(self.get_input_file_names("reco_output_df")[0]),
+            "validation_output_df": None,
             "optimizer_loss_save_path": f"{self.results_dir}/loss/optimizer/optimizer_loss_{self.iteration}",
             "constraints_loss_save_path": f"{self.results_dir}/loss/constraints/constraints_loss_{self.iteration}",
             "surrogate_loss_save_path": f"{self.results_dir}/loss/surrogate/surrogate_loss_{self.iteration}"
@@ -180,9 +167,7 @@ class OptimizationTask(AIDOTask):
         """ For each root file produced by the simulation Task, start a container with the reconstruction algorithm.
         Afterwards, the parameter dictionary used to generate these results are also passed as output
         Alternative container:
-
             /cvmfs/unpacked.cern.ch/registry.hub.docker.com/cernml4reco/deepjetcore3:latest
-
         Current parameter dict is the main parameter dict of this iteration that was used to generate the
             simulations. It is fed to the Reconstruction and Surrogate/Optimizer models as input
         Updated parameter dict is the output of the optimizer and is saved as the parameter dict of the
@@ -240,10 +225,10 @@ def start_scheduler(
         max_iterations: int,
         threads: int,
         results_dir: str | os.PathLike,
-        validation_tasks: int,
+        validation_tasks: int | None = None,
         **kwargs,
         ):
-    b2luigi.set_setting("result_dir", os.path.join(results_dir, "task_outputs"))
+    b2luigi.set_setting("result_dir", f"{results_dir}/task_outputs")
     os.makedirs(f"{results_dir}", exist_ok=True)
     os.makedirs(f"{results_dir}/parameters", exist_ok=True)
     os.makedirs(f"{results_dir}/models", exist_ok=True)

@@ -1,5 +1,6 @@
 import glob
 import os
+import pathlib
 import re
 from typing import Iterable
 
@@ -19,6 +20,10 @@ class CaloOptPlotting:
     def __init__(self, results_dir: str | os.PathLike) -> None:
         self.results_dir = results_dir
 
+    @staticmethod
+    def mplstyle() -> None:
+        plt.style.use(pathlib.Path(__file__).parent.parent / "utils" / "aido.mplstyle")
+
     @classmethod
     def add_plot_header(cls, ax: plt.Axes) -> plt.Axes:
         plt.text(
@@ -32,7 +37,7 @@ class CaloOptPlotting:
             transform=ax.transAxes, fontsize=14, style='italic', va='top', ha='left'
         )
         plt.text(
-            0.01, 0.98,
+            0.015, 0.98,
             "Sampling Calorimeter\n"
             "50% photons and 50% pions\n"
             r"$20 \times 400$" + " MC Events / Iteration\n"
@@ -171,7 +176,9 @@ class CaloOptPlotting:
             plt.savefig(os.path.join(self.results_dir, "plots/energy_resolution_first_and_last"))
             plt.close()
 
-        def plot_calorimeter_sideview() -> None:
+        def plot_calorimeter_sideview(
+            add_legend: bool = None,
+        ) -> None:
             df_list = []
             df_materials_list = []
             parameter_dir = os.path.join(self.results_dir, "parameters/")
@@ -219,9 +226,11 @@ class CaloOptPlotting:
                     )
                     bottom += df[column][i]
 
-            handles, labels = plt.gca().get_legend_handles_labels()
-            by_label = dict(zip(labels, handles))
-            plt.legend(by_label.values(), by_label.keys(), loc="upper right")
+            if add_legend:
+                handles, labels = plt.gca().get_legend_handles_labels()
+                by_label = dict(zip(labels, handles))
+                plt.legend(by_label.values(), by_label.keys(), loc="upper right")
+
             plt.ylabel("Longitudinal Calorimeter Composition [cm]")
             plt.xlabel("Iteration")
             plt.xlim(0, len(df))
@@ -250,7 +259,7 @@ class CaloOptPlotting:
             cbar2.ax.invert_yaxis()
             cbar2.ax.set_yticks([0, 1], labels=['PbWO4', 'Polystyrene'], rotation=90, va='center')  # Custom ticks
             plt.tight_layout()
-            plt.savefig(os.path.join(self.results_dir, "plots/calorimeter_sideview"))
+            plt.savefig(os.path.join(self.results_dir, "plots/calorimeter_sideview"), dpi=500)
             plt.close()
 
         def plot_energy_resolution_evolution(use_checkpoint: bool = False) -> None:
@@ -277,11 +286,11 @@ class CaloOptPlotting:
             ax = self.add_plot_header(ax)
             plt.plot(
                 e_loss_best_array,
-                label="Mean Reconstruction Loss" + r"$\mathcal{L}_\text{reco}$",
+                label="Mean Reconstruction Loss " + r"($\mathcal{L}_\text{reco}$)",
             )
             plt.plot(
                 df_loss.rolling(window=30).mean(),
-                label="Optimizer Loss" + r"$\mathcal{L}'$"
+                label="Optimizer Loss " + r"($\mathcal{L}'$)"
             )
             plt.legend()
             plt.xlabel("Iteration")
@@ -289,7 +298,7 @@ class CaloOptPlotting:
             plt.xlim(0, len(e_rec_array))
             plt.yscale("log")
             plt.tight_layout()
-            plt.savefig(os.path.join(self.results_dir, "plots/energy_resolution_evolution"))
+            plt.savefig(os.path.join(self.results_dir, "plots/energy_resolution_evolution.pdf"))
             plt.close()
         
         def plot_constraints() -> None:
@@ -327,6 +336,13 @@ class CaloOptPlotting:
         plot_energy_resolution_first_and_last()
         plot_energy_resolution_evolution()
         plot_calorimeter_sideview()
-        plot_constraints()
         plt.close("all")
         return None
+
+
+if __name__ == "__main__":
+    results_dir: str = ...
+
+    plotter = CaloOptPlotting(results_dir)
+    plotter.mplstyle()
+    plotter.plot()
