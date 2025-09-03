@@ -1,0 +1,75 @@
+
+# Matplotlib style
+# Based largely on the belle2 style
+# Credit:
+# https://gitlab.physik.uni-muenchen.de/Lorenz.Gaertner/publik/-/blob/main/style.mplstyle?ref_type=heads
+
+
+# General Settings
+figure.figsize      : 7.5, 5.0 #8.0, 5.5 
+figure.facecolor    : white
+text.color          : .1
+
+# Fonts
+legend.fontsize     : 14
+font.size           : 14
+xtick.labelsize     : 14
+ytick.labelsize     : 14
+axes.labelsize      : 14
+axes.labelcolor     : .1
+xaxis.labellocation : right
+yaxis.labellocation : top
+
+font.family         : sans-serif
+font.sans-serif     : DejaVu Sans, Helvetica, Arial, Bitstream Vera Sans, Arial, Liberation Sans, sans-serif
+
+# Text in math mode
+text.usetex         : False
+mathtext.cal        : cursive
+mathtext.rm         : serif
+mathtext.tt         : monospace
+mathtext.it         : serif:italic
+mathtext.bf         : serif:bold
+mathtext.sf         : sans
+mathtext.fontset    : dejavusans
+mathtext.fallback   : cm
+mathtext.default    : it
+legend.frameon      : False
+legend.numpoints    : 1
+legend.scatterpoints: 1
+
+# Ticks
+xtick.direction     : in
+ytick.direction     : in
+xtick.color         : .1
+ytick.color         : .1
+xtick.minor.visible : True
+ytick.minor.visible : True
+ytick.left          : True
+ytick.right         : False
+xtick.top           : False
+xtick.bottom        : True
+xtick.major.size    : 6
+ytick.major.size    : 6
+xtick.minor.size    : 3
+ytick.minor.size    : 3
+xtick.major.pad     : 6
+ytick.major.pad     : 6
+axes.axisbelow      : False
+image.cmap          : viridis
+
+# Grid and axes
+grid.linestyle      : -
+lines.solid_capstyle: round
+axes.grid           : False
+axes.facecolor      : white
+axes.edgecolor      : .0
+axes.linewidth      : 1.2
+axes.formatter.limits       : -4, 4
+axes.prop_cycle     : cycler('color', ['348ABD','E24A33', '988ED5', '777777', 'FBC15E', '8EBA42', 'FFB5B8'])
+axes.formatter.use_mathtext : True
+axes.formatter.useoffset    : False
+axes.labelpad       : 5.0
+axes.autolimit_mode : round_numbers
+grid.color          : .8
+errorbar.capsize    : 0

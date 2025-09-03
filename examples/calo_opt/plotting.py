@@ -1,5 +1,6 @@
 import glob
 import os
+import pathlib
 import re
 from typing import Iterable
 
@@ -18,6 +19,10 @@ class CaloOptPlotting:
 
     def __init__(self, results_dir: str | os.PathLike) -> None:
         self.results_dir = results_dir
+
+    @staticmethod
+    def mplstyle() -> None:
+        plt.style.use(pathlib.Path(__file__).parent.parent / "utils" / "aido.mplstyle")
 
     @classmethod
     def add_plot_header(cls, ax: plt.Axes) -> plt.Axes:
@@ -336,13 +341,8 @@ class CaloOptPlotting:
 
 
 if __name__ == "__main__":
-    results_root_folder = "/work/kschmidt/aido/results_paper"
-    results_dir = "results_20250129_3"
-    dirs = glob.glob(f"{results_root_folder}/{results_dir}/task_outputs/iteration=*/validation=False/reco_output_df")
-    assert len(dirs) > 0, f"{dirs=}"
+    results_dir: str = ...
 
-    plt.style.use("belle2")
-    print("Matplotlib backend:", matplotlib.get_backend())
-
-    plotter = CaloOptPlotting(results_dir=f"{results_root_folder}/{results_dir}")
+    plotter = CaloOptPlotting(results_dir)
+    plotter.mplstyle()
     plotter.plot()
