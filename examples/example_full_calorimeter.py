@@ -10,6 +10,9 @@ import aido
 
 class UIFullCalorimeter(CaloOptInterface):
 
+    container_path: str = "/ceph/kschmidt/singularity_cache/minicalosim_latest.sif"
+    container_extra_flags: str = "-B /work,/ceph"
+
     @classmethod
     def constraints(
             self,
@@ -61,8 +64,9 @@ class UIFullCalorimeter(CaloOptInterface):
 
 if __name__ == "__main__":
 
-    sigma = 2.5
-    min_value = 0.0
+    sigma: float = 2.5
+    min_value: float = 0.0
+    results_dir: str = "/work/kschmidt/aido/results_example"
     parameters = aido.SimulationParameterDictionary([
         aido.SimulationParameter("thickness_absorber_0", 9.030052185058594, min_value=min_value, sigma=sigma),
         aido.SimulationParameter("thickness_scintillator_0", 37.155208587646484, min_value=min_value, sigma=sigma),
@@ -122,10 +126,14 @@ if __name__ == "__main__":
         simulation_tasks=20,
         max_iterations=220,
         threads=20,
-        results_dir="results_example",
+        results_dir=results_dir,
         description="""
 Optimization of a sampling calorimeter with cost and length constraints.
 Includes the optimization of discrete parameters and specific plotting functions
 """
     )
     os.system("rm *.root")
+
+    plotter = CaloOptPlotting(results_dir)
+    plotter.mplstyle()
+    plotter.plot()

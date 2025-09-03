@@ -28,7 +28,7 @@ class CaloOptInterface(aido.UserInterfaceBase):
             examples/calo_opt/simulation.py {parameter_dict_path} {sim_output_path}"
         )
         return None
-    
+
     def convert_sim_to_reco(
             parameter_dict_path: Dict | str,
             simulation_output_df: pd.DataFrame | str,
@@ -120,8 +120,9 @@ class CaloOptInterface(aido.UserInterfaceBase):
         """ Start your reconstruction algorithm from a local container.
         """
         os.system(
-            f"singularity exec --nv {self.container_extra_flags} {self.container_path} python3 \
-            examples/calo_opt/reco_script.py {reco_input_path} {reco_output_path} {is_validation} {self.results_dir}"
+            f"singularity exec --nv {self.container_extra_flags} {self.container_path} \
+            python3 examples/calo_opt/train.py \
+            {reco_input_path} {reco_output_path} {is_validation} {self.results_dir}"
         )
         os.system("rm -f *.pkl")
         return None

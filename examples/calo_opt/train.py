@@ -1,13 +1,18 @@
+# flake8: noqa: E402
 import os
+import pathlib
 import sys
+from typing import Union
 
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-from examples.calo_opt.reconstruction.dataset import ReconstructionDataset
-from examples.calo_opt.reconstruction.model import Reconstruction
-from examples.calo_opt.validation.reconstruction import ReconstructionValidation
+sys.path.append(os.path.abspath(pathlib.Path(__file__).parent.parent))
+
+from reconstruction.dataset import ReconstructionDataset
+from reconstruction.model import Reconstruction
+from reconstruction.validation_reconstruction import ReconstructionValidation
 
 
 def pre_train(model: Reconstruction, dataset: Dataset, n_epochs: int):
@@ -29,13 +34,13 @@ def pre_train(model: Reconstruction, dataset: Dataset, n_epochs: int):
 
 
 def train(
-    input_df_path: str | os.PathLike,
-    output_df_path: str | os.PathLike,
+    input_df_path: Union[str, os.PathLike],
+    output_df_path: Union[str, os.PathLike],
     isVal: bool,
-    results_dir: str | os.PathLike
+    results_dir: Union[str, os.PathLike],
 ):
     simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
-     
+
     if isVal:
         reco_model: Reconstruction = torch.load(os.path.join(results_dir, "reco_model"))
         reco_dataset = ReconstructionDataset(simulation_df, means=reco_model.means, stds=reco_model.stds)

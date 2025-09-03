@@ -1,11 +1,12 @@
+from typing import Union
+
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
 
-import aido.logger as logger
-from examples.calo_opt.reconstruction.model import Reconstruction, ReconstructionDataset
+from .model import Reconstruction, ReconstructionDataset
 
 matplotlib.use("agg")
 
@@ -14,7 +15,6 @@ class ReconstructionValidation():
     """ Validate a given instance of the Reconstruction model
     """
     def __init__(
-
             self,
             reco_model: Reconstruction,
             ):
@@ -31,7 +31,7 @@ class ReconstructionValidation():
     def validate(
             self,
             val_dataset: ReconstructionDataset,
-            batch_size: int = 512
+            batch_size: int = 512,
             ) -> pd.DataFrame:
         """ Apply the Reconstruction model on the validation dataset `val_dataset` and concatenate the
         results with that dataset, adding the columns ("Loss", "Reco_loss") and ("Reconstructed", "true_energy")
@@ -51,7 +51,7 @@ class ReconstructionValidation():
         return output_df_val
 
     @classmethod
-    def plot(cls, validation_df: pd.DataFrame, fig_savepath: str | None = None) -> None:
+    def plot(cls, validation_df: pd.DataFrame, fig_savepath: Union[str, None]) -> None:
 
         reco = validation_df["Reconstructed"]["true_energy"].values
         true = validation_df["Targets"]["true_energy"].values
@@ -72,7 +72,7 @@ class ReconstructionValidation():
             plt.savefig(fig_savepath)
             plt.close()
 
-            logger.info(f"Validation Plots Saved to '{fig_savepath}'")
+            print(f"Validation Plots Saved to '{fig_savepath}'")
             return None
         else:
             return fig, ax, bins

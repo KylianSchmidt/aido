@@ -2,6 +2,7 @@
 Generate plots to validate the surrogate model for the example "full_calorimeter"
 """
 import os
+from typing import Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -56,7 +57,7 @@ class SurrogateValidation():
     def plot(
         cls,
         validation_df: pd.DataFrame,
-        fig_savepath: os.PathLike | str,
+        fig_savepath: Union[os.PathLike, str],
         iteration: int,
     ) -> None:
         """ Plot the reconstructed 'true_energy'
