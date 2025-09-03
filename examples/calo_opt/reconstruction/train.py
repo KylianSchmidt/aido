@@ -3,15 +3,17 @@ import sys
 
 import pandas as pd
 import torch
-from reconstruction import Reconstruction, ReconstructionDataset
 from torch.utils.data import Dataset
-from validation import ReconstructionValidation
+
+from examples.calo_opt.reconstruction.dataset import ReconstructionDataset
+from examples.calo_opt.reconstruction.model import Reconstruction
+from examples.calo_opt.validation.reconstruction import ReconstructionValidation
 
 
 def pre_train(model: Reconstruction, dataset: Dataset, n_epochs: int):
     """ Pre-train the  a given model
 
-    TODO Reconstruction results are normalized. In the future only expose the un-normalised ones,
+    TODO Reconstruction results are normalized. In the future only expose the un-normalized ones,
     but also requires adjustments to the surrogate dataset
     """
     
@@ -27,11 +29,11 @@ def pre_train(model: Reconstruction, dataset: Dataset, n_epochs: int):
 
 
 def train(
-        input_df_path: str | os.PathLike,
-        output_df_path: str | os.PathLike,
-        isVal: bool,
-        results_dir: str | os.PathLike
-        ):
+    input_df_path: str | os.PathLike,
+    output_df_path: str | os.PathLike,
+    isVal: bool,
+    results_dir: str | os.PathLike
+):
     simulation_df: pd.DataFrame = pd.read_parquet(input_df_path)
      
     if isVal:

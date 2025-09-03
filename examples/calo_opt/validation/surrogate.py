@@ -1,3 +1,6 @@
+"""
+Generate plots to validate the surrogate model for the example "full_calorimeter"
+"""
 import os
 
 import matplotlib.pyplot as plt
@@ -25,7 +28,7 @@ class SurrogateValidation():
             self,
             dataset: SurrogateDataset,
             batch_size: int = 512,
-            ):
+            ) -> pd.DataFrame:
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         validation_df = dataset.df
         surrogate_reconstructed_array = np.full(len(dataset), -1.0)
@@ -40,7 +43,7 @@ class SurrogateValidation():
                 context,
                 targets,
             )
-            surrogate_output = dataset.unnormalise_features(surrogate_output, index=2)
+            surrogate_output = dataset.unnormalize_features(surrogate_output, index=2)
             surrogate_output = surrogate_output.detach().cpu().numpy().flatten()
             surrogate_reconstructed_array[batch_idx * batch_size: (batch_idx + 1) * batch_size] = surrogate_output
             logger.info(f"Validation batch {batch_idx} / {len(data_loader)}\r")
@@ -121,8 +124,7 @@ def validate_surrogate_func(
 
 if __name__ == "__main__":
     logger.setLevel("DEBUG")
-    results_dir: str = "/work/kschmidt/aido/results_paper/results_20250129_3"
-    iteration: int
+    results_dir: str = ...
 
     for iteration in (5, 200):
         dataset_path = f"{results_dir}/task_outputs/iteration={iteration}/validation=True/validation_output_df"

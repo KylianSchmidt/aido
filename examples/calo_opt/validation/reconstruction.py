@@ -3,10 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
-import torch.utils.data
-from reconstruction import Reconstruction, ReconstructionDataset
 
 import aido.logger as logger
+from examples.calo_opt.reconstruction.model import Reconstruction, ReconstructionDataset
 
 matplotlib.use("agg")
 
@@ -67,8 +66,8 @@ class ReconstructionValidation():
         plt.ylim(0, 150)
         plt.ylabel(f"Counts / ({(bins[1] - bins[0]):.2f} GeV)")
         plt.legend()
-
         plt.tight_layout()
+
         if fig_savepath is not None:
             plt.savefig(fig_savepath)
             plt.close()

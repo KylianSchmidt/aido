@@ -3,11 +3,12 @@ from typing import Dict, Iterable, List
 
 import pandas as pd
 import torch
+from calo_opt.reconstruction.model import Reconstruction
 
 import aido
 
 
-class AIDOUserInterfaceExample(aido.UserInterfaceBase):
+class CaloOptInterface(aido.UserInterfaceBase):
     """ This class is an example of how to implement the 'AIDOUserInterface' class.
 
     We use the following container:
@@ -35,7 +36,9 @@ class AIDOUserInterfaceExample(aido.UserInterfaceBase):
             target_keys: List[str],
             context_keys: List[str] | None = None
             ):
-        """Convert the files from the simulation to simple lists.
+        """
+        This is a helper function specific to the CaloOpt example. Converts the files from the simulation
+        to a pandas dataframe.
 
         Args:
             parameter_dict (dict or file path str): Instance of or file path to Parameter Dictionary.
@@ -124,10 +127,4 @@ class AIDOUserInterfaceExample(aido.UserInterfaceBase):
         return None
 
     def loss(self, y: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
-        """ Remark: filters nans and in order to make it more stable.
-        Uses an L2 loss with with 1/sqrt(E) weighting
-
-        Alternatively: 'torch.nn.MSELoss()(y_pred, y)**(1/2)'
-        """
-        y_denominator = torch.where(y > 1., y, torch.ones_like(y))
-        return (y_pred - y)**2 / y_denominator**2
+        return Reconstruction.loss(y, y_pred)
