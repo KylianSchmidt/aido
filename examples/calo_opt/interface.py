@@ -25,7 +25,7 @@ class CaloOptInterface(aido.UserInterfaceBase):
     def simulate(self, parameter_dict_path: str, sim_output_path: str):
         os.system(
             f"singularity exec {self.container_extra_flags} {self.container_path} python3 \
-            examples/calo_opt/simulation.py {parameter_dict_path} {sim_output_path}"
+            examples/calo_opt/simulation.py {parameter_dict_path} {sim_output_path} > /dev/null 2>&1"
         )
         return None
 
