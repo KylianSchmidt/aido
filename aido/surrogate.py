@@ -134,10 +134,10 @@ class SurrogateDataset(Dataset):
 
         if self.normalise_parameters:
             logger.info("Normalized parameters")
-            self.parameters = self.normalise_features(self.parameters, index=0)
-        self.context = self.normalise_features(self.context, index=1)
-        self.targets = self.normalise_features(self.targets, index=2)
-        self.reconstructed = self.normalise_features(self.reconstructed, index=2)
+            self.parameters = self.normalize_features(self.parameters, index=0)
+        self.context = self.normalize_features(self.context, index=1)
+        self.targets = self.normalize_features(self.targets, index=2)
+        self.reconstructed = self.normalize_features(self.reconstructed, index=2)
         self.df = self.filter_infs_and_nans(self.df)
 
     def filter_infs_and_nans(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -147,7 +147,7 @@ class SurrogateDataset(Dataset):
         df = df.dropna(axis=0, ignore_index=True)
         return df
 
-    def unnormalise_features(
+    def unnormalize_features(
             self,
             target: torch.Tensor | np.ndarray,
             index: int
@@ -163,7 +163,7 @@ class SurrogateDataset(Dataset):
         elif isinstance(target, np.ndarray):
             return target * self.stds[index] + self.means[index]
 
-    def normalise_features(self, target: torch.Tensor | np.ndarray, index: int) -> torch.Tensor | np.ndarray:
+    def normalize_features(self, target: torch.Tensor | np.ndarray, index: int) -> torch.Tensor | np.ndarray:
         ''' Normalize a feature
         Index:
             0 -> Parameters
@@ -422,7 +422,7 @@ class Surrogate(torch.nn.Module):
                 targets: torch.Tensor = targets.to(self.device)
 
                 reco_surrogate = self.sample_forward(parameters, context, targets)
-                reco_surrogate = dataset.unnormalise_features(reco_surrogate, index=2)
+                reco_surrogate = dataset.unnormalize_features(reco_surrogate, index=2)
 
                 start_inject_index = i_o * len(dataset) + batch_idx * batch_size
                 end_inject_index = i_o * len(dataset) + (batch_idx + 1) * batch_size
