@@ -167,7 +167,9 @@ class OptimizationTask(AIDOTask):
         """ For each root file produced by the simulation Task, start a container with the reconstruction algorithm.
         Afterwards, the parameter dictionary used to generate these results are also passed as output
         Alternative container:
+
             /cvmfs/unpacked.cern.ch/registry.hub.docker.com/cernml4reco/deepjetcore3:latest
+
         Current parameter dict is the main parameter dict of this iteration that was used to generate the
             simulations. It is fed to the Reconstruction and Surrogate/Optimizer models as input
         Updated parameter dict is the output of the optimizer and is saved as the parameter dict of the
@@ -230,6 +232,7 @@ def start_scheduler(
         ):
     b2luigi.set_setting("result_dir", f"{results_dir}/task_outputs")
     os.makedirs(f"{results_dir}", exist_ok=True)
+    assert os.path.isdir(results_dir), f"Provided results directory '{results_dir}' is not valid."
     os.makedirs(f"{results_dir}/parameters", exist_ok=True)
     os.makedirs(f"{results_dir}/models", exist_ok=True)
     os.makedirs(f"{results_dir}/plots/validation/reco_model/on_trainingData", exist_ok=True)
