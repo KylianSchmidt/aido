@@ -58,68 +58,71 @@ class UIFullCalorimeter(CaloOptInterface):
         return detector_length_penalty + max_cost_penalty
 
     def plot(self, parameter_dict: aido.SimulationParameterDictionary) -> None:
-        CaloOptPlotting(self.results_dir).plot()
+        calo_opt_plotter = CaloOptPlotting(self.results_dir)
+        calo_opt_plotter.mplstyle()
+        calo_opt_plotter.plot()
         return None
 
 
-if __name__ == "__main__":
+sigma: float = 2.5
+min_value: float = 0.0
+results_dir: str = "/work/kschmidt/aido/results_example"
+parameters = aido.SimulationParameterDictionary([
+    aido.SimulationParameter("thickness_absorber_0", 9.030052185058594, min_value=min_value, sigma=sigma),
+    aido.SimulationParameter("thickness_scintillator_0", 37.155208587646484, min_value=min_value, sigma=sigma),
+    aido.SimulationParameter(
+        "material_absorber_0",
+        "G4_Fe",
+        discrete_values=["G4_Pb", "G4_Fe"],
+        cost=[25, 4.166],
+        probabilities=[0.01, 0.99]
+    ),
+    aido.SimulationParameter(
+        "material_scintillator_0",
+        "G4_POLYSTYRENE",
+        discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
+        cost=[2500.0, 0.01],
+        probabilities=[0.99, 0.01]
+    ),
+    aido.SimulationParameter("thickness_absorber_1", 10.446663856506348, min_value=min_value, sigma=sigma),
+    aido.SimulationParameter("thickness_scintillator_1", 29.665525436401367, min_value=min_value, sigma=sigma),
+    aido.SimulationParameter(
+        "material_absorber_1",
+        "G4_Fe",
+        discrete_values=["G4_Pb", "G4_Fe"],
+        cost=[25, 4.166],
+        probabilities=[0.99, 0.01]
+    ),
+    aido.SimulationParameter(
+        "material_scintillator_1",
+        "G4_POLYSTYRENE",
+        discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
+        cost=[2500.0, 0.01],
+        probabilities=[0.01, 0.99]
+    ),
+    aido.SimulationParameter("thickness_absorber_2", 36.0, min_value=min_value, sigma=sigma),
+    aido.SimulationParameter("thickness_scintillator_2", 27.5, min_value=min_value, sigma=sigma),
+    aido.SimulationParameter(
+        "material_absorber_2",
+        "G4_Fe",
+        discrete_values=["G4_Pb", "G4_Fe"],
+        cost=[25, 4.166],
+        probabilities=[0.01, 0.99]
+    ),
+    aido.SimulationParameter(
+        "material_scintillator_2",
+        "G4_POLYSTYRENE",
+        discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
+        cost=[2500.0, 0.01],
+        probabilities=[0.01, 0.99]
+    ),
+    aido.SimulationParameter("num_events", 400, optimizable=False),
+    aido.SimulationParameter("max_length", 200, optimizable=False),
+    aido.SimulationParameter("max_cost", 200_000, optimizable=False),
+])
 
-    sigma: float = 2.5
-    min_value: float = 0.0
-    results_dir: str = "/work/kschmidt/aido/results_example"
-    parameters = aido.SimulationParameterDictionary([
-        aido.SimulationParameter("thickness_absorber_0", 9.030052185058594, min_value=min_value, sigma=sigma),
-        aido.SimulationParameter("thickness_scintillator_0", 37.155208587646484, min_value=min_value, sigma=sigma),
-        aido.SimulationParameter(
-            "material_absorber_0",
-            "G4_Fe",
-            discrete_values=["G4_Pb", "G4_Fe"],
-            cost=[25, 4.166],
-            probabilities=[0.01, 0.99]
-        ),
-        aido.SimulationParameter(
-            "material_scintillator_0",
-            "G4_POLYSTYRENE",
-            discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
-            cost=[2500.0, 0.01],
-            probabilities=[0.99, 0.01]
-        ),
-        aido.SimulationParameter("thickness_absorber_1", 10.446663856506348, min_value=min_value, sigma=sigma),
-        aido.SimulationParameter("thickness_scintillator_1", 29.665525436401367, min_value=min_value, sigma=sigma),
-        aido.SimulationParameter(
-            "material_absorber_1",
-            "G4_Fe",
-            discrete_values=["G4_Pb", "G4_Fe"],
-            cost=[25, 4.166],
-            probabilities=[0.99, 0.01]
-        ),
-        aido.SimulationParameter(
-            "material_scintillator_1",
-            "G4_POLYSTYRENE",
-            discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
-            cost=[2500.0, 0.01],
-            probabilities=[0.01, 0.99]
-        ),
-        aido.SimulationParameter("thickness_absorber_2", 36.0, min_value=min_value, sigma=sigma),
-        aido.SimulationParameter("thickness_scintillator_2", 27.5, min_value=min_value, sigma=sigma),
-        aido.SimulationParameter(
-            "material_absorber_2",
-            "G4_Fe",
-            discrete_values=["G4_Pb", "G4_Fe"],
-            cost=[25, 4.166],
-            probabilities=[0.01, 0.99]
-        ),
-        aido.SimulationParameter(
-            "material_scintillator_2",
-            "G4_POLYSTYRENE",
-            discrete_values=["G4_PbWO4", "G4_POLYSTYRENE"],
-            cost=[2500.0, 0.01],
-            probabilities=[0.01, 0.99]
-        ),
-        aido.SimulationParameter("num_events", 400, optimizable=False),
-        aido.SimulationParameter("max_length", 200, optimizable=False),
-        aido.SimulationParameter("max_cost", 200_000, optimizable=False),
-    ])
+
+if __name__ == "__main__":
     aido.optimize(
         parameters=parameters,
         user_interface=UIFullCalorimeter,
@@ -133,7 +136,3 @@ Includes the optimization of discrete parameters and specific plotting functions
 """
     )
     os.system("rm *.root")
-
-    plotter = CaloOptPlotting(results_dir)
-    plotter.mplstyle()
-    plotter.plot()

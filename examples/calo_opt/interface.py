@@ -21,11 +21,16 @@ class CaloOptInterface(aido.UserInterfaceBase):
     htc_global_settings = {}
     container_path: str = ...  # place the path for the example container here
     container_extra_flags: str = ""  # place extra flags for singularity here
+    verbose: bool = False
+
+    @property
+    def suppress_output(self) -> str:
+        return "> /dev/null 2>&1" if not self.verbose else ""
 
     def simulate(self, parameter_dict_path: str, sim_output_path: str):
         os.system(
             f"singularity exec {self.container_extra_flags} {self.container_path} python3 \
-            examples/calo_opt/simulation.py {parameter_dict_path} {sim_output_path} > /dev/null 2>&1"
+            examples/calo_opt/simulation.py {parameter_dict_path} {sim_output_path} {self.suppress_output}"
         )
         return None
 
