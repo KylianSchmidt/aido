@@ -62,7 +62,7 @@ class SurrogateDataset(Dataset):
     """ Dataset class for the Surrogate model
 
     Args:
-    ----
+    -----
         df (pd.DataFrame): A DataFrame containing the following keys:
         
             ["Parameters", "Context", "Loss"]

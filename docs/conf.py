@@ -50,3 +50,17 @@ autodoc_member_order = "bysource"
 autodoc_default_options = {
     "members": True,
 }
+
+# MyST settings
+myst_enable_extensions = [
+    "deflist",
+    "colon_fence",
+    "dollarmath",
+    "amsmath"
+]
+
+# Suppress warnings
+suppress_warnings = [
+    'myst.xref_missing',
+    'ref.python'
+]

@@ -2,6 +2,8 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict
 
+from aido.logger import logger
+
 
 @dataclass
 class OptimizerConfig:
@@ -59,8 +61,15 @@ class AIDOConfig:
 
     @classmethod
     def from_json(cls, file_path: str):
-        with open(file_path, "r") as file:
-            data = json.load(file)
+        try:
+            with open(file_path, "r") as file:
+                data = json.load(file)
+        except FileNotFoundError:
+            logger.warning(f"Config file {file_path} not found. Using default configuration.")
+            return cls()
+        except Exception as e:
+            logger.error(f"Error reading config file {file_path}. Using default configuration.\nError: {e}")
+            return cls()
 
         return cls(
             optimizer=OptimizerConfig(**data["optimizer"]),

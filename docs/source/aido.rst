@@ -68,14 +68,6 @@ aido.surrogate module
    :undoc-members:
    :show-inheritance:
 
-aido.surrogate\_validation module
----------------------------------
-
-.. automodule:: aido.surrogate_validation
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 aido.training module
 --------------------
 
@@ -91,3 +83,4 @@ Module contents
    :members:
    :undoc-members:
    :show-inheritance:
+   :exclude-members: Surrogate, SurrogateDataset
