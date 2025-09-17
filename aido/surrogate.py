@@ -9,34 +9,8 @@ from aido.logger import logger
 
 
 def ddpm_schedules(beta1: float, beta2: float, n_time_steps: int) -> dict[str, torch.Tensor]:
-    r"""
-    Compute schedules for DDPM sampling and training process.
-
-    Parameters
-    ----------
-    beta1 : float
-        Start value for beta schedule
-    beta2 : float
-        End value for beta schedule
-    n_time_steps : int
-        Number of diffusion steps
-
-    Returns
-    -------
-    dict[str, torch.Tensor]
-        Dictionary containing various diffusion parameters:
-        - alpha_t: \alpha_t
-        - oneover_sqrta: 1/\sqrt{\alpha_t}
-        - sqrt_beta_t: \sqrt{\beta_t}
-        - alphabar_t: \bar{\alpha_t}
-        - sqrtab: \sqrt{\bar{\alpha_t}}
-        - sqrtmab: \sqrt{1-\bar{\alpha_t}}
-        - mab_over_sqrtmab: (1-\alpha_t)/\sqrt{1-\bar{\alpha_t}}
-
-    Raises
-    ------
-    AssertionError
-        If beta values don't satisfy 0 < beta1 < beta2 < 1
+    """
+    Returns pre-computed schedules for DDPM sampling, training process.
     """
     assert 0.0 < beta1 < beta2 < 1.0, "Condition 0.0 < 'beta 1' < 'beta 2' < 1.0 not fulfilled"
 
@@ -64,24 +38,8 @@ def ddpm_schedules(beta1: float, beta2: float, n_time_steps: int) -> dict[str, t
 
 
 class NoiseAdder(torch.nn.Module):
-    """
-    Module for adding noise to inputs following DDPM schedules.
-
-    This class implements noise addition according to the diffusion process
-    described in the DDPM paper.
-    """
 
     def __init__(self, n_time_steps: int, betas=(1e-4, 0.02)):
-        """
-        Initialize the noise adder.
-
-        Parameters
-        ----------
-        n_time_steps : int
-            Number of diffusion time steps
-        betas : tuple, optional
-            Beta schedule parameters (beta1, beta2), by default (1e-4, 0.02)
-        """
         super().__init__()
         self.n_time_steps = n_time_steps
 
@@ -90,23 +48,6 @@ class NoiseAdder(torch.nn.Module):
 
     def forward(self, x, t):
         """
-        Add noise to input according to the diffusion schedule.
-
-        Parameters
-        ----------
-        x : torch.Tensor
-            Input tensor to add noise to
-        t : torch.Tensor
-            Timesteps for noise addition
-
-        Returns
-        -------
-        tuple[torch.Tensor, torch.Tensor, torch.Tensor]
-            Tuple containing:
-            - Noisy input
-            - Mean of noise distribution
-            - Standard deviation of noise distribution
-
         x: (B, C, H, W)
         t: (B, 1)
         z: (B, C, H, W)
@@ -118,24 +59,15 @@ class NoiseAdder(torch.nn.Module):
     
 
 class SurrogateDataset(Dataset):
-    """
-    Dataset for training and evaluating surrogate models.
+    """ Dataset class for the Surrogate model
 
-    This dataset class handles the data preprocessing and normalization
-    for surrogate model training, including parameter, context and
-    target data management.
+    Args:
+    ----
+        df (pd.DataFrame): A DataFrame containing the following keys:
+        
+            ["Parameters", "Context", "Loss"]
 
-    Parameters
-    ----------
-    input_df : pd.DataFrame
-        DataFrame containing at minimum these columns:
-        - Parameters: Simulation parameters
-        - Context: Context data
-        - Targets: Target values
-
-    Notes
-    -----
-    Future enhancement needed to handle discrete parameters.
+    TODO: Accommodate for discrete parameters
     """
     def __init__(
             self,
@@ -150,32 +82,21 @@ class SurrogateDataset(Dataset):
             normalize_parameters: bool = False,
             ):
         """
-        Initialize the Surrogate Dataset.
+        Initializes the Surrogate model with the provided DataFrame and keys. All inputs must be
+        unnormalized and will be normalized internally.
 
-        Parameters
-        ----------
-        input_df : pd.DataFrame
-            Input DataFrame containing the training data
-        parameter_key : str, optional
-            Column name for parameters, by default "Parameters"
-        context_key : str, optional
-            Column name for context data, by default "Context"
-        target_key : str, optional
-            Column name for target values, by default "Targets"
-        reconstructed_key : str, optional
-            Column name for reconstructed data, by default "Reconstructed"
-        device : str, optional
-            Device to store tensors on, by default CUDA if available else CPU
-        means : List[np.float32] or None, optional
-            Pre-computed means for normalization, by default None
-        stds : List[np.float32] or None, optional
-            Pre-computed standard deviations for normalization, by default None
-        normalize_parameters : bool, optional
-            Whether to normalize parameters, by default False
-
-        Notes
-        -----
-        All inputs should be unnormalized as normalization is handled internally.
+        Args:
+        ----
+            input_df (pd.DataFrame): The input DataFrame containing the data.
+            parameter_key (str, optional): The key for the parameters column in the DataFrame.
+                Defaults to "Parameters".
+            context_key (str, optional): The key for the context column in the DataFrame.
+                Defaults to "Context".
+            target_key (str, optional): The kry for the target column in the DataFrame.
+                Defaults to "Targets".
+            reconstructed_key (str, optional): The key for the reconstruction loss column in the DataFrame.
+                Defaults to "Loss".
+            device (str): Torch device. Defaults to 'cuda'
         """
         self.df = input_df
         self.parameters = self.df[parameter_key].to_numpy(np.float32)

@@ -1,25 +1,26 @@
 #!/bin/bash
-set -e  # Exit on error
+export LC_ALL=en_US.UTF-8
 
-# Setup directories
 WIKI_DIR="../aido.wiki"
-mkdir -p "$WIKI_DIR"/{api,guides}
+DOCS_DIR="../docs"
+API_DIR="$WIKI_DIR/api"
+GUIDES_DIR="$WIKI_DIR/guides"
+BUILD_DIR="$DOCS_DIR/_build/markdown"
 
-make html
+mkdir -p $WIKI_DIR
+mkdir -p $API_DIR
+mkdir -p $GUIDES_DIR
 
-cp home.md "$WIKI_DIR/"
-cp guides/*.md "$WIKI_DIR/guides/" 2>/dev/null || true
+rm $DOCS_DIR/_build -rf
 
-if [ -d "_build/html/source" ]; then
-    for module in _build/html/source/aido.*.html; do
-        if [ -f "$module" ]; then
-            basename=$(basename "$module" .html)
-            python -c "import html2text, sys; print(html2text.html2text(sys.stdin.read()))" \
-                < "$module" > "$WIKI_DIR/api/$basename.md"
-        fi
-    done
-fi \
-                < "$guide" > "$WIKI_DIR/guides/$basename.md"
-        fi
-    done
-fi
+# Build HTML and Markdown in one Sphinx run (avoid duplicate builds)
+sphinx-build -b html . $DOCS_DIR/_build/html
+sphinx-build -b markdown . $BUILD_DIR
+
+python -c "import html2text, sys; print(html2text.html2text(sys.stdin.read()))" < _build/html/genindex.html > "$WIKI_DIR/genindex.md"
+python -c "import html2text, sys; print(html2text.html2text(sys.stdin.read()))" < _build/html/py-modindex.html > "$WIKI_DIR/py-modindex.md"  
+python -c "import html2text, sys; print(html2text.html2text(sys.stdin.read()))" < _build/html/search.html > "$WIKI_DIR/search.md"
+
+cp $BUILD_DIR/guides $GUIDES_DIR
+cp -r $BUILD_DIR/guides $GUIDES_DIR
+cp -r $BUILD_DIR/api $API_DIR

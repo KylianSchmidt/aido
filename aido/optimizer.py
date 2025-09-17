@@ -13,51 +13,26 @@ from aido.surrogate import Surrogate, SurrogateDataset
 
 
 class Optimizer(torch.nn.Module):
-    """
-    Optimize detector parameters in batches using a surrogate model.
+    '''
+    The optimizer uses the surrogate model to optimise the detector parameters in batches.
+    It is also linked to a generator object, to check if the parameters are still in bounds using
+    the function is_local(parameters) of the generator.
 
-    This optimizer uses the surrogate model to optimize detector parameters while ensuring they
-    remain within specified bounds. It works in conjunction with a generator object that validates
-    parameter locality through its is_local(parameters) function.
-
-    The optimization process continues until parameters become non-local, at which point it returns
-    the last valid set of parameters. The process involves:
-    1. Applying the surrogate model with fixed weights
-    2. Computing reconstruction model loss from surrogate output
-    3. Calculating gradients with respect to detector parameters
-    4. Updating parameters based on computed gradients
-
-    Attributes
-    ----------
-    parameter_dict : SimulationParameterDictionary
-        Dictionary containing parameter configurations and constraints
-    device : torch.device
-        Device on which to perform computations
-    parameter_module : ParameterModule
-        Module handling parameter transformations and constraints
-    optimizer : torch.optim.Optimizer
-        Optimization algorithm instance (Adam)
-    """
+    Once the parameters are not local anymore, the optimizer will return the last parameters that were local and stop.
+    For this purpose, the surrogate model will need to be applied using fixed weights.
+    Then the reconstruction model loss will be applied based on the surrogate model output.
+    The gradient w.r.t. the detector parameters will be calculated and the parameters will be updated.
+    '''
     def __init__(
             self,
             parameter_dict: SimulationParameterDictionary,
             device: str | None = None
             ):
         """
-        Initialize the optimizer with given parameters.
-
-        Parameters
-        ----------
-        parameter_dict : SimulationParameterDictionary
-            Dictionary containing initial parameters and their constraints
-        device : str or None, optional
-            Computing device to use, by default None which selects CUDA if available,
-            otherwise CPU
-
-        Notes
-        -----
-        The optimizer is initialized with Adam optimization algorithm and moves
-        all parameters to the specified device.
+        Initializes the optimizer with the given surrogate model and parameters.
+        Args:
+            starting_parameter_dict (Dict): A dictionary containing the initial parameters.
+            device (str): Defaults to 'cuda'
         """
         super().__init__()
         self.parameter_dict = parameter_dict
@@ -69,61 +44,27 @@ class Optimizer(torch.nn.Module):
         self.optimizer = torch.optim.Adam(self.parameter_module.parameters())
 
     def to(self, device: str | torch.device, **kwargs):
-        """
-        Move all Tensors and modules to specified device.
-
-        Parameters
-        ----------
-        device : str or torch.device
-            Target device to move tensors and modules to
-        **kwargs : dict
-            Additional arguments passed to parent's to() method
-
-        Returns
-        -------
-        Optimizer
-            Self with all components moved to specified device
+        """ Move all Tensors and modules to 'device'.
         """
         self.device = device if isinstance(device, torch.device) else torch.device(device)
         super().to(self.device, **kwargs)
         return self
     
     def check_parameters_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:
-        """
-        Verify if predicted parameters are within covariance bounds.
-
-        Check if the predicted parameters lie within the bounds defined by the
-        covariance matrix, scaled by the 'sigma' of each parameter.
-
-        Parameters
-        ----------
-        updated_parameters : torch.Tensor
-            New parameter values to check
-        scale : float, optional
-            Scaling factor for the covariance bounds, by default 1.0
-
-        Returns
-        -------
-        bool
-            True if parameters are within bounds, False otherwise
+        """ Assure that the predicted parameters by the optimizer are within the bounds of the covariance
+        matrix spanned by the 'sigma' of each parameter.
         """
         diff = updated_parameters - self.starting_parameters_continuous
         diff = diff.detach().cpu().numpy()
         return np.dot(diff, np.dot(np.linalg.inv(self.parameter_dict.covariance), diff)) < scale
 
     def boundaries(self) -> torch.Tensor:
-        """
-        Calculate boundary penalty losses for parameters.
-
-        Computes penalties for parameters that lie outside the boundaries defined
-        by 'self.parameter_box'. This prevents the optimizer from proposing values
-        outside the Surrogate's known scope in the current iteration.
-
-        Returns
+        """ Adds penalties for parameters that are outside of the boundaries spaned by 'self.parameter_box'. This
+        ensures that the optimizer does not propose new values that are outside of the scope of the Surrogate and
+        therefore largely unknown to the current iteration.
+        Returns:
         -------
-        torch.Tensor
-            Sum of lower and upper boundary penalty losses, or zero if no
-            constraints are defined
+            float
         """
         parameter_box = self.parameter_module.constraints.to(self.device)
         if len(parameter_box) != 0:
@@ -143,25 +84,9 @@ class Optimizer(torch.nn.Module):
             constraints_func: None | Callable[[SimulationParameterDictionary, Dict], torch.Tensor],
             parameter_dict_as_tensor: Dict[str, torch.nn.Parameter | torch.Tensor]
             ) -> torch.Tensor:
-        """
-        Apply additional user-defined constraints.
-
-        Handles constraints defined in 'interface.py:AIDOUserInterface.constraints()'.
-        If no custom constraints are provided, defaults to calculating constraints
-        based on the cost per parameter from ParameterDict.
-
-        Parameters
-        ----------
-        constraints_func : callable or None
-            Function that takes SimulationParameterDictionary and parameter dict
-            as input and returns a tensor of constraint losses
-        parameter_dict_as_tensor : dict
-            Dictionary mapping parameter names to their tensor values
-
-        Returns
-        -------
-        torch.Tensor
-            Computed constraint loss value, or zero if no constraints apply
+        """ Adds user-defined constraints defined in 'interface.py:AIDOUserInterface.constraints()'. If no constraints
+        were added manually, this method defaults to calculating constraints based on the cost per parameter specified
+        in ParameterDict. Returns a float or torch.Tensor which can be considered as a penalty loss.
         """
         if constraints_func is None:
             loss = self.parameter_module.cost_loss

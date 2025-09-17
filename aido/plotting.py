@@ -12,24 +12,7 @@ from aido.simulation_helpers import SimulationParameterDictionary
 
 
 def percentage_type(value: float) -> float:
-    """
-    Validate that a float value lies between 0 and 1.
-
-    Parameters
-    ----------
-    value : float
-        Value to validate
-
-    Returns
-    -------
-    float
-        The input value if valid
-
-    Raises
-    ------
-    ValueError
-        If value is not in range [0, 1]
-    """
+    """ Checks if a float lies between [0, 1] """
     if not (0.0 <= value < 1.0):
         raise ValueError(f"Value {value} must be in [0, 1]")
     return value
@@ -43,20 +26,19 @@ class Plotting:
     @classmethod
     def plot(cls, plot_types: str | List[str] = "all", results_dir: str | os.PathLike = "./results/"):
         """
-        Plot evolution of variables throughout the optimization process.
+        Plot the evolution of variables of interest over the Optimization process.
 
-        Parameters
-        ----------
-        plot_types : str or List[str], optional
-            Types of plots to generate. Can be a single string or list of strings.
-            Use "all" to generate all available plots. Available methods are:
-            ["parameter_evolution", "optimizer_loss", "simulation_samples"]
-        results_dir : str or os.PathLike, optional
-            Directory containing results data, by default "./results/"
+        Args:
+            plot_types (str | List[str], optional): The types of plots to be generated.
+                It can be a string or a list of strings. If "all" is specified, it will
+                generate all available plots. Available methods:
 
-        Notes
-        -----
-        This class needs refactoring to avoid repetitive file reading operations.
+                    ["parameter_evolution", "optimizer_loss", "simulation_samples"]
+
+        Returns:
+            None
+
+        TODO Clean up this class and do not repeat the reading of files all the time
         """
         if plot_types == "all":
             plot_types = ["optimizer_loss", "probability_evolution", "parameter_evolution", "simulation_samples"]
@@ -133,23 +115,13 @@ class Plotting:
             optimizer_loss_dir: str | os.PathLike = "/loss/optimizer"
             ) -> pd.DataFrame:
         """
-        Plot optimizer loss evolution over epochs.
-
-        Parameters
-        ----------
-        fig_savepath : str or os.PathLike or None, optional
-            Path to save the figure. If None, figure won't be saved.
-            Default is "/plots/optimizer_loss"
-        results_dir : str or os.PathLike, optional
-            Base directory for results, by default "./results/"
-        optimizer_loss_dir : str or os.PathLike, optional
-            Directory containing optimizer loss files,
-            by default "/loss/optimizer"
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame containing optimizer loss values for each iteration
+        Plot the optimizer loss over epochs and save the figure if `fig_savepath` is provided.
+        Args:
+            fig_savepath (str | os.PathLike | None): Path to save the figure. If None, the figure will not be saved.
+            results_dir (str | os.PathLike, optional): Results directory. Defaults to "./results/"
+            optimizer_loss_dir (str | os.PathLike): Directory containing the optimizer loss files.
+        Returns:
+            df_loss (pd.DataFrame): DataFrame with the optimizer loss at each iteration
         """
         fig_savepath = f"{results_dir}/{fig_savepath}"
         optimizer_loss_dir = f"{results_dir}/{optimizer_loss_dir}"
