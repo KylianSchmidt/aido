@@ -20,11 +20,11 @@ In order to use this framework, you need:
 
 A parameter is defined as any value that can be adjusted in your simulation software. It
 is the goal of AIDO to perform a hyperparameter optimization on this parameter to improve
-the loss calculated by the reconstruction algorithm. The [SimulationParameter](source/aido#aido.simulation_helpers.SimulationParameter)
+the loss calculated by the reconstruction algorithm. The [SimulationParameter](api/aido.simulation_helpers)
 object is the basic building block for a parameter. It keeps track of the current value
 during the optimization process as well as other useful information.
 
-A set of parameters are combined into a single [SimulationParameterDictionary](source/aido#aido.simulation_helpers.SimulationParameterDictionary)
+A set of parameters are combined into a single [SimulationParameterDictionary](api/aido.simulation_helpers)
 which has extra tools. Most relevant is the way we interface the AIDO framework with your
 simulation and reconstruction. For this, the dictionary is stored as a json file which
 you can easily access in any programming language (for example C++ when using Geant4).
@@ -37,13 +37,12 @@ For more details, see the API Reference section.
 
 - Getting Started getting_started
 - Usage
-  - [SimulationParameter](source/aido#aido.simulation_helpers.SimulationParameter): single parameter with many options
-  - [SimulationParameterDictionary](source/aido#aido.simulation_helpers.SimulationParameterDictionary): collection of parameters for your simulations
-  - [UserInterfaceBase](source/aido#aido.interface.UserInterfaceBase): connection of your code to the aido framework
+  - [SimulationParameter(Dictionary)](api/aido.simulation_helpers): single parameter with many options
+  - [UserInterfaceBase](api/aido.interface): connection of your code to the aido framework
 - Examples
 
 # Indices and Tables
 
-* General Index
-* [Module Index]()
+* [General Index](api/index)
+* [Module Index](api/modules)
 * Search Page

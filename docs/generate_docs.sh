@@ -7,7 +7,6 @@ API_DIR="$WIKI_DIR/api"
 GUIDES_DIR="$WIKI_DIR/guides"
 BUILD_DIR="$DOCS_DIR/_build/markdown"
 
-mkdir -p $WIKI_DIR
 mkdir -p $API_DIR
 mkdir -p $GUIDES_DIR
 
@@ -21,6 +20,6 @@ python -c "import html2text, sys; print(html2text.html2text(sys.stdin.read()))" 
 python -c "import html2text, sys; print(html2text.html2text(sys.stdin.read()))" < _build/html/py-modindex.html > "$WIKI_DIR/py-modindex.md"  
 python -c "import html2text, sys; print(html2text.html2text(sys.stdin.read()))" < _build/html/search.html > "$WIKI_DIR/search.md"
 
-cp $BUILD_DIR/guides $GUIDES_DIR
-cp -r $BUILD_DIR/guides $GUIDES_DIR
-cp -r $BUILD_DIR/api $API_DIR
+cp -r $BUILD_DIR/guides/*.md $GUIDES_DIR
+cp -r $BUILD_DIR/source/*.md $API_DIR
+cp $DOCS_DIR/home.md $WIKI_DIR
