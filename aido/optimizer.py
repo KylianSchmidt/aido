@@ -144,7 +144,7 @@ class Optimizer(torch.nn.Module):
         4. The optimizer applies backprogation and updates the current ParameterDict
 
         Return:
-        -------
+        ------
             SimulationParameterDictionary
             bool
         """
