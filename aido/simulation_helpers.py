@@ -12,7 +12,11 @@ config = AIDOConfig.from_json("config.json")
 
 
 class SimulationParameter:
-    """Base class for all parameters used in the simulation
+    """
+    Base class for all parameters used in the simulation.
+
+    This class provides the foundation for handling simulation parameters,
+    including their values, constraints, and optimization settings.
     """
     def __init__(
             self,
@@ -29,30 +33,39 @@ class SimulationParameter:
             probabilities: Iterable[float] | None = None,
             cost: float | Iterable | None = None
             ):
-        """ Create a new Simulation Parameter
+        """
+        Initialize a new Simulation Parameter.
 
-        Args
-        ----
-            name (str): The name of the parameter.
-            starting_value (Any): The starting value of the parameter.
-            current_value (Any, optional): The current value of the parameter. Defaults to None, in which case
-                it set to the starting value instead.
-            units (str, optional): The units of the parameter. Defaults to None.
-            optimizable (bool, optional): Whether the parameter is optimizable. Defaults to True.
-            min_value (float, optional): The minimum value of the parameter. Defaults to None.
-            max_value (float, optional): The maximum value of the parameter. Defaults to None.
-            sigma (float, optional): The standard deviation of the parameter. Defaults to 0.5 for continuous
-            (float) parameters and remains None otherwise.
-            sigma_mode (str, optional): Whether to set the sampling distribution standard deviation to sigma ("flat")
-                or scale sigma with the current value ("scale"). Defaults to "flat". If "sigma" is not defined,
-                this parameter has not action. Can be changed class-wide using the cls.set_sigma_mode() classmethod.
-            discrete_values (Iterable, optional): The allowed discrete values of the parameter. Defaults to None.
-            probabilities (Iterable[float], optional): A list of the same length as 'discrete_values' used to
-                sample from 'discrete_values', if set to None, an equally-distributed array is created.
-                Only for discrete parameters. Defaults to None
-            cost (float, Iterable, optional): A float that quantifies the cost per unit of this Parameter.
-                Defaults to None. For discrete parameters, this parameter must be an Iterable (e.g. list) of the
-                same length as 'discrete_values'.
+        Parameters
+        ----------
+        name : str
+            Name of the parameter
+        starting_value : Any
+            Initial value of the parameter
+        current_value : Any, optional
+            Current parameter value, defaults to starting_value if None
+        units : str, optional
+            Units of measurement, by default None
+        optimizable : bool, optional
+            Whether parameter can be optimized, by default True
+        min_value : float, optional
+            Minimum allowed value, by default None
+        max_value : float, optional
+            Maximum allowed value, by default None
+        sigma : float, optional
+            Standard deviation for continuous parameters.
+            Defaults to 0.5 for float parameters, None otherwise
+        sigma_mode : {'flat', 'scale'}, optional
+            Mode for standard deviation:
+            - 'flat': Use sigma directly
+            - 'scale': Scale sigma with current value
+            By default None, can be set class-wide with set_sigma_mode()
+        discrete_values : Iterable, optional
+            Set of allowed discrete values, by default None
+        probabilities : Iterable[float], optional
+            Probability weights for discrete_values, by default None
+        cost : float or Iterable, optional
+            Cost associated with parameter value, by default None
         """
         def check_boundaries() -> None:
             assert (
@@ -140,19 +153,44 @@ class SimulationParameter:
         return json.dumps(self.to_dict(), indent=4)
 
     def to_dict(self) -> Dict:
-        """Convert to dictionary
+        """
+        Convert parameter object to dictionary format.
 
-        Protected attributes are written to file as public attributes.
+        Returns
+        -------
+        Dict
+            Dictionary representation with protected attributes
+            converted to public attributes
         """
         return {key.removeprefix("_"): value for key, value in self.__dict__.items()}
 
     @classmethod
     def from_dict(cls, attribute_dict: Dict):
-        """Create from dictionary"""
+        """
+        Create a parameter object from a dictionary.
+
+        Parameters
+        ----------
+        attribute_dict : Dict
+            Dictionary containing parameter attributes
+
+        Returns
+        -------
+        SimulationParameter
+            New parameter object initialized with dictionary values
+        """
         return cls(**attribute_dict)
 
     @property
     def current_value(self) -> Any:
+        """
+        Get the current value of the parameter.
+
+        Returns
+        -------
+        Any
+            Current parameter value
+        """
         return self._current_value
 
     @current_value.setter
