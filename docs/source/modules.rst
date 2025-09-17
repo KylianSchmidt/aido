@@ -16,7 +16,7 @@ aido
 
 .. toctree::
    :maxdepth: 2
-   :caption: Guides
+   :caption: API Reference
 
    ../guides/getting_started.md
    ../guides/example.md

@@ -63,8 +63,7 @@ class Optimizer(torch.nn.Module):
         ensures that the optimizer does not propose new values that are outside of the scope of the Surrogate and
         therefore largely unknown to the current iteration.
         Returns:
-        -------
-            float
+            float: The boundary penalties loss value
         """
         parameter_box = self.parameter_module.constraints.to(self.device)
         if len(parameter_box) != 0:

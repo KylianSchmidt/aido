@@ -1,26 +1,23 @@
 #!/bin/bash
+set -e  # Exit on error
 export LC_ALL=en_US.UTF-8
 
 WIKI_DIR="../aido.wiki"
 DOCS_DIR="../docs"
-API_DIR="$WIKI_DIR/api"
-GUIDES_DIR="$WIKI_DIR/guides"
-BUILD_DIR="$DOCS_DIR/_build/markdown"
+HTML_BUILD="$DOCS_DIR/_build/html"
 
-mkdir -p $WIKI_DIR
-mkdir -p $API_DIR
-mkdir -p $GUIDES_DIR
+mkdir -p "$WIKI_DIR"/{api,guides}
+rm -rf "$DOCS_DIR/_build"
 
-rm $DOCS_DIR/_build -rf
+sphinx-build -b html . "$HTML_BUILD"
 
-# Build HTML and Markdown in one Sphinx run (avoid duplicate builds)
-sphinx-build -b html . $DOCS_DIR/_build/html
-sphinx-build -b markdown . $BUILD_DIR
+for page in genindex py-modindex search; do
+    python -c "import html2text, sys; print(html2text.html2text(sys.stdin.read()))" \
+        < "$HTML_BUILD/$page.html" > "$WIKI_DIR/$page.md"
+done
 
-python -c "import html2text, sys; print(html2text.html2text(sys.stdin.read()))" < _build/html/genindex.html > "$WIKI_DIR/genindex.md"
-python -c "import html2text, sys; print(html2text.html2text(sys.stdin.read()))" < _build/html/py-modindex.html > "$WIKI_DIR/py-modindex.md"  
-python -c "import html2text, sys; print(html2text.html2text(sys.stdin.read()))" < _build/html/search.html > "$WIKI_DIR/search.md"
-
-cp $BUILD_DIR/guides $GUIDES_DIR
-cp -r $BUILD_DIR/guides $GUIDES_DIR
-cp -r $BUILD_DIR/api $API_DIR
+for dir in guides api; do
+    if [ -d "$HTML_BUILD/$dir" ]; then
+        cp -r "$HTML_BUILD/$dir/"* "$WIKI_DIR/$dir/"
+    fi
+done
