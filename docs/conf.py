@@ -3,7 +3,18 @@ import sys
 
 sys.path.insert(0, os.path.abspath(".."))
 
+from unittest import mock  # noqa
+
 from aido import __version__  # noqa
+
+autodoc_mock_imports = [
+    "torch",
+    "pandas",
+    "numpy",
+    "matplotlib",
+    "colorlog",
+    "b2luigi",
+]
 
 # Configuration file for the Sphinx documentation builder.
 #
