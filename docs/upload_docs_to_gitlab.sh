@@ -4,8 +4,6 @@ WIKI_DIR="../aido.wiki"
 DOCS_DIR="../docs"
 DATE_TIME=$(date "+%Y-%m-%d %H:%M:%S")
 
-# Make documentation and copy to WIKI_DIR
-echo "Generate the docs"
 cd "$DOCS_DIR"
 bash generate_docs.sh
 

@@ -1,6 +1,10 @@
 import os
 import sys
 
+sys.path.insert(0, os.path.abspath(".."))
+
+from aido import __version__  # noqa
+
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -12,7 +16,7 @@ import sys
 project = 'aido'
 copyright = '2024, Kylian Schmidt, Dr. Jan Kieseler'
 author = 'Kylian Schmidt, Dr. Jan Kieseler'
-release = "0.1.3"
+release = __version__
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

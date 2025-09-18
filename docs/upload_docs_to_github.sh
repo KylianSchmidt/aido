@@ -13,5 +13,5 @@ echo "Copying Wiki from $WIKI_DIR to $TARGET_DIR"
 cp $WIKI_DIR/* $TARGET_DIR/ -r
 cd $TARGET_DIR || exit 1
 git add .
-git commit -m "$COMMIT_MSG"  || echo "Auto-Update: No changes to commit"
+git commit -m "$COMMIT_MSG"
 git push origin master

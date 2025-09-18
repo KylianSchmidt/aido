@@ -20,4 +20,4 @@ python -c "import html2text, sys; print(html2text.html2text(sys.stdin.read()))" 
 
 cp -r $BUILD_DIR/guides/*.md $GUIDES_DIR
 cp -r $BUILD_DIR/api/*.md $API_DIR
-cp $DOCS_DIR/home.md $WIKI_DIR
+cp $DOCS_DIR/index.md $WIKI_DIR/home.md

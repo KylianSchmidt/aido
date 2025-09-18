@@ -35,14 +35,12 @@ For more details, see the API Reference section.
 
 # Documentation
 
-- Getting Started getting_started
+- [Getting Started](guides/getting_started.md)
 - Usage
-  - [SimulationParameter(Dictionary)](api/aido.simulation_helpers): single parameter with many options
-  - [UserInterfaceBase](api/aido.interface): connection of your code to the aido framework
-- Examples
+  - [SimulationParameter(Dictionary)](api/aido.simulation_helpers.md)
+  - [UserInterfaceBase](api/aido.interface.md)
+- [Examples](guides/example.md)
 
-# Indices and Tables
+# Indices
 
-* [General Index](api/index)
 * [Module Index](api/modules)
-* Search Page
