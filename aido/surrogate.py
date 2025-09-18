@@ -61,12 +61,6 @@ class NoiseAdder(torch.nn.Module):
 class SurrogateDataset(Dataset):
     """ Dataset class for the Surrogate model
 
-    Args:
-    ----
-        df (pd.DataFrame): A DataFrame containing the following keys:
-        
-            ["Parameters", "Context", "Loss"]
-
     TODO: Accommodate for discrete parameters
     """
     def __init__(
@@ -153,24 +147,50 @@ class SurrogateDataset(Dataset):
             target: torch.Tensor | np.ndarray,
             index: int
             ) -> torch.Tensor | np.ndarray:
-        ''' Return the physically meaningful target from the normalized target
-        Index:
-            0 -> Parameters
-            1 -> Context
-            2 -> Targets
-        '''
+        """Convert normalized features back to their original scale.
+        
+        Parameters
+        ----------
+        target : torch.Tensor or np.ndarray
+            The normalized features to convert back.
+        index : int
+            Index indicating the feature type:
+            - 0: Parameters
+            - 1: Context
+            - 2: Targets
+
+        Returns
+        -------
+        torch.Tensor or np.ndarray
+            The unnormalized features in their original scale.
+        """
         if isinstance(target, torch.Tensor):
             return target * self.c_stds[index] + self.c_means[index]
         elif isinstance(target, np.ndarray):
             return target * self.stds[index] + self.means[index]
 
-    def normalize_features(self, target: torch.Tensor | np.ndarray, index: int) -> torch.Tensor | np.ndarray:
-        ''' Normalize a feature
-        Index:
-            0 -> Parameters
-            1 -> Context
-            2 -> Targets
-        '''
+    def normalize_features(
+            self,
+            target: torch.Tensor | np.ndarray,
+            index: int,
+            ) -> torch.Tensor | np.ndarray:
+        """Normalize a feature using stored means and standard deviations.
+
+        Parameters
+        ----------
+        target : torch.Tensor or np.ndarray
+            The feature to normalize.
+        index : int
+            Index indicating the feature type:
+            - 0: Parameters
+            - 1: Context
+            - 2: Targets
+
+        Returns
+        -------
+        torch.Tensor or np.ndarray
+            The normalized feature.
+        """
         if isinstance(target, torch.Tensor):
             return (target - self.c_means[index]) / self.c_stds[index]
         elif isinstance(target, np.ndarray):
@@ -307,16 +327,23 @@ class Surrogate(torch.nn.Module):
             x: torch.Tensor,
             scale: float = 1.0
             ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """ Add gaussian noise to a tensor. Scale the noise with 'scale', by default the noise is N(0, 1).
+        """Add gaussian noise to a tensor.
+        
+        Scale the noise with 'scale', by default the noise is N(0, 1).
 
-        Args:
-            x (torch.Tensor): The input tensor to which noise will be added.
+        Parameters
+        ----------
+        x : torch.Tensor
+            The input tensor to which noise will be added.
+        scale : float, default=1.0
+            The scale factor for the noise.
 
-        Returns:
-            tuple: A tuple containing:
-                - torch.Tensor: The noisy tensor.
-                - torch.Tensor: The noise added to the input tensor.
-                - torch.Tensor: The time steps used for generating the noise.
+        Returns
+        -------
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
+            - The noisy tensor
+            - The noise added to the input tensor
+            - The time steps used for generating the noise
         """
         _ts = torch.randint(1, self.n_time_steps + 1, (x.shape[0],)).to(self.device)  # t ~ Uniform(0, n_time_steps)
         noise = scale * torch.randn_like(x)  # eps ~ N(0, 1)
@@ -353,8 +380,25 @@ class Surrogate(torch.nn.Module):
             n_epochs: int,
             lr: float
             ) -> float:
-        """ Train the Surrogate Diffusion model. The training loop includes the added
-        noise.
+        """Train the Surrogate Diffusion model.
+        
+        The training loop includes noise addition as part of the diffusion process.
+        
+        Parameters
+        ----------
+        surrogate_dataset : SurrogateDataset
+            The dataset containing the training data.
+        batch_size : int
+            The size of each training batch.
+        n_epochs : int
+            The number of training epochs.
+        lr : float
+            The learning rate for the optimizer.
+            
+        Returns
+        -------
+        float
+            The final training loss value.
         """
         train_loader = DataLoader(surrogate_dataset, batch_size=batch_size, shuffle=True)
         for param_group in self.optimizer.param_groups:
@@ -395,19 +439,26 @@ class Surrogate(torch.nn.Module):
             batch_size: int,
             oversample: int = 1,
             ) -> torch.Tensor:
-        """
-        Applies the model to the given dataset in batches and returns the results.
+        """Apply the model to the given dataset in batches.
 
-        Args:
-            dataset (SurrogateDataset): The dataset to apply the model to.
-            batch_size (int): The size of each batch.
-            oversample (int, optional): The number of times to oversample the dataset. Default is 1.
+        Parameters
+        ----------
+        dataset : SurrogateDataset
+            The dataset to apply the model to.
+        batch_size : int
+            The size of each batch.
+        oversample : int, optional
+            The number of times to oversample the dataset, by default 1.
 
-        Returns:
-            torch.Tensor: The surrogate model's predictions.
+        Returns
+        -------
+        torch.Tensor
+            The surrogate model's predictions.
 
-        Remarks: In most cases the resulting Tensor with sampled Data is not of importance, only the
-            model weights.
+        Notes
+        -----
+        In most cases, the resulting tensor with sampled data is not of importance,
+        as the main value lies in the trained model weights.
         """
         self.to()
         self.eval()

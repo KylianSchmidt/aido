@@ -28,14 +28,16 @@ class Plotting:
         """
         Plot the evolution of variables of interest over the Optimization process.
 
-        Args:
+        Args
+        ----
             plot_types (str | List[str], optional): The types of plots to be generated.
                 It can be a string or a list of strings. If "all" is specified, it will
                 generate all available plots. Available methods:
 
                     ["parameter_evolution", "optimizer_loss", "simulation_samples"]
 
-        Returns:
+        Returns
+        -------
             None
 
         TODO Clean up this class and do not repeat the reading of files all the time
@@ -58,13 +60,16 @@ class Plotting:
             ) -> Tuple[pd.DataFrame, np.ndarray]:
         """ Plots the evolution of all simulation parameters along with their respective "sigma".
 
-        Args:
+        Args
+        ----
             fig_savepath (str | os.PathLike, optional): The file path to save the figure.
                 Defaults to "<results_dir>/plots/parameter_evolution". If None, the figure will not be saved.
             results_dir (str | os.PathLike, optional): Results directory. Defaults to "./results/"
             parameter_dir (str | os.PathLike, optional): The directory path where the SimulationParameterDictionaries
                 are stored (.json files). Defaults to "<results_dir>/parameters".
-        Returns:
+
+        Returns
+        -------
             Tuple(pd.DataFrame, np.ndarray): A Tuple containing the DataFrame with all parameters provided by the
                 optimizer after each iteration, and the simulation sampling standard deviation (2D array).
         """
@@ -116,11 +121,15 @@ class Plotting:
             ) -> pd.DataFrame:
         """
         Plot the optimizer loss over epochs and save the figure if `fig_savepath` is provided.
-        Args:
+
+        Args
+        ----
             fig_savepath (str | os.PathLike | None): Path to save the figure. If None, the figure will not be saved.
             results_dir (str | os.PathLike, optional): Results directory. Defaults to "./results/"
             optimizer_loss_dir (str | os.PathLike): Directory containing the optimizer loss files.
-        Returns:
+
+        Returns
+        -------
             df_loss (pd.DataFrame): DataFrame with the optimizer loss at each iteration
         """
         fig_savepath = f"{results_dir}/{fig_savepath}"
@@ -159,22 +168,33 @@ class Plotting:
             parameter_dir: str = "/parameters/",
             sampled_param_dict_filepath: str | os.PathLike = "/task_outputs/iteration=*/validation=False"
             ) -> Tuple[pd.DataFrame, np.ndarray]:
-        """ Generate a DataFrame of simulation parameters and their values for each iteration and task.
+        """Generate a DataFrame of simulation parameters and their values.
+        
+        This method collects simulation parameters and their values for each iteration
+        and task, organizing them into a DataFrame.
 
-        Args:
+        Args
+        ----
+        fig_savepath : str or os.PathLike or None, optional
+            Path to save the generated plot.
+            Defaults to "./results/plots/simulation_samples".
+        sampled_param_dict_filepath : str or os.PathLike, optional
+            Path to the sampled parameter dictionary files.
+            Defaults to "./results/task_outputs/simulation_task*".
+        parameter_dir : str, optional
+            Where the parameters are stored in the results folder.
+            Defaults to 'parameters'.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the simulation parameters.
+        np.ndarray
+            Array of sigma values.
+
+        Notes
         -----
-            fig_savepath (str | os.PathLike | None, optional): Path to save the generated plot.
-                Defaults to "./results/plots/simulation_samples".
-            sampled_param_dict_filepath (str | os.PathLike, optional): Path to the sampled parameter dictionary files.
-                Defaults to "./results/task_outputs/simulation_task*".
-            parameter_dir (str): Where the parameters are stored in the results folder. Defaults to 'parametersÄ.
-
-        Returns:
-        --------
-            Tuple(pd.DataFrame, np.ndarray): A tuple containing the DataFrame of simulation parameters and a
-                numpy array of sigma values.
-
-        TODO Check for the files in a dynamic way in case b2luigi changes the names of the directories
+        TODO: Check for files dynamically in case b2luigi changes directory names
         due to changes in the b2luigi.Parameters of the SimulationTasks.
         """
         fig_savepath = f"{results_dir}/{fig_savepath}"
@@ -290,39 +310,87 @@ class Plotting:
                 plot_probabilities(parameter.name, param_dicts_list, fig_savepath_absolute)
 
         return None
-    
-    def fwhm(
-            x: np.ndarray,
-            y: np.ndarray,
-            height: Percentage = 0.5,
-            ax: plt.Axes | None = None
-            ) -> Tuple[float, float, float, float] | plt.Axes:
-        """ Compute the FWHM of a (x, y) distribution
-        If x has one more item than y, the zeroth item of x will be skipped (useful for binned histograms)
-        
-        Returns:
-        --------
-            If Axes is None:
-                fwhm (float): Full Width at Half Maximum (weighted by 'height' argument)
-                x_left (float): left x value
-                y_right (float): right y value
-                height_absolute (float): absolute height of y at fwhm point
-            If Axes is given:
-                ax (plt.Axes): ax with added vlines for the left and right x values
 
-        TODO what if x is not monotone?
-        """
-        assert np.all(y >= 0.0), "y must be an Array with only positive entries"
-        if len(x) == len(y) + 1:
-            x = x[1:]
-        height_absolute = np.max(y) * height
-        index_max = np.argmax(y)
-        x_left = np.interp(height_absolute, y[:index_max + 1], x[:index_max + 1])
-        x_right = np.interp(height_absolute, np.flip(y[index_max:]), np.flip(x[index_max:]))
+    class FWHM:
+        def __init__(
+                self,
+                x: np.ndarray,
+                y: np.ndarray,
+                height: Percentage = 0.5,
+        ) -> None:
+            """
+            Compute the Full Width Half Maximum for a given mapping of (x, y) values.
 
-        if ax is not None:
-            ax.vlines(x_left, 0.0, height_absolute, color="k", linestyles="--")
-            ax.vlines(x_right, 0.0, height_absolute, color="k", linestyles="--")
+            Args
+            ----
+                x: np.ndarray
+                y: np.ndarray
+                height: Percentage (optional)
+                    Height at which to compute the FWHM
+            
+            Attributes
+            ----------
+                height_absolute: float
+                    Height used for computing the FWHM value
+                x_left: float
+                x_right: float
+                width: float
+            """
+            assert np.all(y >= 0.0), "y must be an Array with only positive entries"
+
+            if len(x) == len(y) + 1:
+                x = x[1:]  # Account for mismatched array length (e.g from matplotlib bins)
+
+            self.height_absolute = float(np.max(y) * height)
+            index_max = np.argmax(y)
+            self.x_left = float(np.interp(self.height_absolute, y[:index_max + 1], x[:index_max + 1]))
+            self.x_right = float(np.interp(self.height_absolute, np.flip(y[index_max:]), np.flip(x[index_max:])))
+            self.width = self.x_right - self.x_left
+
+        @property
+        def values(self):
+            """
+
+            Returns
+            -------
+            tuple
+                - width : float
+                    Width of the distribution (FWHM)
+                - x_left : float
+                    x-intersection at the left edge
+                - x_right : float
+                    x-intersection at the right edge
+                - height : float
+                    Absolute height used for computing the peak
+            """
+            return (
+                self.width,
+                self.x_left,
+                self.x_right,
+                self.height_absolute,
+            )
+
+        def add_to_axis(
+                self,
+                ax: plt.Axes,
+                color: str = "k",
+                linestyles: str = "--",
+                **kwargs,
+        ) -> plt.Axes:
+            """
+            Add two vertical lines at the x-intersection to represent the FWHM.
+
+            Args
+            ----
+                ax: matplotlib.pyplot.Axes
+                    Axes on which to add the vertical lines
+                color: str
+                linestyles: str
+            
+            Returns
+            -------
+                ax: matplotlib.pyplot.Axes
+            """
+            ax.vlines(self.x_left, 0.0, self.height_absolute, color=color, linestyles=linestyles, **kwargs)
+            ax.vlines(self.x_right, 0.0, self.height_absolute, color=color, linestyles=linestyles, **kwargs)
             return ax
-
-        return x_right - x_left, x_left, x_right, height_absolute

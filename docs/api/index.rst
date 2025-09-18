@@ -1,5 +1,5 @@
-Welcome to AIDO's documentation
-============================
+AIDO Documentation
+==================
 
 Contents:
 

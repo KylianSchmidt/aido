@@ -14,10 +14,19 @@ from aido.surrogate import Surrogate, SurrogateDataset
 
 
 def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
-    """ Pre-train the Surrogate Model.
-
-    TODO Reconstruction results are normalized. In the future only expose the un-normalized ones,
-    but also requires adjustments to the surrogate dataset
+    """Pre-train the Surrogate Model using a three-stage process.
+    
+    This function performs pre-training in three stages with different
+    batch sizes and learning rates to ensure stable convergence.
+    
+    Parameters
+    ----------
+    model : Surrogate
+        The surrogate model to pre-train.
+    dataset : SurrogateDataset
+        The dataset to use for training.
+    n_epochs : int
+        Number of epochs to train in each stage.
     """
     model.to("cuda" if torch.cuda.is_available() else "cpu")
 

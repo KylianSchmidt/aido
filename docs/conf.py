@@ -62,5 +62,11 @@ myst_enable_extensions = [
 # Suppress warnings
 suppress_warnings = [
     'myst.xref_missing',
-    'ref.python'
+    'ref.python',
+    'toc.excluded',  # Suppress toctree warnings
+    'toc.not_readable',
+    'toc.no_title',  # Suppress title warnings
+    'docutils.definition_list_ends_without_blank_line',  # Suppress definition list warnings
+    'docutils.bullet_list_ends_without_blank_line',  # Suppress bullet list warnings
+    'docutils.block_quote_ends_without_blank_line'  # Suppress block quote warnings
 ]

@@ -168,7 +168,8 @@ class CaloOptPlotting:
                         histtype="step",
                         label=f"Iteration {iteration:3d}",
                     )
-                    ax = aido.Plotting.fwhm(bins, e_rec_binned, ax=ax)
+                    ax = aido.Plotting.FWHM(bins, e_rec_binned).add_to_axis(ax)
+
             plt.legend()
             plt.xlim(-10, 10)
             plt.xlabel(r"Energy Resolution $E_{\text{true}} - E_{\text{rec}}$ [GeV]")
