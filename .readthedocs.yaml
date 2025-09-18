@@ -1,5 +1,6 @@
 version: 2
-build: rhel-9.6
+build: 
+  os: rhel-9.6
 tools:
   python: "3.12"
 sphinx:
