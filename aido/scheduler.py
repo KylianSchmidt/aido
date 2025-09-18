@@ -26,6 +26,7 @@ class SimulationTask(AIDOTask):
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def requires(self):
+        """ Require OptimizationTask (N-1) """
         if self.iteration > 0:
             return OptimizationTask(
                 iteration=self.iteration - 1,
@@ -35,6 +36,7 @@ class SimulationTask(AIDOTask):
             )
 
     def output(self) -> Generator:
+        """ Task outputs """
         yield self.add_to_output("param_dict.json")
         yield self.add_to_output("simulation_output")
 
@@ -67,6 +69,7 @@ class ReconstructionTask(AIDOTask):
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def requires(self) -> Generator:
+        """ Require I SimulationTasks, runnable in parallel"""
         assert isinstance(self.validation, bool), "'validation' parameter must be of type bool."
 
         if self.validation:
@@ -128,6 +131,7 @@ class OptimizationTask(AIDOTask):
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def output(self) -> Generator:
+        """ Only return output if not the root Task """
         if self.iteration >= 0:
             yield self.add_to_output("reco_paths_dict")
             yield self.add_to_output("param_dict.json")

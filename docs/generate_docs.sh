@@ -12,7 +12,6 @@ mkdir -p $GUIDES_DIR
 
 rm $DOCS_DIR/_build -rf
 
-# Build HTML and Markdown in one Sphinx run (avoid duplicate builds)
 sphinx-build -b html . $DOCS_DIR/_build/html
 sphinx-build -b markdown . $BUILD_DIR
 

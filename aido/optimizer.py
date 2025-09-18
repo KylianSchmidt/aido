@@ -43,13 +43,13 @@ class Optimizer(torch.nn.Module):
         self.parameter_module = ParameterModule(self.parameter_dict).to(self.device)
         self.optimizer = torch.optim.Adam(self.parameter_module.parameters())
 
-    def to(self, device: str | torch.device, **kwargs):
+    def to(self, device: str | torch.device, **kwargs) -> "Optimizer":
         """ Move all Tensors and modules to 'device'.
         """
         self.device = device if isinstance(device, torch.device) else torch.device(device)
         super().to(self.device, **kwargs)
         return self
-    
+
     def check_parameters_are_local(self, updated_parameters: torch.Tensor, scale=1.0) -> bool:
         """ Assure that the predicted parameters by the optimizer are within the bounds of the covariance
         matrix spanned by the 'sigma' of each parameter.
@@ -58,13 +58,15 @@ class Optimizer(torch.nn.Module):
         diff = diff.detach().cpu().numpy()
         return np.dot(diff, np.dot(np.linalg.inv(self.parameter_dict.covariance), diff)) < scale
 
+    @property
     def boundaries(self) -> torch.Tensor:
         """ Adds penalties for parameters that are outside of the boundaries spaned by 'self.parameter_box'. This
         ensures that the optimizer does not propose new values that are outside of the scope of the Surrogate and
         therefore largely unknown to the current iteration.
+
         Returns:
-        -------
-            float
+        --------
+            torch.Tensor
         """
         parameter_box = self.parameter_module.constraints.to(self.device)
         if len(parameter_box) != 0:
@@ -143,8 +145,8 @@ class Optimizer(torch.nn.Module):
             within acceptable boundaries during training).
         4. The optimizer applies backprogation and updates the current ParameterDict
 
-        Return:
-        ------
+        Returns:
+        --------
             SimulationParameterDictionary
             bool
         """

@@ -230,8 +230,9 @@ class SimulationParameterDictionary:
     """Dictionary containing all the parameters used by the simulation.
 
     Attributes:
-    parameter_list: List[Type[SimulationParameter]]
-    parameter_dict: Dict[str, Type[SimulationParameter]]
+    -----------
+        parameter_list: List[Type[SimulationParameter]]
+        parameter_dict: Dict[str, Type[SimulationParameter]]
 
     Provides simple methods to easily write and read with the json format. Instances of this
     class have the following methods, with additional options listed in the method's docstring
@@ -240,36 +241,48 @@ class SimulationParameterDictionary:
 
         - Indexing as a list (in the same order as given during instantiation) or as a dict
             using the parameter's 'name'. Also usable with list or dict comprehension.
+        
         - 'to_dict' returns a dict with the parameters also in a dict format. Alternatively,
             it returns a dict of 'SimulationParameter' (same as indexing this class by 'name')
             if you add the keyword argument 'serialized=False'.
+        
         - 'to_json' will write all data from this class to a specified .json file in a dict
             format.
+        
         - 'to_df' returns a pd.DataFrame of your parameters. More options are listed in the
             method's docstring.
+        
         - 'get_current_values' returns all the current values of each parameter in a list or
             dict format.
+        
         - 'get_probabilities' returns a dict whose values are the probabilities of each
             discrete parameter. More information about the usage of probabilities for one-hot
             encoded parameters is listed in the docstring of SimulationParameter.
 
       2. Instantiating this class from other objects:
+
         - 'from_dict' instantiates this class from a nested dict, where each entry is the dict
             representation of a SimulationParameter (which has a similar method)
-        - 'from_json' instantiates this class from a json file. Specially useful in the combination
+       
+         - 'from_json' instantiates this class from a json file. Specially useful in the combination
             with 'to_json' to transfer this class between programs.
 
       3. Changing the information stored:
-        - 'update_current_values' will change all the current values of the class provided a
+     
+           - 'update_current_values' will change all the current values of the class provided a
             simple dict [str, <update_value>].
-        - 'update_probabilities' does the same but with all the probabilities of the discrete
+    
+            - 'update_probabilities' does the same but with all the probabilities of the discrete
             parameters of the class.
-        - 'generate_new' will return a new instance of this class with new current values for each
+    
+            - 'generate_new' will return a new instance of this class with new current values for each
             parameter
 
       4. Properties:
-        - 'covariance' returns a diagonal matrix with the 'sigma' of every continuous parameter.
-        - 'metadata' returns additional information about this class such as its creation time,
+    
+            - 'covariance' returns a diagonal matrix with the 'sigma' of every continuous parameter.
+   
+             - 'metadata' returns additional information about this class such as its creation time,
             the current iteration of the optimization process and user-defined descriptions.
     """
 

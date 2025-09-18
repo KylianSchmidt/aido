@@ -160,16 +160,20 @@ class Plotting:
             sampled_param_dict_filepath: str | os.PathLike = "/task_outputs/iteration=*/validation=False"
             ) -> Tuple[pd.DataFrame, np.ndarray]:
         """ Generate a DataFrame of simulation parameters and their values for each iteration and task.
+
         Args:
+        -----
             fig_savepath (str | os.PathLike | None, optional): Path to save the generated plot.
                 Defaults to "./results/plots/simulation_samples".
             sampled_param_dict_filepath (str | os.PathLike, optional): Path to the sampled parameter dictionary files.
                 Defaults to "./results/task_outputs/simulation_task*".
             parameter_dir (str): Where the parameters are stored in the results folder. Defaults to 'parametersÄ.
+
         Returns:
+        --------
             Tuple(pd.DataFrame, np.ndarray): A tuple containing the DataFrame of simulation parameters and a
                 numpy array of sigma values.
-        
+
         TODO Check for the files in a dynamic way in case b2luigi changes the names of the directories
         due to changes in the b2luigi.Parameters of the SimulationTasks.
         """
@@ -295,8 +299,9 @@ class Plotting:
             ) -> Tuple[float, float, float, float] | plt.Axes:
         """ Compute the FWHM of a (x, y) distribution
         If x has one more item than y, the zeroth item of x will be skipped (useful for binned histograms)
+        
         Returns:
-        -------
+        --------
             If Axes is None:
                 fwhm (float): Full Width at Half Maximum (weighted by 'height' argument)
                 x_left (float): left x value
