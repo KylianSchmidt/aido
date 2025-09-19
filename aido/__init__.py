@@ -16,5 +16,3 @@ __all__ = [
     "Surrogate",
     "SurrogateDataset"
 ]
-
-__version__ = "0.1.3"
