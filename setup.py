@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-from aido import __version__
+__version__ = "0.1.3"
 
 with open("requirements.txt", "r") as file:
     requirements = file.readlines()
