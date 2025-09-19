@@ -5,15 +5,6 @@ sys.path.insert(0, os.path.abspath(".."))
 
 from aido import __version__  # noqa
 
-autodoc_mock_imports = [
-    "torch",
-    "pandas",
-    "numpy",
-    "matplotlib",
-    "colorlog",
-    "b2luigi",
-]
-
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -32,7 +23,7 @@ release = __version__
 
 master_doc = "home"
 extensions = [
-    'sphinx.ext.autodoc',           # For automatical documentation
+    'autoapi.extension',            # For automatical documentation
     'sphinx_autodoc_typehints',     # Autodoc typehints
     'sphinx.ext.napoleon',          # For Google and NumPy-style docstrings
     'sphinx.ext.mathjax',           # For LaTeX math rendering,
@@ -58,11 +49,19 @@ source_suffix = {
 sys.path.insert(0, os.path.abspath(".."))
 myst_enable_extensions = ["deflist", "colon_fence"]
 
-# Autodoc settings
-autodoc_member_order = "bysource"
-autodoc_default_options = {
-    "members": True,
-}
+# Autoapi settings
+autoapi_type = "python"
+autoapi_dirs = ["../aido"]
+autoapi_options = [
+    "members",
+    "show-inheritance",
+    "show-module-summary",
+    "special-members",
+    "undoc-members",
+    "imported-members",
+]
+autoapi_python_class_content = "both"
+autoapi_member_order = "bysource"
 
 # MyST settings
 myst_enable_extensions = [
