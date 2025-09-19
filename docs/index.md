@@ -1,6 +1,9 @@
 # AIDO Documentation
 
 ## Introduction
+# AIDO Documentation
+
+## Introduction
 
 The **AI** **D**etector **O**ptimization framework (AIDO) is designed to approximate the optimal
 design of particle physics detectors. By interpolating the results of simulations
