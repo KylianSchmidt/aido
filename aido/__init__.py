@@ -1,3 +1,5 @@
+from _version import version
+
 from aido.interface import UserInterfaceBase
 from aido.main import check_results_folder_format, get_config, optimize, set_config
 from aido.plotting import Plotting
@@ -17,4 +19,4 @@ __all__ = [
     "SurrogateDataset"
 ]
 
-__version__ = "0.1.3"
+__version__ = version
