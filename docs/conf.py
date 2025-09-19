@@ -53,8 +53,6 @@ autoapi_options = [
     "members",
     "show-inheritance",
     "show-module-summary",
-    "special-members",
-    "undoc-members",
     "imported-members",
 ]
 autoapi_python_class_content = "both"
