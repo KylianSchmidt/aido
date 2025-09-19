@@ -312,29 +312,30 @@ class Plotting:
         return None
 
     class FWHM:
+        """Class for computing Full Width at Half Maximum (or other height) for a given (x, y) curve.
+
+        :no-index:
+        """
+
         def __init__(
                 self,
                 x: np.ndarray,
                 y: np.ndarray,
                 height: Percentage = 0.5,
         ) -> None:
-            """
-            Compute the Full Width Half Maximum for a given mapping of (x, y) values.
+            """Compute the Full Width Half Maximum for a given mapping of (x, y) values.
 
-            Args
-            ----
-                x: np.ndarray
-                y: np.ndarray
-                height: Percentage (optional)
-                    Height at which to compute the FWHM
-            
-            Attributes
-            ----------
-                height_absolute: float
-                    Height used for computing the FWHM value
-                x_left: float
-                x_right: float
-                width: float
+            Args:
+                x (np.ndarray): X-axis values of the curve
+                y (np.ndarray): Y-axis values of the curve (must be non-negative)
+                height (Percentage, optional): Height at which to compute the width,
+                    as a fraction of the maximum height. Defaults to 0.5.
+
+            Attributes:
+                height_absolute (float): Absolute height used for computing the width
+                x_left (float): Left x-coordinate where curve crosses height_absolute
+                x_right (float): Right x-coordinate where curve crosses height_absolute
+                width (float): Width of the curve at the specified height (x_right - x_left)
             """
             assert np.all(y >= 0.0), "y must be an Array with only positive entries"
 

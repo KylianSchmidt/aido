@@ -80,17 +80,19 @@ class SurrogateDataset(Dataset):
         unnormalized and will be normalized internally.
 
         Args:
-        ----
             input_df (pd.DataFrame): The input DataFrame containing the data.
             parameter_key (str, optional): The key for the parameters column in the DataFrame.
                 Defaults to "Parameters".
             context_key (str, optional): The key for the context column in the DataFrame.
                 Defaults to "Context".
-            target_key (str, optional): The kry for the target column in the DataFrame.
+            target_key (str, optional): The key for the target column in the DataFrame.
                 Defaults to "Targets".
             reconstructed_key (str, optional): The key for the reconstruction loss column in the DataFrame.
                 Defaults to "Loss".
-            device (str): Torch device. Defaults to 'cuda'
+            device (str): Torch device. Defaults to 'cuda' if available, else 'cpu'.
+            means (List[np.float32], optional): Predefined means for normalization. Defaults to None.
+            stds (List[np.float32], optional): Predefined standard deviations for normalization. Defaults to None.
+            normalize_parameters (bool, optional): Whether to normalize parameters. Defaults to False.
         """
         self.df = input_df
         self.parameters = self.df[parameter_key].to_numpy(np.float32)
