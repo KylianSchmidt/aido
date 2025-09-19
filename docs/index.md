@@ -1,4 +1,6 @@
-# Introduction
+# AIDO Documentation
+
+## Introduction
 
 The AI Detector Optimization framework (AIDO) is a tool for learning the optimal
 design of particle physics detectors. By interpolating the results of simulations
@@ -7,6 +9,23 @@ parameters.
 
 This framework fragments the workflow into [b2luigi](https://b2luigi.belle2.org/index.html)
 Tasks for parallel simulations and the training of ML models on GPUs.
+
+```{toctree}
+:maxdepth: 2
+:caption: Contents
+
+guides/getting_started
+guides/usage
+guides/example
+api/aido.surrogate
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: API Reference
+
+autoapi/index
+```
 
 In order to use this framework, you need:
 

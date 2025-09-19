@@ -18,7 +18,7 @@ author = 'Kylian Schmidt, Dr. Jan Kieseler'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-master_doc = "home"
+master_doc = "index"
 extensions = [
     'autoapi.extension',            # For automatical documentation
     'sphinx_autodoc_typehints',     # Autodoc typehints
