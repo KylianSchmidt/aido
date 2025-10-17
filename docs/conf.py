@@ -57,6 +57,7 @@ autoapi_options = [
 ]
 autoapi_python_class_content = "both"
 autoapi_member_order = "bysource"
+autoapi_root = "api"
 
 # MyST settings
 myst_enable_extensions = [

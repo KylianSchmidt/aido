@@ -17,14 +17,13 @@ Tasks for parallel simulations and training of ML models on GPUs.
 guides/getting_started
 guides/usage
 guides/example
-api
 ```
 
 ```{toctree}
 :maxdepth: 1
 :caption: API Reference
 
-autoapi/index
+api/index
 ```
 
 In order to use this framework, you need:
@@ -60,8 +59,3 @@ For more details, see the API Reference section.
 - Usage
   - [SimulationParameter(Dictionary)](api/aido.simulation_helpers.md)
   - [UserInterfaceBase](api/aido.interface.md)
-- [Examples](guides/example.md)
-
-## Indices
-
-* [Module Index](api/modules)

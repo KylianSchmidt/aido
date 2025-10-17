@@ -55,24 +55,6 @@ class Simulation():
 
         return pd.concat(dfs, axis=0, ignore_index=True)
 
-    @classmethod
-    def produce_descriptor(cls, parameter_dict: dict):
-        ''' Returns a GeometryDescriptor from the given parameters.
-        Strictly takes a dict as input to ensure that the parameter names are consistent.
-        Current parameters:
-        - layer_thickness, alternating between absorber and scintillator
-
-        If materials etc are added, the mapping from parameter_dict to material name has to be added here.
-        '''
-        cw = GeometryDescriptor()
-
-        for name, value in parameter_dict.items():
-            if name.startswith("thickness_absorber"):
-                cw.addLayer(value["current_value"], "G4_Pb", False, 1)
-            elif name.startswith("thickness_scintillator"):
-                cw.addLayer(value["current_value"], "G4_PbWO4", True, 1)
-        return cw
-
 
 if __name__ == "__main__":
     parameter_dict_file_path = sys.argv[1]
