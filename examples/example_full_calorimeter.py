@@ -10,9 +10,6 @@ import aido
 
 class UIFullCalorimeter(CaloOptInterface):
 
-    container_path: str = "/ceph/kschmidt/singularity_cache/minicalosim_latest.sif"
-    container_extra_flags: str = "-B /work,/ceph"
-
     @classmethod
     def constraints(
             self,
@@ -58,15 +55,21 @@ class UIFullCalorimeter(CaloOptInterface):
         return detector_length_penalty + max_cost_penalty
 
     def plot(self, parameter_dict: aido.SimulationParameterDictionary) -> None:
-        CaloOptPlotting(self.results_dir).plot()
+        calo_opt_plotter = CaloOptPlotting(self.results_dir)
+        calo_opt_plotter.mplstyle()
+        calo_opt_plotter.plot()
         return None
 
 
 if __name__ == "__main__":
-
     sigma: float = 2.5
     min_value: float = 0.0
+
+    ui_interface = UIFullCalorimeter()
+    ui_interface.container_path = "/ceph/kschmidt/singularity_cache/minicalosim_latest.sif"
+    ui_interface.container_extra_flags = "-B /work,/ceph"
     results_dir: str = "/work/kschmidt/aido/results_example"
+
     parameters = aido.SimulationParameterDictionary([
         aido.SimulationParameter("thickness_absorber_0", 9.030052185058594, min_value=min_value, sigma=sigma),
         aido.SimulationParameter("thickness_scintillator_0", 37.155208587646484, min_value=min_value, sigma=sigma),
@@ -133,7 +136,3 @@ Includes the optimization of discrete parameters and specific plotting functions
 """
     )
     os.system("rm *.root")
-
-    plotter = CaloOptPlotting(results_dir)
-    plotter.mplstyle()
-    plotter.plot()
