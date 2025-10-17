@@ -22,7 +22,6 @@ def example_simple_parameters() -> aido.SimulationParameterDictionary:
         aido.SimulationParameter("thickness_scintillator_2", 1.0, min_value=0.0),
         aido.SimulationParameter("material_absorber_2", "G4_Fe", optimizable=False),
         aido.SimulationParameter("material_scintillator_2", "G4_PbWO4", optimizable=False),
-
     ])
     return parameters
 
