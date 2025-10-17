@@ -23,7 +23,7 @@ guides/example
 :maxdepth: 1
 :caption: API Reference
 
-api/index
+api/toc
 ```
 
 In order to use this framework, you need:
