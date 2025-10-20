@@ -192,7 +192,7 @@ class Optimizer(torch.nn.Module):
                     self.parameter_module.current_values()
                 )
                 loss += constraints_loss
-                loss += self.boundaries()
+                loss += self.boundaries
 
                 loss.backward()
 
