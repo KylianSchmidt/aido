@@ -10,8 +10,9 @@ import aido
 
 class UIFullCalorimeter(CaloOptInterface):
 
-    container_path: str = "/ceph/kschmidt/singularity_cache/minicalosim_latest.sif"
-    container_extra_flags: str = "-B /work,/ceph"
+    container_path: str = f"{os.getcwd()}/minicalosim_7829fde_2.sif"
+    container_extra_flags: str = f"-B /work,{os.path.join(os.getcwd(), 'results_example')}"
+    verbose: bool = True
 
     @classmethod
     def constraints(
@@ -66,7 +67,10 @@ if __name__ == "__main__":
 
     sigma: float = 2.5
     min_value: float = 0.0
-    results_dir: str = "/work/kschmidt/aido/results_example"
+
+    workdir: str = os.getcwd()
+    results_dir: str = os.path.join(workdir, "results_example")
+
     parameters = aido.SimulationParameterDictionary([
         aido.SimulationParameter("thickness_absorber_0", 9.030052185058594, min_value=min_value, sigma=sigma),
         aido.SimulationParameter("thickness_scintillator_0", 37.155208587646484, min_value=min_value, sigma=sigma),
@@ -122,7 +126,7 @@ if __name__ == "__main__":
     ])
     aido.optimize(
         parameters=parameters,
-        user_interface=UIFullCalorimeter,
+        user_interface= UIFullCalorimeter,
         simulation_tasks=20,
         max_iterations=220,
         threads=20,
