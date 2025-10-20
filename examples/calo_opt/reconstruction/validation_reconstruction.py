@@ -59,8 +59,8 @@ class ReconstructionValidation():
         fig, ax = plt.subplots()
         bins = np.linspace(0, 20, 40 + 1)
 
-        plt.hist(true, bins=bins, label=r"$E_\text{true}$" + " (Simulation)", histtype="step", color="green")
-        plt.hist(reco, bins=bins, label=r"$E_\text{reco}$" + " (Reconstruction)", histtype="step", color="blue")
+        plt.hist(true, bins=bins, label=r"$E_{true}$" + " (Simulation)", histtype="step", color="green")
+        plt.hist(reco, bins=bins, label=r"$E_{reco}$" + " (Reconstruction)", histtype="step", color="blue")
         plt.xlim(0.0, 20)
         plt.xlabel("Energy [GeV]")
         plt.ylim(0, 150)

@@ -192,7 +192,7 @@ class Optimizer(torch.nn.Module):
                     self.parameter_module.current_values()
                 )
                 loss += constraints_loss
-                loss += self.boundaries()
+                loss += self.boundaries
 
                 loss.backward()
 
@@ -222,7 +222,7 @@ class Optimizer(torch.nn.Module):
             logger.info(
                 f"Optimizer Epoch: {epoch} \tLoss: {surrogate_loss_detached:.5f} (reco)\t"
                 + f"+ {(constraints_loss.item()):.5f} (constraints)\t"
-                + f"+ {(self.boundaries().item()):.5f} (boundaries)\t"
+                + f"+ {(self.boundaries.item()):.5f} (boundaries)\t"
                 + f"= {loss.item():.5f} (total)"
             )
 
