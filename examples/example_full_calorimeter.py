@@ -136,4 +136,4 @@ Optimization of a sampling calorimeter with cost and length constraints.
 Includes the optimization of discrete parameters and specific plotting functions
 """
     )
-    os.system("rm *.root")
+    #os.system("rm *.root")
