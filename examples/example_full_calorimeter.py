@@ -68,6 +68,7 @@ if __name__ == "__main__":
     ui_interface = UIFullCalorimeter()
     ui_interface.container_path = "/ceph/kschmidt/singularity_cache/minicalosim_latest.sif"
     ui_interface.container_extra_flags = "-B /work,/ceph"
+    ui_interface.verbose = True
     results_dir: str = "/work/kschmidt/aido/results_example"
 
     parameters = aido.SimulationParameterDictionary([
@@ -125,7 +126,7 @@ if __name__ == "__main__":
     ])
     aido.optimize(
         parameters=parameters,
-        user_interface=UIFullCalorimeter,
+        user_interface=ui_interface,
         simulation_tasks=20,
         max_iterations=220,
         threads=20,
