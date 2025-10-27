@@ -68,6 +68,7 @@ if __name__ == "__main__":
     ui_interface = UIFullCalorimeter()
     ui_interface.container_path = "/software/lw23382/AIDO/minicalosim_7829fde_2.sif"
     ui_interface.container_extra_flags = ""
+    #ui_interface.container_extra_flags = "-B /work,/ceph"
     ui_interface.verbose = True
     results_dir: str = "/cephfs/dice/users/lw23382/aido"
 
@@ -136,4 +137,4 @@ Optimization of a sampling calorimeter with cost and length constraints.
 Includes the optimization of discrete parameters and specific plotting functions
 """
     )
-    #os.system("rm *.root")
+    os.system("rm *.root")
