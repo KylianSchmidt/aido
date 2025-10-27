@@ -4,7 +4,7 @@ The goal of this framework is to optimize the geometry of detectors simulated wi
 
 ## Installation
 
-Installation with 'setup.py' requires pip>=24.0 and python>=3.12:
+Installation with 'setup.py' requires pip>=24.0 and python>=3.12.3:
 1. Git clone this repository (or download the code)
 2. `cd` to the directory
 3. Install the `aido` package with
