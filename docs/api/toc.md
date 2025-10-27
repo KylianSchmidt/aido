@@ -4,27 +4,27 @@ Table of content
 
 Orchestration:
 
- * [Main](api/aido.main.md)
- * [Scheduler](api/aido.scheduler.md)
- * [Config](api/aido.config.md)
- * [Task](api/aido.task.md)
+ * [Main](aido.main)
+ * [Scheduler](aido.scheduler)
+ * [Config](aido.config)
+ * [Task](aido.task)
 
 Frontend Interfaces:
- * [Simulation](api/aido.simulation_helpers.md)
+ * [Simulation](aido.simulation_helpers)
     - SimulationParameter (single parameter)
     - SimulationParameterDictionary (container with IO features)
- * [User Interface](api/aido.interface.md)
+ * [User Interface](aido.interface)
 
 Machine Learning Models
 
- * [Optimization Parameters](api/aido/optimization_helpers.md)
+ * [Optimization Parameters](aido.optimization_helpers)
     - Continuous Parameters
     - Discrete Parameters
     - `ParameterModule` for dynamic Parameter building
- * [Surrogate](api/aido.surrogate.md)
- * [Training](api/aido.training.md)
+ * [Surrogate](aido.surrogate)
+ * [Training](aido.training)
 
 Other:
 
- * [Logging](api/aido.logger.md)
- * [Plotting](api/aido.plotting.md)
+ * [Logging](aido.logger)
+ * [Plotting](aido.plotting)

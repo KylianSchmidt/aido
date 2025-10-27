@@ -55,7 +55,7 @@ For more details, see the API Reference section.
 
 ## Guides
 
-- [Getting Started](guides/getting_started.md)
+- [Getting Started](guides/getting_started)
 - Usage
-  - [SimulationParameter(Dictionary)](api/aido.simulation_helpers.md)
-  - [UserInterfaceBase](api/aido.interface.md)
+  - [SimulationParameter(Dictionary)](api/aido.simulation_helpers)
+  - [UserInterfaceBase](api/aido.interface)
