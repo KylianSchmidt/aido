@@ -34,6 +34,16 @@ def simulate(self, parameter_dict_path: str, sim_output_path: str):
     )
 ```
 
+Finally, run the example by calling:
+
+```python
+python3 examples/<example.py>
+```
+
+Or add the root directory for AIDO to your `$PYTHONPATH` and call the examples from the `examples` folder directly.
+
+If you get Errors of the type `Unfulfilled dependencies at Runtime`, check if the Simulation was able to run. The first debugging tool is to set `interface.verbose=True` and check the error logs. For example using a wrong path or not mounting a required filesystem into the container can all lead to a failed Task. The scheduler will then simply inform us that the next Task could not run. 
+
 ## Sampling calorimeter
 
 In this example we simulate a sampling calorimeter composed of three layers of absorber material and three of active recording material. More detail can be found in https://arxiv.org/abs/2502.02152 Section 6.
