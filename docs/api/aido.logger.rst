@@ -1,5 +1,5 @@
-aido.logger module
-------------------
+Logger
+------
 
 .. automodule:: aido.logger
    :members:

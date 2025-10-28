@@ -1,5 +1,5 @@
-aido.optimization_helpers module
---------------------------------
+Optimization Helpers
+--------------------
 
 .. automodule:: aido.optimization_helpers
    :members:

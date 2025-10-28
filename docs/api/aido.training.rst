@@ -1,5 +1,5 @@
-aido.training module
---------------------
+Training
+--------
 
 .. automodule:: aido.training
    :members:

@@ -1,5 +1,5 @@
-aido.interface module
----------------------
+User Interface
+--------------
 
 .. automodule:: aido.interface
    :members:

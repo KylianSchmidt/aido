@@ -1,5 +1,5 @@
-aido.surrogate module
----------------------
+Surrogate
+---------
 
 .. automodule:: aido.surrogate
    :members:

@@ -1,5 +1,5 @@
-aido.main module
-----------------
+Main
+----
 
 .. automodule:: aido.main
    :members:

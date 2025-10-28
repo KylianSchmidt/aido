@@ -1,5 +1,5 @@
-aido.plotting module
---------------------
+Plotting
+--------
 
 .. automodule:: aido.plotting
    :members:

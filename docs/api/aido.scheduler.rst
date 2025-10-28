@@ -1,5 +1,5 @@
-aido.scheduler module
----------------------
+Scheduler
+---------
 
 .. automodule:: aido.scheduler
    :members:
