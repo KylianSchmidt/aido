@@ -40,6 +40,13 @@ Optional methods are `constraints` (for user-defined penalties) and `plot` (a co
 
 **NOTE**: Since this framework is still under development, the methods `merge` and `reconstruct` are not yet completely disconnected from the formats used in the examples. In future versions, the user will not have to provide the "Parameters" column themselves, and the output format for the `reconstruct` will not be the final DataFrame saved to parquet but instead only the columns of interest.
 
+## Config
+
+The root directory includes a JSON File named `config.json`. You can change the values in this file to adjust the hyperparameters of the AIDO training. If you want to reset the values or if the file was removed, call this module to restore it:
+
+```python
+python3 aido/config.py
+```
 
 ## Internal structure
 
