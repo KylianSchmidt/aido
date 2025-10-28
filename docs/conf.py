@@ -56,8 +56,9 @@ autoapi_options = [
     "imported-members",
 ]
 autoapi_python_class_content = "both"
-autoapi_member_order = "bysource"
+autoapi_member_order = "groupwise"
 autoapi_root = "api"
+autoapi_python_class_content = "both"
 
 # MyST settings
 myst_enable_extensions = [
@@ -77,7 +78,8 @@ suppress_warnings = [
     'docutils.definition_list_ends_without_blank_line',  # Suppress definition list warnings
     'docutils.bullet_list_ends_without_blank_line',  # Suppress bullet list warnings
     'docutils.block_quote_ends_without_blank_line',  # Suppress block quote warnings
-    'autoapi.python_import_resolution'  # Suppress autoapi duplicate warnings
+    'autoapi.python_import_resolution',  # Suppress autoapi duplicate warnings
+    "autoapi.toc_reference",
 ]
 
 # Napoleon settings for better docstring parsing
