@@ -1,5 +1,5 @@
 import os
-from typing import Any, List
+from typing import Any, List, Type
 
 from aido.config import AIDOConfig
 from aido.interface import UserInterfaceBase
@@ -9,7 +9,7 @@ from aido.simulation_helpers import SimulationParameter, SimulationParameterDict
 
 def optimize(
         parameters: List[SimulationParameter] | SimulationParameterDictionary,
-        user_interface: UserInterfaceBase,
+        user_interface: UserInterfaceBase | Type[UserInterfaceBase],
         simulation_tasks: int = 1,
         max_iterations: int = 50,
         threads: int = 1,
