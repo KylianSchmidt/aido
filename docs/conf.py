@@ -40,7 +40,6 @@ html_css_files =  ["html_style.css"]
 html_theme_options = {
     "navigation_with_keys": True,
     "sidebar_hide_name": False,
-    "show_toc_level": 2,
 }
 
 # Add markdown files with myst_parser
@@ -79,11 +78,11 @@ napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = True
 napoleon_include_private_with_doc = False
 napoleon_include_special_with_doc = True
-napoleon_use_admonition_for_examples = False
-napoleon_use_admonition_for_notes = False
-napoleon_use_admonition_for_references = False
+napoleon_use_admonition_for_examples = True
+napoleon_use_admonition_for_notes = True
+napoleon_use_admonition_for_references = True
 napoleon_use_ivar = False
-napoleon_use_param = True
+napoleon_use_param = False
 napoleon_use_rtype = False
 napoleon_preprocess_types = False
 napoleon_type_aliases = None
@@ -98,8 +97,8 @@ autoapi_options = [
     "show-module-summary",
     "imported-members",
 ]
+autoapi_member_order = "bysource"
 autoapi_python_class_content = "class"
-autoapi_member_order = "groupwise"
 autoapi_root = "api"
 autoapi_keep_files = True
 autoapi_add_toctree_entry = True
