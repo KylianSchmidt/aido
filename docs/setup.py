@@ -5,7 +5,7 @@ requirements: list[str] = []
 with open("requirements.txt", "r") as file:
     requirements.extend(file.readlines())
 
-with open("../requirementx.txt", "r") as file:
+with open("../requirements.txt", "r") as file:
     requirements.extend(file.readlines())
 
 setup(
