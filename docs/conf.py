@@ -21,7 +21,6 @@ author = 'Kylian Schmidt, Jan Kieseler'
 master_doc = "index"
 extensions = [
     'autoapi.extension',            # For automatical documentation
-    'sphinx_autodoc_typehints',     # Autodoc typehints
     'sphinx.ext.napoleon',          # For Google and NumPy-style docstrings
     'sphinx.ext.mathjax',           # For LaTeX math rendering,
     'myst_parser',                  # For .md files
