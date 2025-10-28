@@ -45,6 +45,29 @@ def training_loop(
         reconstruction_loss_function: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         constraints: None | Callable[[SimulationParameterDictionary], float | torch.Tensor] = None,
         ):
+    """Internal training of the Surrogate and Optimizer models
+
+    Args:
+        reco_file_paths_dict (dict | str | os.PathLike): Either the dict with all the file paths
+            or a single filepath (str or os.PathLike) that we first have to read from JSON.
+        reconstruction_loss_function (Callable): The user-defined loss function that provides the
+            goodness of a given design. Has to take two Tensors (truth and predicted) and return a scalar
+            Tensor used as the Optimizer loss.
+        constraints (Callable, optional). Additional loss function to be applied on top of the regular
+            loss function, for example to account for cost penalties. Default is None
+    
+    Returns:
+        SimulationParameterDictionary: The updated values as proposed by the Optimizer model.
+    
+    Note:
+        This function is integral to the correct training of the surrogate and optimizer models. The
+        training itself consists of these steps:
+         1. Track all the file paths needed
+         2. Instantiate the Surrogate model if not done so, load it from .pt file if available from
+            current iteration (if training was stopped), then train it.
+         3. Run the Optimizer
+         4. Save results
+    """
     
     if isinstance(reco_file_paths_dict, (str, os.PathLike)):
         with open(reco_file_paths_dict, "r") as file:

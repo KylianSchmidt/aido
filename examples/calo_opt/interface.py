@@ -118,7 +118,7 @@ class CaloOptInterface(aido.UserInterfaceBase):
         df: pd.DataFrame = pd.concat(df_list, axis=0, ignore_index=True)
         df = df.fillna(0)
         df = df.reset_index(drop=True)
-        df.to_parquet(reco_input_path, index=range(len(df)))
+        df.to_parquet(reco_input_path, index=range(len(df)))  # type: ignore
         return None
 
     def reconstruct(self, reco_input_path: str, reco_output_path: str, is_validation: bool):

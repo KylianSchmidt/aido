@@ -42,23 +42,23 @@ class AIDOConfig:
 
     Default fields:
     
-    Optimizer:
-        optimizer.lr: float = 0.02 (>0)
-        optimizer.batch_size: int = 512
-        optimizer.n_epochs: int = 40
+    - Optimizer:
+        - optimizer.lr: float = 0.02 (>0)
+        - optimizer.batch_size: int = 512
+        - optimizer.n_epochs: int = 40
 
-    Surrogate:
-        surrogate.n_epoch_pre: int = 24
-        surrogate.n_epochs_main: int = 40
+    - Surrogate:
+        - surrogate.n_epoch_pre: int = 24
+        - surrogate.n_epochs_main: int = 40
 
-    Simulation:
-        simulation.generate_scaling: float = 1.2 (>0)
-        simulation.sigma: float = 1.5 (>0)
-        simulation.sigma_mode: str = "flat" (or "scale")
+    - Simulation:
+        - simulation.generate_scaling: float = 1.2 (>0)
+        - simulation.sigma: float = 1.5 (>0)
+        - simulation.sigma_mode: str = "flat" (or "scale")
 
-    Scheduler:
-        scheduler.training_num_retries: int = 20
-        scheduler.training_delay_between_retries: int | float = 60 (in seconds)
+    - Scheduler:
+        - scheduler.training_num_retries: int = 20
+        - scheduler.training_delay_between_retries: int | float = 60 (in seconds)
     """
     optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
     surrogate: SurrogateConfig = field(default_factory=SurrogateConfig)
