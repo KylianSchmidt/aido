@@ -1,5 +1,5 @@
-aido.config module
-------------------
+Config
+------
 
 .. automodule:: aido.config
    :members:

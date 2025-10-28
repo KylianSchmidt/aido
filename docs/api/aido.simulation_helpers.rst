@@ -1,5 +1,5 @@
-aido.simulation_helpers module
-------------------------------
+Simulation Parameters
+---------------------
 
 .. automodule:: aido.simulation_helpers
    :members:

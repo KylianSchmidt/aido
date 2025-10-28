@@ -106,3 +106,4 @@ autoapi_python_use_implicit_namespaces = True
 autoapi_python_override_docstring = True
 autoapi_python_use_autodoc_typehints = True
 autoapi_python_typehints_format = "short"
+autoapi_add_objects_to_toctree = True

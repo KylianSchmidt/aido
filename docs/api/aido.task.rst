@@ -1,5 +1,5 @@
-aido.task module
-----------------
+Luigi Task
+----------
 
 .. automodule:: aido.task
    :members:
