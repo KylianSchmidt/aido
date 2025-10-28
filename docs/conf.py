@@ -12,8 +12,8 @@ sys.path.insert(0, os.path.abspath(".."))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'aido'
-copyright = '2024, Kylian Schmidt, Dr. Jan Kieseler'
-author = 'Kylian Schmidt, Dr. Jan Kieseler'
+copyright = '2025, Kylian Schmidt, Jan Kieseler'
+author = 'Kylian Schmidt, Jan Kieseler'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -37,6 +37,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 html_theme = "furo"
 html_static_path = ['_static']
+html_css_files =  ["html_style.css"]
 
 # Add markdown files with myst_parser
 source_suffix = {
@@ -45,20 +46,6 @@ source_suffix = {
 }
 sys.path.insert(0, os.path.abspath(".."))
 myst_enable_extensions = ["deflist", "colon_fence"]
-
-# Autoapi settings
-autoapi_type = "python"
-autoapi_dirs = ["../aido"]
-autoapi_options = [
-    "members",
-    "show-inheritance",
-    "show-module-summary",
-    "imported-members",
-]
-autoapi_python_class_content = "both"
-autoapi_member_order = "groupwise"
-autoapi_root = "api"
-autoapi_python_class_content = "both"
 
 # MyST settings
 myst_enable_extensions = [
@@ -93,14 +80,29 @@ napoleon_use_admonition_for_notes = False
 napoleon_use_admonition_for_references = False
 napoleon_use_ivar = False
 napoleon_use_param = True
-napoleon_use_rtype = True
+napoleon_use_rtype = False
 napoleon_preprocess_types = False
 napoleon_type_aliases = None
 napoleon_attr_annotations = True
 
 # AutoAPI settings to handle duplicates
+
+# Autoapi settings
+autoapi_type = "python"
+autoapi_dirs = ["../aido"]
+autoapi_options = [
+    "members",
+    "show-inheritance",
+    "show-module-summary",
+    "imported-members",
+]
+autoapi_python_class_content = "both"
+autoapi_member_order = "groupwise"
+autoapi_root = "api"
 autoapi_keep_files = True
 autoapi_add_objects_to_toctree = False
-autoapi_add_toctree_entry = False
+autoapi_add_toctree_entry = True
 autoapi_python_use_implicit_namespaces = True
 autoapi_python_override_docstring = True
+autoapi_python_use_autodoc_typehints = True
+autoapi_python_typehints_format = "short"

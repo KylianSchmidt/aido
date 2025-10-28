@@ -1,0 +1,6 @@
+/* _static/custom.css */
+.sig.sig-object, .sig.sig-class, .sig.sig-function {
+  white-space: pre-wrap;     /* allow line breaks */
+  display: block;
+  line-height: 1.6;
+}

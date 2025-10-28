@@ -1,7 +1,7 @@
-aido.simulation_helpers.rst module
-----------------------------------
+aido.simulation_helpers module
+------------------------------
 
-.. automodule:: aido.simulation_helpers.rst
+.. automodule:: aido.simulation_helpers
    :members:
    
    :show-inheritance:
