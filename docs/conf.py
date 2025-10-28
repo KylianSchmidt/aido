@@ -37,6 +37,11 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 html_theme = "furo"
 html_static_path = ['_static']
 html_css_files =  ["html_style.css"]
+html_theme_options = {
+    "navigation_with_keys": True,
+    "sidebar_hide_name": False,
+    "show_toc_level": 2,
+}
 
 # Add markdown files with myst_parser
 source_suffix = {
@@ -71,7 +76,7 @@ suppress_warnings = [
 # Napoleon settings for better docstring parsing
 napoleon_google_docstring = True
 napoleon_numpy_docstring = True
-napoleon_include_init_with_doc = False
+napoleon_include_init_with_doc = True
 napoleon_include_private_with_doc = False
 napoleon_include_special_with_doc = True
 napoleon_use_admonition_for_examples = False
@@ -84,8 +89,6 @@ napoleon_preprocess_types = False
 napoleon_type_aliases = None
 napoleon_attr_annotations = True
 
-# AutoAPI settings to handle duplicates
-
 # Autoapi settings
 autoapi_type = "python"
 autoapi_dirs = ["../aido"]
@@ -95,14 +98,10 @@ autoapi_options = [
     "show-module-summary",
     "imported-members",
 ]
-autoapi_python_class_content = "both"
+autoapi_python_class_content = "class"
 autoapi_member_order = "groupwise"
 autoapi_root = "api"
 autoapi_keep_files = True
-autoapi_add_objects_to_toctree = False
 autoapi_add_toctree_entry = True
 autoapi_python_use_implicit_namespaces = True
-autoapi_python_override_docstring = True
-autoapi_python_use_autodoc_typehints = True
-autoapi_python_typehints_format = "short"
 autoapi_add_objects_to_toctree = True
