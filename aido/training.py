@@ -96,7 +96,7 @@ def training_loop(
         surrogate_dataset = SurrogateDataset(surrogate_df, means=surrogate.means, stds=surrogate.stds)
     else:
         if os.path.isfile(surrogate_previous_path):
-            surrogate: Surrogate = torch.load(surrogate_previous_path,weights_only=False)
+            surrogate: Surrogate = torch.load(surrogate_previous_path, weights_only=False)
             surrogate_dataset = SurrogateDataset(surrogate_df, means=surrogate.means, stds=surrogate.stds)
         else:
             surrogate_dataset = SurrogateDataset(surrogate_df)
