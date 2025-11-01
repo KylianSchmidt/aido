@@ -66,11 +66,10 @@ if __name__ == "__main__":
     min_value: float = 0.0
 
     ui_interface = UIFullCalorimeter()
-    ui_interface.container_path = "/software/lw23382/AIDO/minicalosim_7829fde_2.sif"
-    ui_interface.container_extra_flags = ""
-    #ui_interface.container_extra_flags = "-B /work,/ceph"
+    ui_interface.container_path = "/ceph/kschmidt/singularity_cache/minicalosim_latest.sif"
+    ui_interface.container_extra_flags = "-B /work,/ceph"
     ui_interface.verbose = True
-    results_dir: str = "/cephfs/dice/users/lw23382/aido"
+    results_dir: str = "/work/kschmidt/aido/results_example"
 
     parameters = aido.SimulationParameterDictionary([
         aido.SimulationParameter("thickness_absorber_0", 9.030052185058594, min_value=min_value, sigma=sigma),
@@ -128,9 +127,9 @@ if __name__ == "__main__":
     aido.optimize(
         parameters=parameters,
         user_interface=ui_interface,
-        simulation_tasks=10, #20,
-        max_iterations=50, #220,
-        threads=10, #20,
+        simulation_tasks=20,
+        max_iterations=220,
+        threads=20,
         results_dir=results_dir,
         description="""
 Optimization of a sampling calorimeter with cost and length constraints.
