@@ -5,7 +5,7 @@ import sys
 import numpy as np
 import pandas as pd
 from G4Calo import GeometryDescriptor, run_batch
-
+from minipandas import MiniFrame,concat
 
 class Simulation():
     def __init__(
@@ -36,12 +36,13 @@ class Simulation():
             )
 
     def run_simulation(self) -> pd.DataFrame:
-        dfs = []
+        mfs = []
         particles = {"pi+": 0.211, "gamma": 0.22}
 
+        pids = []
         for particle in particles.items():
             name, pid = particle
-            df: pd.DataFrame = run_batch(
+            mf: MiniFrame = run_batch(
                 gd=self.cw,
                 nEvents=int(self.n_events_per_var / len(particles)),
                 particleSpec=name,
@@ -50,10 +51,11 @@ class Simulation():
                 no_mp=True,
                 manual_seed=self.parameter_dict["metadata"]["rng_seed"]
             )
-            df = df.assign(true_pid=np.full(len(df), pid, dtype='float32'))
-            dfs.append(df)
-
-        return pd.concat(dfs, axis=0, ignore_index=True)
+            pids.append(np.full(len(mf),pid,dtype='float32'))
+            mfs.append(mf)
+        df = concat(mfs, axis=0, ignore_index=True).to_pandas(indiv_cols=False)
+        df = df.assign(true_pid=np.concatenate(pids,axis=0))
+        return df
 
 
 if __name__ == "__main__":

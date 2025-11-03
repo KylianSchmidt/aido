@@ -15,10 +15,10 @@ from aido.surrogate import Surrogate, SurrogateDataset
 
 def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int):
     """Pre-train the Surrogate Model using a three-stage process.
-    
+
     This function performs pre-training in three stages with different
     batch sizes and learning rates to ensure stable convergence.
-    
+
     Parameters
     ----------
     model : Surrogate
@@ -96,7 +96,7 @@ def training_loop(
         surrogate_dataset = SurrogateDataset(surrogate_df, means=surrogate.means, stds=surrogate.stds)
     else:
         if os.path.isfile(surrogate_previous_path):
-            surrogate: Surrogate = torch.load(surrogate_previous_path)
+            surrogate: Surrogate = torch.load(surrogate_previous_path,weights_only=False)
             surrogate_dataset = SurrogateDataset(surrogate_df, means=surrogate.means, stds=surrogate.stds)
         else:
             surrogate_dataset = SurrogateDataset(surrogate_df)
@@ -136,7 +136,7 @@ def training_loop(
                 n_epochs=n_epochs_main // 2,
                 lr=0.1 * surrogate_lr,
             )
-    
+
     torch.save(surrogate, surrogate_save_path)
 
     # Optimization
