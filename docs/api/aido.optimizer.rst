@@ -1,8 +1,7 @@
-aido.optimizer module
----------------------
+Optimizer
+---------
 
 .. automodule:: aido.optimizer
    :members:
-   :undoc-members:
    :show-inheritance:
    :no-index:

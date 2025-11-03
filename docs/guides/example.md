@@ -19,7 +19,7 @@ Register the container by adding the path to it to the `CaloOptInterface` class:
 
 ```python
 interface = CaloOptInterface()
-interface.container_path = "</path/to/conainer.sif>"
+interface.container_path = "</path/to/container.sif>"
 interface.container_extra_flags = ""  # Extra apptainer settings
 interface.verbose = True  # This flag enables / disables Geant4 logs
 ```
@@ -34,6 +34,16 @@ def simulate(self, parameter_dict_path: str, sim_output_path: str):
     )
 ```
 
+Finally, run the example by calling:
+
+```python
+python3 examples/<example.py>
+```
+
+Or add the root directory for AIDO to your `$PYTHONPATH` and call the examples from the `examples` folder directly.
+
+If you get Errors of the type `Unfulfilled dependencies at Runtime`, check if the Simulation was able to run. The first debugging tool is to set `interface.verbose=True` and check the error logs. For example using a wrong path or not mounting a required filesystem into the container can all lead to a failed Task. The scheduler will then simply inform us that the next Task could not run. 
+
 ## Sampling calorimeter
 
 In this example we simulate a sampling calorimeter composed of three layers of absorber material and three of active recording material. More detail can be found in https://arxiv.org/abs/2502.02152 Section 6.
@@ -47,7 +57,7 @@ The current examples has some hardcoded parts that set up the geometry of the de
     - Material of the layers
     - Cost per unit of length
     - Probability of sampling one material over another, e.g. the confidence of the model in that material choice.
-
+w
 2. **Currently hardcoded settings** in `simulation.py` but that can be changed in the code of the example:
     - Number of layers: expects exactly six layers, three of them absorber, three scintillators.
     - Names of the layers: either `thickness_absorber_{i}`or `thickness_scintillator_{i}` for $i \in {0, 1, 2}$.
@@ -60,4 +70,4 @@ The current examples has some hardcoded parts that set up the geometry of the de
     - Shape of the detector: there are only tiles of configurable sizes but no other shapes available
     - Orientation: the beam impacts perpendicularly on the detector
 
-For more information about the Simulation software used, consult the dedicated github page by J. Kieseler https://github.com/jkiesele/minicalosim. 
+For more information about the Simulation software used, consult the dedicated github page by J. Kieseler https://github.com/jkiesele/minicalosim (Private).

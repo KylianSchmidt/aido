@@ -22,6 +22,8 @@ Percentage = Annotated[float, percentage_type]
 
 
 class Plotting:
+    """Container for all plotting functions
+    """
 
     @classmethod
     def plot(cls, plot_types: str | List[str] = "all", results_dir: str | os.PathLike = "./results/"):
@@ -313,8 +315,6 @@ class Plotting:
 
     class FWHM:
         """Class for computing Full Width at Half Maximum (or other height) for a given (x, y) curve.
-
-        :no-index:
         """
 
         def __init__(
@@ -330,12 +330,6 @@ class Plotting:
                 y (np.ndarray): Y-axis values of the curve (must be non-negative)
                 height (Percentage, optional): Height at which to compute the width,
                     as a fraction of the maximum height. Defaults to 0.5.
-
-            Attributes:
-                height_absolute (float): Absolute height used for computing the width
-                x_left (float): Left x-coordinate where curve crosses height_absolute
-                x_right (float): Right x-coordinate where curve crosses height_absolute
-                width (float): Width of the curve at the specified height (x_right - x_left)
             """
             assert np.all(y >= 0.0), "y must be an Array with only positive entries"
 
@@ -356,7 +350,7 @@ class Plotting:
             -------
             tuple
                 - width : float
-                    Width of the distribution (FWHM)
+                    Width of the distribution (FWHM) at the specified height (x_right - x_left)
                 - x_left : float
                     x-intersection at the left edge
                 - x_right : float

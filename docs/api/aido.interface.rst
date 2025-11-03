@@ -1,8 +1,7 @@
-aido.interface module
----------------------
+User Interface
+--------------
 
 .. automodule:: aido.interface
    :members:
-   :undoc-members:
    :show-inheritance:
    :no-index:

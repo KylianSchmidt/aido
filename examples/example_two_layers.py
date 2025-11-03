@@ -3,7 +3,7 @@ import os
 from calo_opt.plotting import CaloOptPlotting
 
 import aido
-from examples.calo_opt.interface import CaloOptInterface  # Import your derived class
+from calo_opt.interface import CaloOptInterface  # Import your derived class
 
 
 class UIFullCalorimeter(CaloOptInterface):
