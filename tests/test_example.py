@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -53,3 +54,5 @@ def test_example_single_iteration(
         results_dir=tmp_path,
         description="Test example with single iteration"
     )
+
+    assert os.path.exists(tmp_path / "parameters" / "param_dict_iter_1.json")

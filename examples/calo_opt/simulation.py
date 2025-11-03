@@ -3,9 +3,9 @@ import os
 import sys
 
 import numpy as np
-import pandas as pd
 from G4Calo import GeometryDescriptor, run_batch
-from minipandas import MiniFrame,concat
+from minipandas import MiniFrame, concat
+
 
 class Simulation():
     def __init__(
@@ -35,7 +35,7 @@ class Simulation():
                 1
             )
 
-    def run_simulation(self) -> pd.DataFrame:
+    def run_simulation(self) -> MiniFrame:
         mfs = []
         particles = {"pi+": 0.211, "gamma": 0.22}
 
@@ -51,10 +51,10 @@ class Simulation():
                 no_mp=True,
                 manual_seed=self.parameter_dict["metadata"]["rng_seed"]
             )
-            pids.append(np.full(len(mf),pid,dtype='float32'))
+            pids.append(np.full(len(mf), pid, dtype='float32'))
             mfs.append(mf)
         df = concat(mfs, axis=0, ignore_index=True).to_pandas(indiv_cols=False)
-        df = df.assign(true_pid=np.concatenate(pids,axis=0))
+        df = df.assign(true_pid=np.concatenate(pids, axis=0))
         return df
 
 
