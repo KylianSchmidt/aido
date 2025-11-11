@@ -98,6 +98,8 @@ class Reconstruction(torch.nn.Module):
         self.to(self.device)
         self.train()
 
+        losses = []
+
         for epoch in range(n_epochs):
     
             for batch_idx, (detector_parameters, x, y) in enumerate(train_loader):
@@ -112,11 +114,14 @@ class Reconstruction(torch.nn.Module):
                 loss = loss_per_event.clone().mean()
                 self.optimizer.zero_grad()
                 loss.backward()
+                losses += [loss.item()]
                 self.optimizer.step()
 
             print(f"Reco Epoch: {epoch} \tLoss: {loss.item():.8f}")
 
         self.eval()
+
+        return losses
 
     def apply_model_in_batches(
         self,

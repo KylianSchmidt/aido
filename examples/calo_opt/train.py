@@ -2,6 +2,7 @@
 import os
 import pathlib
 import sys
+import numpy as np
 from typing import Union
 
 import pandas as pd
@@ -67,10 +68,23 @@ def train(
 
         # Reconstruction training:
         reco_model.to("cuda" if torch.cuda.is_available() else "cpu")
-        reco_model.train_model(reco_dataset, batch_size=256, n_epochs=n_epochs_main // 4, lr=0.003)
-        reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
-        reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
-        
+        losses1 = reco_model.train_model(reco_dataset, batch_size=256, n_epochs=n_epochs_main // 4, lr=0.003)
+        losses2 = reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
+        losses3 = reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
+
+        losses = losses1 + losses2 + losses3
+
+
+        path = os.path.join(results_dir, "loss", "reconstruction")
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        pd.DataFrame(
+            np.array(losses),
+            columns=["Reconstruction Loss"]
+        ).to_csv(os.path.join(path, "reconstruction_loss"), index=True)
+
         validator = ReconstructionValidation(reco_model)
         output_df_val = validator.validate(reco_dataset)
         output_df_val.to_parquet(output_df_path)
