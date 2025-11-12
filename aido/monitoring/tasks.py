@@ -1,8 +1,9 @@
 import os
 import shlex
+import numpy as np
 import pandas as pd
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional, Sequence, Tuple
 
 from aido.monitoring.logger import WandbTaskLogger
 
@@ -55,6 +56,24 @@ class WandbSubprocessWrapper:
         if subprocess_logger is not None:
             assert output_config is not None, "OutputConfig must be provided if subprocess_logger is used."
 
+
+    @staticmethod
+    def save_loss_to_file(loss: Sequence[Any], filepath: str, step_offset: int = 0) -> None:
+        pd.DataFrame(
+            np.array(loss),
+            np.arange(step_offset, step_offset + len(loss)),
+            columns=["Reconstruction Loss", "Step"]
+        ).to_csv(os.path.join(filepath), index=True)
+
+
+    @staticmethod
+    def load_loss_from_file(filepath: str) -> Tuple[pd.DataFrame, int]:
+        df = pd.read_csv(os.path.join(filepath))
+        try: step_offset = df["Step"].min()
+        except KeyError: step_offset = 0
+        return df, step_offset
+
+
     def run(self, *args):
         command_list = shlex.split(self.command)
         command_list.extend(map(str, args))
@@ -74,8 +93,8 @@ class WandbSubprocessWrapper:
                 if df_key is None:
                     raise Exception(f"No key mapping found for key: {key}.")
                 
-                df = pd.read_csv(filepath)
-                self.subprocess_logger.log_scalars(key, df[df_key].values)
+                df, step_offset = WandbSubprocessWrapper.load_loss_from_file(filepath)
+                self.subprocess_logger.log_scalars(key, df[df_key].values, step_offset)
 
 
         except FileNotFoundError as e:

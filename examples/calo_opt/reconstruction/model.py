@@ -55,8 +55,13 @@ class Reconstruction(torch.nn.Module):
         )
 
         self.reconstruction_loss = []
+        self.step_offset = 0    
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
         self.device = torch.device(device)
+
+    def mark_step_offset(self):
+        self.step_offset = (len(self.reconstruction_loss) - 1 if 
+                            len(self.reconstruction_loss) > 0 else 0)
 
     def forward(self, parameters, x) -> torch.Tensor:
         """ Concatenate the detector parameters and the input

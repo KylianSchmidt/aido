@@ -60,6 +60,7 @@ def train(
 
         if os.path.exists(reco_model_previous_path):
             reco_model: Reconstruction = torch.load(reco_model_previous_path)
+            reco_model.mark_step_offset()
             reco_dataset = ReconstructionDataset(simulation_df, means=reco_model.means, stds=reco_model.stds)
         else:
             reco_dataset = ReconstructionDataset(simulation_df)
@@ -77,10 +78,13 @@ def train(
         if not os.path.exists(path):
             os.makedirs(path)
 
-        pd.DataFrame(
-            np.array(reco_model.reconstruction_loss),
-            columns=["Reconstruction Loss"]
-        ).to_csv(os.path.join(path, "reconstruction_loss"), index=True)
+        loss = reco_model.reconstruction_loss[reco_model.step_offset:]
+        step_offset = reco_model.step_offset
+
+        pd.DataFrame({
+            "Reconstruction Loss": np.array(loss),
+            "Step": np.arange(step_offset, step_offset + len(loss), 1)
+        }).to_csv(os.path.join(path, "reconstruction_loss"), index=True)
 
         validator = ReconstructionValidation(reco_model)
         output_df_val = validator.validate(reco_dataset)
