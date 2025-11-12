@@ -2,6 +2,7 @@ import os
 from typing import Dict
 
 import torch
+from aido.monitoring.logger import WandbLogger
 from calo_opt.interface import CaloOptInterface  # Import your derived class
 from calo_opt.plotting import CaloOptPlotting
 
@@ -10,7 +11,7 @@ import aido
 
 class UIFullCalorimeter(CaloOptInterface):
 
-    container_path: str = f"{os.getcwd()}/minicalosim_7829fde_2.sif"
+    container_path: str = f"/scratch/nyl93mev/aido/minicalosim_7829fde_2.sif"
     container_extra_flags: str = f"-B /work,{os.path.join(os.getcwd(), 'results_example')}"
     verbose: bool = True
 
@@ -123,18 +124,24 @@ if __name__ == "__main__":
         aido.SimulationParameter("num_events", 400, optimizable=False),
         aido.SimulationParameter("max_length", 200, optimizable=False),
         aido.SimulationParameter("max_cost", 200_000, optimizable=False),
-    ])
-    aido.optimize(
-        parameters=parameters,
-        user_interface= UIFullCalorimeter,
-        simulation_tasks=20,
-        max_iterations=220,
-        threads=20,
-        results_dir=results_dir,
-        description="""
+    ]) # type: ignore
+
+    with WandbLogger(
+        project_name="detector_optim",
+        optim_name="full_calorimeter_optimization_1") as wandb_logger:
+
+        aido.optimize(
+            parameters=parameters,
+            user_interface= UIFullCalorimeter,
+            simulation_tasks=20,
+            max_iterations=220,
+            threads=20,
+            results_dir=results_dir,
+            description="""
 Optimization of a sampling calorimeter with cost and length constraints.
 Includes the optimization of discrete parameters and specific plotting functions
-"""
+""",
+            wandb_logger=wandb_logger
     )
     os.system("rm *.root")
 

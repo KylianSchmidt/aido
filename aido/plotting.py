@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from aido.logger import logger
+from aido.monitoring.logger import WandbLogger
 from aido.simulation_helpers import SimulationParameterDictionary
 
 
@@ -24,7 +25,8 @@ Percentage = Annotated[float, percentage_type]
 class Plotting:
 
     @classmethod
-    def plot(cls, plot_types: str | List[str] = "all", results_dir: str | os.PathLike = "./results/"):
+    def plot(cls, plot_types: str | List[str] = "all", results_dir: str | os.PathLike = "./results/",
+             wandb_logger: WandbLogger | None = None) -> None:
         """
         Plot the evolution of variables of interest over the Optimization process.
 
@@ -49,14 +51,15 @@ class Plotting:
             plot_types = [plot_types]
 
         for plot_type in plot_types:
-            getattr(cls, plot_type)(results_dir=results_dir)
+            getattr(cls, plot_type)(results_dir=results_dir, wandb_logger=wandb_logger)
 
         logger.info(f"Saved all figures to {results_dir}")
 
     def parameter_evolution(
             fig_savepath: str | os.PathLike | None = "/plots/parameter_evolution",
             results_dir: str = "./results/",
-            parameter_dir: str | os.PathLike = "/parameters/"
+            parameter_dir: str | os.PathLike = "/parameters/",
+            wandb_logger: WandbLogger | None = None
             ) -> Tuple[pd.DataFrame, np.ndarray]:
         """ Plots the evolution of all simulation parameters along with their respective "sigma".
 
@@ -90,8 +93,8 @@ class Plotting:
         df: pd.DataFrame = pd.concat(df_list, axis=0).sort_index()
         sigma = np.concatenate(sigma_df_list, axis=0)
 
-        if fig_savepath is not None:
-            plt.figure(figsize=(8, 6), dpi=400)
+        if fig_savepath is not None or wandb_logger is not None:
+            fig = plt.figure(figsize=(8, 6), dpi=400)
             cmap = plt.get_cmap("Set2")
 
             for i, col in enumerate(df.columns):
@@ -109,7 +112,13 @@ class Plotting:
             plt.legend()
             plt.xlabel("Iteration", loc="right")
             plt.ylabel("Parameter Value", loc="top")
-            plt.savefig(fig_savepath)
+
+            if wandb_logger is not None:
+                wandb_logger.log_figure("parameter_evolution", fig)
+
+            if fig_savepath is not None:
+                plt.savefig(fig_savepath)
+
             plt.close()
 
         return df, sigma
@@ -117,7 +126,8 @@ class Plotting:
     def optimizer_loss(
             fig_savepath: str | os.PathLike | None = "/plots/optimizer_loss",
             results_dir: str = "./results/",
-            optimizer_loss_dir: str | os.PathLike = "/loss/optimizer"
+            optimizer_loss_dir: str | os.PathLike = "/loss/optimizer",
+            wandb_logger: WandbLogger | None = None
             ) -> pd.DataFrame:
         """
         Plot the optimizer loss over epochs and save the figure if `fig_savepath` is provided.
@@ -149,15 +159,20 @@ class Plotting:
 
         df_loss: pd.DataFrame = pd.concat(df_loss_list)
 
-        if fig_savepath is not None:
-            plt.figure(figsize=(8, 6), dpi=400)
+        if fig_savepath is not None or wandb_logger is not None:
+            fig = plt.figure(figsize=(8, 6), dpi=400)
             plt.plot(df_loss["Scaled Epoch"], df_loss["Loss"], c="k", label="optimizer_loss")
             plt.xlabel("Iteration", loc="right")
             plt.xlim(0, df_loss["Iteration"].to_numpy()[-1])
             plt.xlabel("Epoch", loc="right")
             plt.ylabel("Loss", loc="top")
             plt.legend()
-            plt.savefig(fig_savepath)
+
+            if wandb_logger is not None:
+                wandb_logger.log_figure("optimizer_loss", fig)
+            if fig_savepath is not None:
+                plt.savefig(fig_savepath)
+
             plt.close()
 
         return df_loss
@@ -166,7 +181,8 @@ class Plotting:
             fig_savepath: str | os.PathLike | None = "/plots/simulation_samples",
             results_dir: str = "./results/",
             parameter_dir: str = "/parameters/",
-            sampled_param_dict_filepath: str | os.PathLike = "/task_outputs/iteration=*/validation=False"
+            sampled_param_dict_filepath: str | os.PathLike = "/task_outputs/iteration=*/validation=False",
+            wandb_logger: WandbLogger | None = None
             ) -> Tuple[pd.DataFrame, np.ndarray]:
         """Generate a DataFrame of simulation parameters and their values.
         
@@ -219,11 +235,11 @@ class Plotting:
         df_params = pd.concat(df_list)
         df_params = df_params.sort_values(["Iteration", "Task_ID"]).reset_index(drop=True)
 
-        if fig_savepath is not None:
+        if fig_savepath is not None or wandb_logger is not None:
             cmap = plt.get_cmap("Set2")
             df_optim, sigma = Plotting.parameter_evolution(None, results_dir=results_dir)
 
-            plt.figure(figsize=(8, 6), dpi=400)
+            fig = plt.figure(figsize=(8, 6), dpi=400)
 
             for i, col in enumerate(df_optim.columns):
                 plt.plot(df_optim[col], label=col, color=cmap(i))
@@ -245,7 +261,12 @@ class Plotting:
             plt.xlabel("Iteration", loc="right")
             plt.ylabel("Parameter Value", loc="top")
             plt.legend()
-            plt.savefig(fig_savepath)
+
+            if wandb_logger is not None:
+                wandb_logger.log_figure("simulation_samples", fig)
+            if fig_savepath is not None:
+                plt.savefig(fig_savepath)
+
             plt.close()
 
         return df_params, sigma
@@ -253,7 +274,8 @@ class Plotting:
     def probability_evolution(
             fig_savepath: str | os.PathLike | None = "/plots/probability_evolution",
             results_dir: str = "./results/",
-            parameter_dir: str | os.PathLike = "/parameters"
+            parameter_dir: str | os.PathLike = "/parameters",
+            wandb_logger: WandbLogger | None = None
             ):
 
         def plot_probabilities(
@@ -291,7 +313,12 @@ class Plotting:
             plt.xlim(iterations[0], iterations[-1])
             plt.ylim(0, 1)
             plt.tight_layout()
-            plt.savefig(f"{fig_savepath_absolute}_{name}")
+            
+            if wandb_logger is not None:
+                wandb_logger.log_figure(f"probability_evolution_{name}", plt.gcf())
+            if fig_savepath is not None:
+                plt.savefig(f"{fig_savepath_absolute}_{name}")
+
             plt.close()
             return None
 

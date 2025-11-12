@@ -68,12 +68,9 @@ def train(
 
         # Reconstruction training:
         reco_model.to("cuda" if torch.cuda.is_available() else "cpu")
-        losses1 = reco_model.train_model(reco_dataset, batch_size=256, n_epochs=n_epochs_main // 4, lr=0.003)
-        losses2 = reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
-        losses3 = reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
-
-        losses = losses1 + losses2 + losses3
-
+        reco_model.train_model(reco_dataset, batch_size=256, n_epochs=n_epochs_main // 4, lr=0.003)
+        reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
+        reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
 
         path = os.path.join(results_dir, "loss", "reconstruction")
 
@@ -81,7 +78,7 @@ def train(
             os.makedirs(path)
 
         pd.DataFrame(
-            np.array(losses),
+            np.array(reco_model.reconstruction_loss),
             columns=["Reconstruction Loss"]
         ).to_csv(os.path.join(path, "reconstruction_loss"), index=True)
 

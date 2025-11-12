@@ -10,6 +10,7 @@ import torch
 from aido.config import AIDOConfig
 from aido.interface import UserInterfaceBase
 from aido.logger import logger
+from aido.monitoring.logger import WandbLogger
 from aido.plotting import Plotting
 from aido.simulation_helpers import SimulationParameterDictionary
 from aido.task import AIDOTask, torch_safe_wrapper
@@ -115,7 +116,8 @@ class ReconstructionTask(AIDOTask):
         interface.reconstruct(
             reco_input_path=self.get_output_file_name(f"{output_type}_input_df"),
             reco_output_path=self.get_output_file_name(f"{output_type}_output_df"),
-            is_validation=self.validation
+            is_validation=self.validation,
+            iteration=self.iteration
         )
 
 
@@ -207,6 +209,8 @@ class OptimizationTask(AIDOTask):
                     reco_file_paths_dict=self.reco_paths_dict["own_path"],
                     reconstruction_loss_function=interface.loss,
                     constraints=interface.constraints,
+                    wandb_logger=interface.wandb_logger,
+                    iteration=self.iteration
                 )
             except torch.cuda.OutOfMemoryError as e:
                 training_loop_out_of_memory = True
@@ -223,7 +227,7 @@ class OptimizationTask(AIDOTask):
         new_param_dict.to_json(self.get_output_file_name("param_dict.json"))
 
         # Plot results
-        Plotting.plot(results_dir=self.results_dir)
+        Plotting.plot(results_dir=self.results_dir, wandb_logger=interface.wandb_logger)
         try:
             interface.plot(parameter_dict=new_param_dict)
         except Exception as e:
@@ -238,6 +242,7 @@ def start_scheduler(
     threads: int,
     results_dir: str | os.PathLike,
     validation_tasks: int = 0,
+    wandb_logger: WandbLogger | None = None,
     **kwargs,
 ):
     b2luigi.set_setting("result_dir", f"{results_dir}/task_outputs")
@@ -272,6 +277,7 @@ def start_scheduler(
     global interface  # Fix for b2luigi, as passing b2luigi.Parameter of non-serializable classes is not possible
     interface = user_interface
     interface.results_dir = results_dir
+    interface.wandb_logger = wandb_logger
 
     b2luigi.process(
         OptimizationTask(

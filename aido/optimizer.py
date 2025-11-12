@@ -7,6 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from aido.logger import logger
+from aido.monitoring.logger import WandbLogger
 from aido.optimization_helpers import ParameterModule
 from aido.simulation_helpers import SimulationParameterDictionary
 from aido.surrogate import Surrogate, SurrogateDataset
@@ -135,6 +136,7 @@ class Optimizer(torch.nn.Module):
             parameter_optimizer_savepath: str | os.PathLike | None = None,
             device: str | None = None,
             lr: float = 0.01,
+            wandb_logger: WandbLogger | None = None
             ) -> Tuple[SimulationParameterDictionary, bool]:
         """ Perform the optimization step.
 
@@ -196,6 +198,10 @@ class Optimizer(torch.nn.Module):
 
                 loss.backward()
 
+                if wandb_logger is not None:
+                    wandb_logger.log_gradient_histogram("gradients", self.parameter_module)
+                    wandb_logger.log_gradients("gradients", self.parameter_module)
+
                 if np.isnan(loss.item()):
                     logger.error("Optimizer: NaN loss, exiting.")
                     self.optimizer.step()
@@ -228,8 +234,13 @@ class Optimizer(torch.nn.Module):
 
             epoch_loss /= batch_idx + 1
             epoch_constraints_loss /= batch_idx + 1
+
             self.optimizer_loss.append(epoch_loss)
             self.constraints_loss.append(epoch_constraints_loss)
+
+            if wandb_logger is not None:
+                wandb_logger.log_scalar("Optimizer Loss", epoch_loss)
+                wandb_logger.log_scalar("Constraints Loss", epoch_constraints_loss)
 
             if stop_epoch:
                 break

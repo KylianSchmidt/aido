@@ -277,6 +277,7 @@ class Surrogate(torch.nn.Module):
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
         self.loss_mse = torch.nn.MSELoss()
         self.surrogate_loss = []
+        self.step_offset = 0    
         self.n_time_steps = n_time_steps
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.t_is = torch.tensor([i / self.n_time_steps for i in range(self.n_time_steps + 1)]).to(self.device)
@@ -285,6 +286,11 @@ class Surrogate(torch.nn.Module):
         for k, v in ddpm_schedules(*betas, n_time_steps).items():
             self.register_buffer(k, v)
 
+    def mark_step_offset(self) -> None:
+        # Add overlap to aviod jumps in wandb logs
+        self.step_offset = (len(self.surrogate_loss) - 1 if 
+                            len(self.surrogate_loss) > 0 else 0)
+    
     def forward(
             self,
             parameters: torch.Tensor,

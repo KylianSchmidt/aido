@@ -1,11 +1,16 @@
 import os
+import subprocess
+from tokenize import group
 from typing import Dict, Iterable, List
 
 import pandas as pd
+from aido.monitoring.logger import WandbLogger, WandbTaskLogger
+from contextlib import nullcontext
 import torch
 from calo_opt.reconstruction.model import Reconstruction
 
 import aido
+from aido.monitoring.tasks import OutputConfig, TaskType, WandbSubprocessWrapper
 
 
 class CaloOptInterface(aido.UserInterfaceBase):
@@ -21,6 +26,7 @@ class CaloOptInterface(aido.UserInterfaceBase):
     htc_global_settings = {}
     container_path: str = ...  # place the path for the example container here
     container_extra_flags: str = ""  # place extra flags for singularity here
+    
 
     def simulate(self, parameter_dict_path: str, sim_output_path: str):
         os.system(
@@ -116,14 +122,16 @@ class CaloOptInterface(aido.UserInterfaceBase):
         df.to_parquet(reco_input_path, index=range(len(df)))
         return None
 
-    def reconstruct(self, reco_input_path: str, reco_output_path: str, is_validation: bool):
+    def reconstruct(self, reco_input_path: str, reco_output_path: str, is_validation: bool, iteration: int):
         """ Start your reconstruction algorithm from a local container.
         """
-        os.system(
-            f"singularity exec --nv {self.container_extra_flags} {self.container_path} \
-            python3 examples/calo_opt/train.py \
-            {reco_input_path} {reco_output_path} {is_validation} {self.results_dir}"
-        )
+        command = f"singularity exec --nv {self.container_extra_flags} {self.container_path} python3 examples/calo_opt/train.py"
+        output_config = OutputConfig.create_default(self.results_dir, TaskType.RECONSTRUCTION)
+
+        with (self.wandb_logger.get_task_logger(task="reconstruction", task_iter=iteration) or nullcontext()) as subprocess_logger:
+            reconstruction = WandbSubprocessWrapper(command, subprocess_logger, output_config)
+            reconstruction.run(reco_input_path, reco_output_path, is_validation, self.results_dir)
+
         os.system("rm -f *.pkl")
         return None
 

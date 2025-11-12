@@ -1,11 +1,12 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 import torch
 
+from aido.monitoring.logger import WandbLogger
 from aido.simulation_helpers import SimulationParameterDictionary
 
 
@@ -13,6 +14,7 @@ class _UserInterfaceBase(ABC):
 
     def __init__(self) -> None:
         self.results_dir: str | os.PathLike
+        self.wandb_logger: WandbLogger | None
 
     def create_surrogate_dataset(
             parameter_dict: SimulationParameterDictionary,
@@ -69,7 +71,7 @@ class UserInterfaceBase(_UserInterfaceBase):
         raise NotImplementedError
 
     @abstractmethod
-    def reconstruct(self, reco_input_path: str, reco_output_path: str, is_validation: bool = False) -> None:
+    def reconstruct(self, reco_input_path: str, reco_output_path: str, is_validation: bool = False, iteration: Optional[int] = None) -> None:
         """ This method must be implemented
 
         Start your reconstruction algorithm here. We recommend using a container and starting the

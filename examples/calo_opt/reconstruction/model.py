@@ -53,6 +53,8 @@ class Reconstruction(torch.nn.Module):
             torch.nn.Linear(100, 100),
             torch.nn.Linear(100, num_target_features),
         )
+
+        self.reconstruction_loss = []
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
         self.device = torch.device(device)
 
@@ -98,7 +100,6 @@ class Reconstruction(torch.nn.Module):
         self.to(self.device)
         self.train()
 
-        losses = []
 
         for epoch in range(n_epochs):
     
@@ -114,14 +115,13 @@ class Reconstruction(torch.nn.Module):
                 loss = loss_per_event.clone().mean()
                 self.optimizer.zero_grad()
                 loss.backward()
-                losses += [loss.item()]
+                self.reconstruction_loss.append(loss.item())
                 self.optimizer.step()
 
             print(f"Reco Epoch: {epoch} \tLoss: {loss.item():.8f}")
 
         self.eval()
 
-        return losses
 
     def apply_model_in_batches(
         self,
