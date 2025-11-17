@@ -14,6 +14,5 @@ docs/_build/
 docs/.doctrees/
 docs/.DS_Store
 docs/autoapi/
-*.png
 *.parquet
 TODO*
