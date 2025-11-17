@@ -1,4 +1,4 @@
-<img src="docs/_static/logos/light_logo.png" width="40%" style="margin:auto; display:block;">
+<img src="docs/_static/logos/dark_logo.png" width="40%" style="margin:auto; display:block;">
 
 Framework for translating detector design into an optimization problem. By interpolating the results of simulations with slightly different geometries, it can estimate the best set of detector parameters with the help of gradient descent.
 
