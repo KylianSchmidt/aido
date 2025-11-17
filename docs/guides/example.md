@@ -46,7 +46,7 @@ If you get Errors of the type `Unfulfilled dependencies at Runtime`, check if th
 
 ## Sampling calorimeter
 
-In this example we simulate a sampling calorimeter composed of three layers of absorber material and three of active recording material. More detail can be found in https://arxiv.org/abs/2502.02152 Section 6.
+In this example we simulate a sampling calorimeter composed of three layers of absorber material and three of active recording material. More detail can be found in [arxiv:2502.02152](https://arxiv.org/abs/2502.02152) Section 6.
 
 ### Simulation
 
@@ -57,7 +57,7 @@ The current examples has some hardcoded parts that set up the geometry of the de
     - Material of the layers
     - Cost per unit of length
     - Probability of sampling one material over another, e.g. the confidence of the model in that material choice.
-w
+
 2. **Currently hardcoded settings** in `simulation.py` but that can be changed in the code of the example:
     - Number of layers: expects exactly six layers, three of them absorber, three scintillators.
     - Names of the layers: either `thickness_absorber_{i}`or `thickness_scintillator_{i}` for $i \in {0, 1, 2}$.
@@ -70,4 +70,5 @@ w
     - Shape of the detector: there are only tiles of configurable sizes but no other shapes available
     - Orientation: the beam impacts perpendicularly on the detector
 
-For more information about the Simulation software used, consult the dedicated github page by J. Kieseler https://github.com/jkiesele/minicalosim (Private).
+For more information about the Simulation software used, consult the dedicated github page by 
+J. Kieseler [https://github.com/jkiesele/minicalosim](https://github.com/jkiesele/minicalosim).
