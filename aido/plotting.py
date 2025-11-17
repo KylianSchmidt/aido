@@ -25,8 +25,7 @@ Percentage = Annotated[float, percentage_type]
 class Plotting:
 
     @classmethod
-    def plot(cls, plot_types: str | List[str] = "all", results_dir: str | os.PathLike = "./results/",
-             wandb_logger: WandbLogger | None = None) -> None:
+    def plot(cls, plot_types: str | List[str] = "all", results_dir: str | os.PathLike = "./results/") -> None:
         """
         Plot the evolution of variables of interest over the Optimization process.
 
@@ -51,15 +50,14 @@ class Plotting:
             plot_types = [plot_types]
 
         for plot_type in plot_types:
-            getattr(cls, plot_type)(results_dir=results_dir, wandb_logger=wandb_logger)
+            getattr(cls, plot_type)(results_dir=results_dir)
 
         logger.info(f"Saved all figures to {results_dir}")
 
     def parameter_evolution(
             fig_savepath: str | os.PathLike | None = "/plots/parameter_evolution",
             results_dir: str = "./results/",
-            parameter_dir: str | os.PathLike = "/parameters/",
-            wandb_logger: WandbLogger | None = None
+            parameter_dir: str | os.PathLike = "/parameters/"
             ) -> Tuple[pd.DataFrame, np.ndarray]:
         """ Plots the evolution of all simulation parameters along with their respective "sigma".
 
@@ -113,9 +111,6 @@ class Plotting:
             plt.xlabel("Iteration", loc="right")
             plt.ylabel("Parameter Value", loc="top")
 
-            if wandb_logger is not None:
-                wandb_logger.log_figure("parameter_evolution", fig)
-
             if fig_savepath is not None:
                 plt.savefig(fig_savepath)
 
@@ -126,8 +121,7 @@ class Plotting:
     def optimizer_loss(
             fig_savepath: str | os.PathLike | None = "/plots/optimizer_loss",
             results_dir: str = "./results/",
-            optimizer_loss_dir: str | os.PathLike = "/loss/optimizer",
-            wandb_logger: WandbLogger | None = None
+            optimizer_loss_dir: str | os.PathLike = "/loss/optimizer"
             ) -> pd.DataFrame:
         """
         Plot the optimizer loss over epochs and save the figure if `fig_savepath` is provided.
@@ -168,8 +162,6 @@ class Plotting:
             plt.ylabel("Loss", loc="top")
             plt.legend()
 
-            if wandb_logger is not None:
-                wandb_logger.log_figure("optimizer_loss", fig)
             if fig_savepath is not None:
                 plt.savefig(fig_savepath)
 
@@ -181,8 +173,7 @@ class Plotting:
             fig_savepath: str | os.PathLike | None = "/plots/simulation_samples",
             results_dir: str = "./results/",
             parameter_dir: str = "/parameters/",
-            sampled_param_dict_filepath: str | os.PathLike = "/task_outputs/iteration=*/validation=False",
-            wandb_logger: WandbLogger | None = None
+            sampled_param_dict_filepath: str | os.PathLike = "/task_outputs/iteration=*/validation=False"
             ) -> Tuple[pd.DataFrame, np.ndarray]:
         """Generate a DataFrame of simulation parameters and their values.
         
@@ -262,8 +253,6 @@ class Plotting:
             plt.ylabel("Parameter Value", loc="top")
             plt.legend()
 
-            if wandb_logger is not None:
-                wandb_logger.log_figure("simulation_samples", fig)
             if fig_savepath is not None:
                 plt.savefig(fig_savepath)
 
@@ -274,8 +263,7 @@ class Plotting:
     def probability_evolution(
             fig_savepath: str | os.PathLike | None = "/plots/probability_evolution",
             results_dir: str = "./results/",
-            parameter_dir: str | os.PathLike = "/parameters",
-            wandb_logger: WandbLogger | None = None
+            parameter_dir: str | os.PathLike = "/parameters"
             ):
 
         def plot_probabilities(
@@ -314,8 +302,6 @@ class Plotting:
             plt.ylim(0, 1)
             plt.tight_layout()
             
-            if wandb_logger is not None:
-                wandb_logger.log_figure(f"probability_evolution_{name}", plt.gcf())
             if fig_savepath is not None:
                 plt.savefig(f"{fig_savepath_absolute}_{name}")
 

@@ -166,6 +166,9 @@ class Optimizer(torch.nn.Module):
 
         self.optimizer_loss = []
         self.constraints_loss = []
+        gradients_norm = []
+        gradients_min = []
+        gradients_max = []
 
         for epoch in range(n_epochs):
             epoch_loss = 0.0
@@ -198,8 +201,10 @@ class Optimizer(torch.nn.Module):
                 loss.backward()
 
                 if wandb_logger is not None:
-                    wandb_logger.log_gradient_histogram("gradients", self.parameter_module)
-                    wandb_logger.log_gradients("gradients", self.parameter_module)
+                    flat_grads = torch.cat([p.grad.detach().flatten() for p in self.parameter_module.parameters() if p.grad is not None])
+                    gradients_norm.append(flat_grads.norm().item())
+                    gradients_min.append(flat_grads.abs().min().item())
+                    gradients_max.append(flat_grads.abs().max().item())
 
                 if np.isnan(loss.item()):
                     logger.error("Optimizer: NaN loss, exiting.")
@@ -243,6 +248,8 @@ class Optimizer(torch.nn.Module):
         if wandb_logger is not None:
                 wandb_logger.log_scalars("Optimizer Loss", self.optimizer_loss)
                 wandb_logger.log_scalars("Constraints Loss", self.constraints_loss)
+                if len(gradients_norm) > 0:
+                    wandb_logger.log_gradients("Gradients", gradients_norm, gradients_min, gradients_max)
 
         self.parameter_dict.covariance = self.parameter_module.adjust_covariance(
             self.parameter_module.continuous_tensors().to(self.device)

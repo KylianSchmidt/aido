@@ -231,7 +231,7 @@ class OptimizationTask(AIDOTask):
         new_param_dict.to_json(self.get_output_file_name("param_dict.json"))
 
         # Plot results
-        Plotting.plot(results_dir=self.results_dir, wandb_logger=interface.wandb_logger)
+        Plotting.plot(results_dir=self.results_dir)
         try:
             interface.plot(parameter_dict=new_param_dict)
         except Exception as e:
