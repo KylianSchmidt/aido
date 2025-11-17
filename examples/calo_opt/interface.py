@@ -128,7 +128,7 @@ class CaloOptInterface(aido.UserInterfaceBase):
         command = f"singularity exec --nv {self.container_extra_flags} {self.container_path} python3 examples/calo_opt/train.py"
         output_config = OutputConfig.create_default(self.results_dir, TaskType.RECONSTRUCTION)
 
-        with (self.wandb_logger.get_task_logger(task="reconstruction") or nullcontext()) as subprocess_logger:
+        with (self.wandb_logger.get_task_logger(task="reconstruction") if self.wandb_logger else nullcontext()) as subprocess_logger:
             reconstruction = WandbSubprocessWrapper(command, subprocess_logger, output_config)
             reconstruction.run(reco_input_path, reco_output_path, is_validation, self.results_dir)
 

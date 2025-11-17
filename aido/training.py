@@ -133,7 +133,7 @@ def training_loop(
     surrogate_df = pd.read_parquet(output_df_path)
 
 
-    with (wandb_logger.get_task_logger(task="surrogate") or nullcontext()) as task_logger:
+    with (wandb_logger.get_task_logger(task="surrogate") if wandb_logger else nullcontext()) as task_logger:
         surrogate, surrogate_dataset = train_or_load_surrogate(
             config,
             parameter_dict,
