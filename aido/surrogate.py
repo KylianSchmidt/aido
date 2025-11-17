@@ -103,11 +103,11 @@ class SurrogateDataset(Dataset):
         self.reconstructed = self.df[reconstructed_key].to_numpy(np.float32)
         self.normalize_parameters = normalize_parameters
 
-        self.shape: List[int] = (
+        self.shape: tuple[int, ...] = (
             self.parameters.shape[1],
             self.context.shape[1],
             self.targets.shape[1],
-            self.reconstructed.shape[1]
+            self.reconstructed.shape[1],
         )
         if means is None:
             self.means: List[np.float32] = [
@@ -239,7 +239,7 @@ class Surrogate(torch.nn.Module):
             initial_means: List[np.float32],
             initial_stds: List[np.float32],
             n_time_steps: int = 50,
-            betas: Tuple[float] = (1e-4, 0.02),
+            betas: Tuple[float, float] = (1e-4, 0.02),
             ):
         """
         Initializes the surrogate model.

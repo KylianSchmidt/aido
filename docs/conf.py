@@ -36,10 +36,12 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 html_theme = "furo"
 html_static_path = ['_static']
-html_css_files =  ["html_style.css"]
+html_css_files = ["html_style.css"]
 html_theme_options = {
     "navigation_with_keys": True,
-    "sidebar_hide_name": False,
+    "sidebar_hide_name": True,
+    "light_logo": "logos/light_logo.png",
+    "dark_logo": "logos/dark_logo.png",
 }
 
 # Add markdown files with myst_parser

@@ -48,11 +48,13 @@ class UserInterfaceBase(_UserInterfaceBase):
             parameter_dict_path (str): The path to the parameter dictionary file.
             sim_output_path (str): The path to save the simulation output.
 
-        Example:
+        Examples:
             To open the parameter dict in your python script:
+
             >>> parameter_dict = json.load(parameter_dict_path)
 
             Access its items by name and the key 'current_value':
+
             >>> foo_value = parameter_dict["foo"]["current_value]
 
             Use equivalent methods to open JSON files if using C++ or other languages.
