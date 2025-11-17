@@ -14,13 +14,13 @@ from aido.optimization_helpers import ContinuousParameter, ParameterModule
 from matplotlib import pyplot as plt
 
 
-def flatten_gradients(parameters: ParameterModule) -> torch.Tensor:
+def flatten_gradients(parameters: ParameterModule, silent: bool = True) -> torch.Tensor:
     grads = []
     for p in parameters.parameters():
         if p.grad is not None:
             grads.append(p.grad.detach().flatten())
     
-    if len(grads) == 0:
+    if not silent and len(grads) == 0:
         raise Exception("WandbLogger: No gradients found to log.")
 
     flat_grads = torch.cat(grads)
@@ -29,9 +29,9 @@ def flatten_gradients(parameters: ParameterModule) -> torch.Tensor:
 class WandbLogger:
     def __init__(self, project_name: str, optim_name: str, config: Optional[dict] = None):
         timestamp = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
-
         self.project_name = project_name
         self.optim_name = f"{optim_name}__{timestamp}"
+        self.iteration: int = 0
         self.config = config
 
     def __enter__(self):
@@ -45,12 +45,17 @@ class WandbLogger:
         if self.wandb_instance is not None:
             self.wandb_instance.finish()
 
-    def log_scalar(self, tag: str, value: float) -> None:
-        self.wandb_instance.log({tag: value})
+    def synchronize_iteration(self, iteration: int) -> None:
+        self.iteration = iteration
 
     def log_scalars(self, tag, values: list[float] | np.ndarray) -> None:
-        for value in values:
-            self.log_scalar(tag, value)
+        self.wandb_instance.define_metric(f"{tag}", step_metric="Iteration")
+        for step, value in enumerate(values):
+            msg = {"Iteration": step/len(values) + self.iteration, 
+                   "Task Step": step, 
+                   tag: value}
+            
+            self.wandb_instance.log(msg)
 
     def log_figure(self, tag: str, figure: plt.Figure) -> None:
         self.wandb_instance.log({tag: wandb.Image(figure)})
@@ -65,9 +70,8 @@ class WandbLogger:
         self.wandb_instance.log({f"{tag}/min": flat_grads.abs().min().item()})
         self.wandb_instance.log({f"{tag}/max": flat_grads.abs().max().item()})
 
-    def get_task_logger(self, task: str, task_iter: int) -> 'WandbTaskLogger':
-        return WandbTaskLogger(self.project_name, self.optim_name, task, task_iter)
-
+    def get_task_logger(self, task: str) -> 'WandbTaskLogger':
+        return WandbTaskLogger(self.project_name, self.optim_name, task, self.iteration)
 
 
 class WandbTaskLogger:
@@ -81,6 +85,9 @@ class WandbTaskLogger:
         self.wandb_instance = wandb.init(project=self.project_name, 
                                               name=f"{self.task}_iteration={self.task_iter}", 
                                               tags=[self.task], group=self.optim_name)
+        
+        self.wandb_instance.define_metric("Iteration", hidden=True)
+        self.wandb_instance.define_metric("Task Step", hidden=True)
         return self
         
     def __exit__(self, exc_type, exc_value, traceback):
@@ -92,10 +99,11 @@ class WandbTaskLogger:
         if self.wandb_instance is not None:
             self.wandb_instance.finish()
 
-    def log_scalar(self, tag: str, value: float, step: Optional[int] = None) -> None:
-        self.wandb_instance.log({tag: value}, step=step)
-
     def log_scalars(self, tag, values: list[float] | np.ndarray, step_offset: Optional[int] = None) -> None:
-        for i, value in enumerate(values):
-            step = step_offset + i if step_offset is not None else None
-            self.log_scalar(tag, value, step)
+        self.wandb_instance.define_metric(f"{tag}", step_metric="Iteration")
+        for step, value in enumerate(values):
+            msg = {"Iteration": step/len(values) + self.task_iter, 
+                   "Task Step": step, 
+                   tag: value}
+            
+            self.wandb_instance.log(msg, step=step + step_offset)

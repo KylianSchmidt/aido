@@ -71,7 +71,7 @@ class UserInterfaceBase(_UserInterfaceBase):
         raise NotImplementedError
 
     @abstractmethod
-    def reconstruct(self, reco_input_path: str, reco_output_path: str, is_validation: bool = False, iteration: Optional[int] = None) -> None:
+    def reconstruct(self, reco_input_path: str, reco_output_path: str, is_validation: bool = False) -> None:
         """ This method must be implemented
 
         Start your reconstruction algorithm here. We recommend using a container and starting the

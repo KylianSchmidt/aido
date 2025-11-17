@@ -136,8 +136,7 @@ class Optimizer(torch.nn.Module):
             parameter_optimizer_savepath: str | os.PathLike | None = None,
             device: str | None = None,
             lr: float = 0.01,
-            wandb_logger: WandbLogger | None = None
-            ) -> Tuple[SimulationParameterDictionary, bool]:
+            wandb_logger: WandbLogger | None = None) -> Tuple[SimulationParameterDictionary, bool]:
         """ Perform the optimization step.
 
         1. The ParameterModule().forward() method generates new parameters.
@@ -238,12 +237,12 @@ class Optimizer(torch.nn.Module):
             self.optimizer_loss.append(epoch_loss)
             self.constraints_loss.append(epoch_constraints_loss)
 
-            if wandb_logger is not None:
-                wandb_logger.log_scalar("Optimizer Loss", epoch_loss)
-                wandb_logger.log_scalar("Constraints Loss", epoch_constraints_loss)
-
             if stop_epoch:
                 break
+
+        if wandb_logger is not None:
+                wandb_logger.log_scalars("Optimizer Loss", self.optimizer_loss)
+                wandb_logger.log_scalars("Constraints Loss", self.constraints_loss)
 
         self.parameter_dict.covariance = self.parameter_module.adjust_covariance(
             self.parameter_module.continuous_tensors().to(self.device)

@@ -107,7 +107,7 @@ def training_loop(
         reco_file_paths_dict: dict | str | os.PathLike,
         reconstruction_loss_function: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         constraints: None | Callable[[SimulationParameterDictionary], float | torch.Tensor] = None,
-        wandb_logger: WandbLogger | None = None, iteration: int = 0
+        wandb_logger: WandbLogger | None = None
         ):
     
     if isinstance(reco_file_paths_dict, (str, os.PathLike)):
@@ -133,7 +133,7 @@ def training_loop(
     surrogate_df = pd.read_parquet(output_df_path)
 
 
-    with (wandb_logger.get_task_logger(task="surrogate", task_iter=iteration) or nullcontext()) as task_logger:
+    with (wandb_logger.get_task_logger(task="surrogate") or nullcontext()) as task_logger:
         surrogate, surrogate_dataset = train_or_load_surrogate(
             config,
             parameter_dict,

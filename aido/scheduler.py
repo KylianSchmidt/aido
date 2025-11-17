@@ -106,6 +106,9 @@ class ReconstructionTask(AIDOTask):
         Run the reconstruction process. The type of processing depends on the validation flag.
         """
         output_type = "reco" if not self.validation else "validation"
+
+        if interface.wandb_logger is not None:
+            interface.wandb_logger.synchronize_iteration(self.iteration)
         
         interface.merge(
             parameter_dict_file_paths=self.get_input_file_names("param_dict.json"),
@@ -116,8 +119,7 @@ class ReconstructionTask(AIDOTask):
         interface.reconstruct(
             reco_input_path=self.get_output_file_name(f"{output_type}_input_df"),
             reco_output_path=self.get_output_file_name(f"{output_type}_output_df"),
-            is_validation=self.validation,
-            iteration=self.iteration
+            is_validation=self.validation
         )
 
 
@@ -190,6 +192,9 @@ class OptimizationTask(AIDOTask):
         """
         if self.iteration == -1:
             return None
+        
+        if interface.wandb_logger is not None:
+            interface.wandb_logger.synchronize_iteration(self.iteration)
 
         self.reco_paths_dict = self.create_reco_path_dict()
         config = AIDOConfig.from_json(os.path.join(self.results_dir, "config.json"))
@@ -209,8 +214,7 @@ class OptimizationTask(AIDOTask):
                     reco_file_paths_dict=self.reco_paths_dict["own_path"],
                     reconstruction_loss_function=interface.loss,
                     constraints=interface.constraints,
-                    wandb_logger=interface.wandb_logger,
-                    iteration=self.iteration
+                    wandb_logger=interface.wandb_logger
                 )
             except torch.cuda.OutOfMemoryError as e:
                 training_loop_out_of_memory = True
