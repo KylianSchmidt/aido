@@ -21,11 +21,16 @@ class CaloOptInterface(aido.UserInterfaceBase):
     htc_global_settings = {}
     container_path: str = ...  # place the path for the example container here
     container_extra_flags: str = ""  # place extra flags for singularity here
+    verbose: bool = False
+
+    @property
+    def suppress_output(self) -> str:
+        return "> /dev/null 2>&1" if not self.verbose else ""
 
     def simulate(self, parameter_dict_path: str, sim_output_path: str):
         os.system(
             f"singularity exec {self.container_extra_flags} {self.container_path} python3 \
-            examples/calo_opt/simulation.py {parameter_dict_path} {sim_output_path} > /dev/null 2>&1"
+            examples/calo_opt/simulation.py {parameter_dict_path} {sim_output_path} {self.suppress_output}"
         )
         return None
 
@@ -113,7 +118,7 @@ class CaloOptInterface(aido.UserInterfaceBase):
         df: pd.DataFrame = pd.concat(df_list, axis=0, ignore_index=True)
         df = df.fillna(0)
         df = df.reset_index(drop=True)
-        df.to_parquet(reco_input_path, index=range(len(df)))
+        df.to_parquet(reco_input_path, index=range(len(df)))  # type: ignore
         return None
 
     def reconstruct(self, reco_input_path: str, reco_output_path: str, is_validation: bool):

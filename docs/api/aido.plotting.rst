@@ -1,8 +1,7 @@
-aido.plotting module
---------------------
+Plotting
+--------
 
 .. automodule:: aido.plotting
    :members:
-   :undoc-members:
    :show-inheritance:
    :no-index:

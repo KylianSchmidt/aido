@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Self
 
 import numpy as np
 import pandas as pd
@@ -10,6 +10,8 @@ from aido.logger import logger
 
 def ddpm_schedules(beta1: float, beta2: float, n_time_steps: int) -> dict[str, torch.Tensor]:
     """
+    :no-index:
+
     Returns pre-computed schedules for DDPM sampling, training process.
     """
     assert 0.0 < beta1 < beta2 < 1.0, "Condition 0.0 < 'beta 1' < 'beta 2' < 1.0 not fulfilled"
@@ -101,11 +103,11 @@ class SurrogateDataset(Dataset):
         self.reconstructed = self.df[reconstructed_key].to_numpy(np.float32)
         self.normalize_parameters = normalize_parameters
 
-        self.shape: List[int] = (
+        self.shape: tuple[int, ...] = (
             self.parameters.shape[1],
             self.context.shape[1],
             self.targets.shape[1],
-            self.reconstructed.shape[1]
+            self.reconstructed.shape[1],
         )
         if means is None:
             self.means: List[np.float32] = [
@@ -237,10 +239,11 @@ class Surrogate(torch.nn.Module):
             initial_means: List[np.float32],
             initial_stds: List[np.float32],
             n_time_steps: int = 50,
-            betas: Tuple[float] = (1e-4, 0.02),
+            betas: Tuple[float, float] = (1e-4, 0.02),
             ):
         """
         Initializes the surrogate model.
+
         Args:
             num_parameters (int): Number of input parameters.
             num_context (int): Number of context variables.
@@ -307,7 +310,15 @@ class Surrogate(torch.nn.Module):
             parameters, context, targets, reconstructed, time_step.view(-1, 1)
         ], dim=1))
 
-    def to(self, device: str = None):
+    def to(self, device: str | None = None) -> Self:
+        """Move whole model and data to device
+
+        Args:
+            device (str | None). Name of the device, for example "cuda" or "cpu". Default to None
+
+        Returns:
+            Self        
+        """
         if device is None:
             device = self.device
 

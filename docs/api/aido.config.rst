@@ -1,8 +1,7 @@
-aido.config module
-------------------
+Config
+------
 
 .. automodule:: aido.config
    :members:
-   :undoc-members:
    :show-inheritance:
    :no-index:

@@ -1,8 +1,7 @@
-aido.surrogate module
----------------------
+Surrogate
+---------
 
 .. automodule:: aido.surrogate
    :members:
-   :undoc-members:
    :show-inheritance:
    :no-index:

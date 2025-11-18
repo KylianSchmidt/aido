@@ -1,0 +1,24 @@
+/* _static/custom.css */
+.sig.sig-object, .sig.sig-class, .sig.sig-function {
+  white-space: pre-wrap;     /* allow line breaks */
+  display: block;
+  line-height: 1.6;
+}
+
+/* Further indent the *content* inside each member */
+div.py.method > dd,
+div.py.attribute > dd,
+div.py.classmethod > dd,
+div.py.staticmethod > dd,
+div.py.data > dd {
+  margin-left: 1.2em;
+  padding-left: 0.8em;
+}
+
+
+/* Add spacing between members for readability */
+div.py.method,
+div.py.attribute {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}

@@ -1,8 +1,7 @@
-aido.main module
-----------------
+Main
+----
 
 .. automodule:: aido.main
    :members:
-   :undoc-members:
    :show-inheritance:
    :no-index:
