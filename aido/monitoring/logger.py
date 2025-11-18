@@ -63,7 +63,16 @@ def flatten_gradients(parameters: ParameterModule, silent: bool = True) -> torch
 
 
 class WandbLogger:
-    def __init__(self, project_name: str, optim_name: str, config: Optional[dict] = None):
+    def __init__(self, project_name: str, optim_name: str):
+        """Wandb high-level logging class managing both optimization-level logging and subtask logger.
+
+        Args:
+            project_name (str): Wandb project name.
+            optim_name (str): Descriptive name of the optimization.
+
+        Raises:
+            ImportError: Raises import error if wandb is not installed either directly or via aido[wandb].
+        """
         if not WANDB_AVAILABLE:
             raise ImportError(WANDB_ERROR_MESSAGE)
         timestamp = datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
@@ -76,7 +85,6 @@ class WandbLogger:
         self.project_name = project_name
         self.optim_name = f"{optim_name}__{sortable_id}"
         self.iteration: int = 0
-        self.config = config
         self.wandb_instance = None
 
     def __enter__(self):
@@ -94,6 +102,12 @@ class WandbLogger:
             self.wandb_instance.finish()
 
     def synchronize_iteration(self, iteration: int) -> None:
+        """Set iteration managed by b2luigi to synchronize current iteration with the worker.
+        Additionally monkey-patches plt.savefig to automatically log figures to wandb.
+
+        Args:
+            iteration (int): Current optimization iteration.
+        """
         self.iteration = iteration
         setup_wandb_savefig(self)
 
@@ -118,7 +132,11 @@ class WandbLogger:
             return
         self.wandb_instance.config.update(config.as_dict())
 
-    def log_gradients(self, tag: str, gradients_norm: list[float], gradients_min: list[float], gradients_max: list[float]) -> None:
+    def log_gradients(self, tag: str, 
+                      gradients_norm: Sequence[float], 
+                      gradients_min: Sequence[float], 
+                      gradients_max: Sequence[float]) -> None:
+        
         if self.wandb_instance is None:
             return
         self.wandb_instance.define_metric(f"{tag}/norm", step_metric="Iteration")
@@ -142,6 +160,17 @@ class WandbLogger:
 
 class WandbTaskLogger:
     def __init__(self, project_name: str, optim_name: str, task: str, task_iter: int = 0):
+        """Custom task logger generating a individual run object in wandb linked to the optimization group.
+
+        Args:
+            project_name (str): Wandb project name.
+            optim_name (str): Descriptive name of the optimization.
+            task (str): Task name.
+            task_iter (int, optional): Optimization iteration. Defaults to 0.
+
+        Raises:
+            ImportError: Raises import error if wandb is not installed either directly or via aido[wandb].
+        """
         if not WANDB_AVAILABLE:
             raise ImportError(WANDB_ERROR_MESSAGE)
         self.project_name = project_name
