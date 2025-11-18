@@ -42,9 +42,11 @@ class SimulationTask(AIDOTask):
         yield self.add_to_output("simulation_output")
 
     def run(self) -> None:
-        """ Workflow:
-         1. Generate a new set of parameters based on the previous iteration
-         2. Start geant4 simulations using the 'interface.simulate' method provided by the user
+        """
+        Note:
+            The workflow is comprised of two steps:
+            1. Generate a new set of parameters based on the previous iteration
+            2. Start Geant4 simulations using the 'interface.simulate' method provided by the user
         """
         output_path = self.get_output_file_name("simulation_output")
         output_parameter_dict_path = self.get_output_file_name("param_dict.json")
@@ -70,7 +72,7 @@ class ReconstructionTask(AIDOTask):
     results_dir = b2luigi.PathParameter(hashed=True, significant=False)
 
     def requires(self) -> Generator:
-        """ Require I SimulationTasks, runnable in parallel"""
+        """ Require <i> SimulationTasks, runnable in parallel"""
         assert isinstance(self.validation, bool), "'validation' parameter must be of type bool."
 
         if self.validation:

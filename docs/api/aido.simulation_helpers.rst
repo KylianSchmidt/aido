@@ -1,8 +1,7 @@
-aido.simulation_helpers.rst module
-----------------------------------
+Simulation Parameters
+---------------------
 
-.. automodule:: aido.simulation_helpers.rst
+.. automodule:: aido.simulation_helpers
    :members:
-   :undoc-members:
    :show-inheritance:
    :no-index:

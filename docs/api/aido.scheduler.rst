@@ -1,8 +1,7 @@
-aido.scheduler module
----------------------
+Scheduler
+---------
 
 .. automodule:: aido.scheduler
    :members:
-   :undoc-members:
    :show-inheritance:
    :no-index:

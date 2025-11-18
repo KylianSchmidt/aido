@@ -1,7 +1,4 @@
-# AIDO Documentation
-
-## Introduction
-# AIDO Documentation
+# Docs
 
 ## Introduction
 
@@ -12,23 +9,6 @@ parameters with the help of gradient descent.
 
 This framework fragments the workflow into [b2luigi](https://b2luigi.belle2.org/index.html)
 Tasks for parallel simulations and training of ML models on GPUs.
-
-```{toctree}
-:maxdepth: 2
-:caption: Contents
-
-guides/getting_started
-guides/usage
-guides/example
-api/aido.surrogate
-```
-
-```{toctree}
-:maxdepth: 1
-:caption: API Reference
-
-autoapi/index
-```
 
 In order to use this framework, you need:
 
@@ -55,16 +35,22 @@ you can easily access in any programming language (for example C++ when using Ge
 By inputting these values in your simulation, AIDO is able to optimize the parameters
 automatically.
 
-For more details, see the API Reference section.
+For more details, see the API section.
 
-## Guides
+## References
 
-- [Getting Started](guides/getting_started.md)
-- Usage
-  - [SimulationParameter(Dictionary)](api/aido.simulation_helpers.md)
-  - [UserInterfaceBase](api/aido.interface.md)
-- [Examples](guides/example.md)
+```{toctree}
+:maxdepth: 2
+:caption: Guides
 
-## Indices
+guides/getting_started
+guides/usage
+guides/example
+```
 
-* [Module Index](api/modules)
+```{toctree}
+:maxdepth: 1
+:caption: API
+
+api/toc
+```

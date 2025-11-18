@@ -22,7 +22,7 @@ def pre_train(model: Reconstruction, dataset: Dataset, n_epochs: int):
     TODO Reconstruction results are normalized. In the future only expose the un-normalized ones,
     but also requires adjustments to the surrogate dataset
     """
-    
+
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(dev)
 
@@ -59,7 +59,7 @@ def train(
         reco_model_previous_path = os.path.join(results_dir, "reco_model")
 
         if os.path.exists(reco_model_previous_path):
-            reco_model: Reconstruction = torch.load(reco_model_previous_path)
+            reco_model: Reconstruction = torch.load(reco_model_previous_path,weights_only=False)
             reco_model.mark_step_offset()
             reco_dataset = ReconstructionDataset(simulation_df, means=reco_model.means, stds=reco_model.stds)
         else:

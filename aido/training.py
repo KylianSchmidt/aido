@@ -17,10 +17,10 @@ from aido.monitoring.logger import WandbLogger, WandbTaskLogger
 
 def pre_train(model: Surrogate, dataset: SurrogateDataset, n_epochs: int) -> list[float]:
     """Pre-train the Surrogate Model using a three-stage process.
-    
+
     This function performs pre-training in three stages with different
     batch sizes and learning rates to ensure stable convergence.
-    
+
     Parameters
     ----------
     model : Surrogate
@@ -52,7 +52,7 @@ def train_or_load_surrogate(config: AIDOConfig, parameter_dict: SimulationParame
         surrogate_dataset = SurrogateDataset(surrogate_df, means=surrogate.means, stds=surrogate.stds)
     else:
         if os.path.isfile(surrogate_previous_path):
-            surrogate: Surrogate = torch.load(surrogate_previous_path)
+            surrogate: Surrogate = torch.load(surrogate_previous_path, weights_only=False)
             surrogate.mark_step_offset()
             surrogate_dataset = SurrogateDataset(surrogate_df, means=surrogate.means, stds=surrogate.stds)
         else:
@@ -93,7 +93,6 @@ def train_or_load_surrogate(config: AIDOConfig, parameter_dict: SimulationParame
                 n_epochs=n_epochs_main // 2,
                 lr=0.1 * surrogate_lr,
             )
-    
     if task_logger is not None:
         task_logger.log_scalars("Surrogate Loss", 
                                 surrogate.surrogate_loss[surrogate.step_offset:], 
@@ -109,6 +108,29 @@ def training_loop(
         constraints: None | Callable[[SimulationParameterDictionary], float | torch.Tensor] = None,
         wandb_logger: WandbLogger | None = None
         ):
+        """Internal training of the Surrogate and Optimizer models
+
+        Args:
+            reco_file_paths_dict (dict | str | os.PathLike): Either the dict with all the file paths
+                or a single filepath (str or os.PathLike) that we first have to read from JSON.
+            reconstruction_loss_function (Callable): The user-defined loss function that provides the
+                goodness of a given design. Has to take two Tensors (truth and predicted) and return a scalar
+                Tensor used as the Optimizer loss.
+            constraints (Callable, optional). Additional loss function to be applied on top of the regular
+                loss function, for example to account for cost penalties. Default is None
+        
+        Returns:
+            SimulationParameterDictionary: The updated values as proposed by the Optimizer model.
+        
+        Note:
+            This function is integral to the correct training of the surrogate and optimizer models. The
+            training itself consists of these steps:
+            1. Track all the file paths needed
+            2. Instantiate the Surrogate model if not done so, load it from .pt file if available from
+                current iteration (if training was stopped), then train it.
+            3. Run the Optimizer
+            4. Save results
+        """
     
     if isinstance(reco_file_paths_dict, (str, os.PathLike)):
         with open(reco_file_paths_dict, "r") as file:

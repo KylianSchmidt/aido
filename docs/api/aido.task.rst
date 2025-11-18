@@ -1,8 +1,7 @@
-aido.task module
-----------------
+Luigi Task
+----------
 
 .. automodule:: aido.task
    :members:
-   :undoc-members:
    :show-inheritance:
    :no-index:
