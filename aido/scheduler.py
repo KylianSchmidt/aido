@@ -283,6 +283,9 @@ def start_scheduler(
     interface.results_dir = results_dir
     interface.wandb_logger = wandb_logger
 
+    if interface.wandb_logger is not None:
+        interface.wandb_logger.log_config(config)
+
     b2luigi.process(
         OptimizationTask(
             num_simulation_tasks=simulation_tasks,

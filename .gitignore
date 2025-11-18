@@ -17,4 +17,5 @@ docs/autoapi/
 *.png
 *.parquet
 *.sif
+wandb
 TODO*

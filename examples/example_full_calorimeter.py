@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
     with WandbLogger(
         project_name="detector_optim",
-        optim_name="full_calorimeter_optimization_1") as wandb_logger:
+        optim_name="full_calorimeter") as wandb_logger:
 
         aido.optimize(
             parameters=parameters,
