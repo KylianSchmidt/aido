@@ -3,6 +3,7 @@ from typing import Any, List, Type
 
 from aido.config import AIDOConfig
 from aido.interface import UserInterfaceBase
+from aido.monitoring.logger import WandbLogger
 from aido.scheduler import start_scheduler
 from aido.simulation_helpers import SimulationParameter, SimulationParameterDictionary
 
@@ -16,6 +17,7 @@ def optimize(
         results_dir: str | os.PathLike = "./results/",
         description: str = "",
         validation_tasks: int = 0,
+        wandb_logger: WandbLogger | None = None,
         **kwargs,
         ):
     """
@@ -64,6 +66,7 @@ def optimize(
         threads=threads,
         results_dir=results_dir,
         validation_tasks=validation_tasks,
+        wandb_logger=wandb_logger,
         **kwargs,
     )
 

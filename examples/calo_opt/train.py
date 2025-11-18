@@ -2,6 +2,7 @@
 import os
 import pathlib
 import sys
+import numpy as np
 from typing import Union
 
 import pandas as pd
@@ -59,6 +60,7 @@ def train(
 
         if os.path.exists(reco_model_previous_path):
             reco_model: Reconstruction = torch.load(reco_model_previous_path,weights_only=False)
+            reco_model.mark_step_offset()
             reco_dataset = ReconstructionDataset(simulation_df, means=reco_model.means, stds=reco_model.stds)
         else:
             reco_dataset = ReconstructionDataset(simulation_df)
@@ -70,6 +72,19 @@ def train(
         reco_model.train_model(reco_dataset, batch_size=256, n_epochs=n_epochs_main // 4, lr=0.003)
         reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.001)
         reco_model.train_model(reco_dataset, batch_size=1024, n_epochs=n_epochs_main // 2, lr=0.0003)
+
+        path = os.path.join(results_dir, "loss", "reconstruction")
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        loss = reco_model.reconstruction_loss[reco_model.step_offset:]
+        step_offset = reco_model.step_offset
+
+        pd.DataFrame({
+            "Reconstruction Loss": np.array(loss),
+            "Step": np.arange(step_offset, step_offset + len(loss), 1)
+        }).to_csv(os.path.join(path, "reconstruction_loss"), index=True)
 
         validator = ReconstructionValidation(reco_model)
         output_df_val = validator.validate(reco_dataset)
