@@ -15,5 +15,4 @@ docs/.doctrees/
 docs/.DS_Store
 docs/autoapi/
 *.parquet
-*.sif
 TODO*
