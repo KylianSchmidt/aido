@@ -10,6 +10,7 @@ import torch
 from aido.config import AIDOConfig
 from aido.interface import UserInterfaceBase
 from aido.logger import logger
+from aido.monitoring.logger import WandbLogger
 from aido.plotting import Plotting
 from aido.simulation_helpers import SimulationParameterDictionary
 from aido.task import AIDOTask, torch_safe_wrapper
@@ -107,6 +108,9 @@ class ReconstructionTask(AIDOTask):
         Run the reconstruction process. The type of processing depends on the validation flag.
         """
         output_type = "reco" if not self.validation else "validation"
+
+        if interface.wandb_logger is not None:
+            interface.wandb_logger.synchronize_iteration(self.iteration)
         
         interface.merge(
             parameter_dict_file_paths=self.get_input_file_names("param_dict.json"),
@@ -190,6 +194,9 @@ class OptimizationTask(AIDOTask):
         """
         if self.iteration == -1:
             return None
+        
+        if interface.wandb_logger is not None:
+            interface.wandb_logger.synchronize_iteration(self.iteration)
 
         self.reco_paths_dict = self.create_reco_path_dict()
         config = AIDOConfig.from_json(os.path.join(self.results_dir, "config.json"))
@@ -209,6 +216,7 @@ class OptimizationTask(AIDOTask):
                     reco_file_paths_dict=self.reco_paths_dict["own_path"],
                     reconstruction_loss_function=interface.loss,
                     constraints=interface.constraints,
+                    wandb_logger=interface.wandb_logger
                 )
             except torch.cuda.OutOfMemoryError as e:
                 training_loop_out_of_memory = True
@@ -240,6 +248,7 @@ def start_scheduler(
     threads: int,
     results_dir: str | os.PathLike,
     validation_tasks: int = 0,
+    wandb_logger: WandbLogger | None = None,
     **kwargs,
 ):
     b2luigi.set_setting("result_dir", f"{results_dir}/task_outputs")
@@ -274,6 +283,10 @@ def start_scheduler(
     global interface  # Fix for b2luigi, as passing b2luigi.Parameter of non-serializable classes is not possible
     interface = user_interface
     interface.results_dir = results_dir
+    interface.wandb_logger = wandb_logger
+
+    if interface.wandb_logger is not None:
+        interface.wandb_logger.log_config(config)
 
     b2luigi.process(
         OptimizationTask(

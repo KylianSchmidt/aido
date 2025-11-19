@@ -10,6 +10,9 @@ setup(
     version=__version__,
     packages=find_packages(),
     install_requires=requirements,
+    extras_require={
+        "wandb": ["wandb>=0.22.3"],
+    },
     python_requires=">=3.12.3",
     license="",
     author="Kylian Schmidt, Dr. Jan Kieseler",
