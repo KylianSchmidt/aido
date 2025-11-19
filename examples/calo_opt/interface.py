@@ -1,11 +1,16 @@
 import os
+import subprocess
+from tokenize import group
 from typing import Dict, Iterable, List
 
 import pandas as pd
+from aido.monitoring.logger import WandbLogger, WandbTaskLogger
+from contextlib import nullcontext
 import torch
 from calo_opt.reconstruction.model import Reconstruction
 
 import aido
+from aido.monitoring.tasks import OutputConfig, TaskType, WandbSubprocessWrapper
 
 
 class CaloOptInterface(aido.UserInterfaceBase):
@@ -124,11 +129,13 @@ class CaloOptInterface(aido.UserInterfaceBase):
     def reconstruct(self, reco_input_path: str, reco_output_path: str, is_validation: bool):
         """ Start your reconstruction algorithm from a local container.
         """
-        os.system(
-            f"singularity exec --nv {self.container_extra_flags} {self.container_path} \
-            python3 examples/calo_opt/train.py \
-            {reco_input_path} {reco_output_path} {is_validation} {self.results_dir}"
-        )
+        command = f"singularity exec --nv {self.container_extra_flags} {self.container_path} python3 examples/calo_opt/train.py"
+        output_config = OutputConfig.create_default(self.results_dir, TaskType.RECONSTRUCTION)
+
+        with (self.wandb_logger.get_task_logger(task="reconstruction") if self.wandb_logger else nullcontext()) as subprocess_logger:
+            reconstruction = WandbSubprocessWrapper(command, subprocess_logger, output_config)
+            reconstruction.run(reco_input_path, reco_output_path, is_validation, self.results_dir)
+
         os.system("rm -f *.pkl")
         return None
 

@@ -1,11 +1,12 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 import torch
 
+from aido.monitoring.logger import WandbLogger
 from aido.simulation_helpers import SimulationParameterDictionary
 
 
@@ -13,6 +14,7 @@ class _UserInterfaceBase(ABC):
 
     def __init__(self) -> None:
         self.results_dir: str | os.PathLike
+        self.wandb_logger: WandbLogger | None
 
     @staticmethod
     def create_surrogate_dataset(
