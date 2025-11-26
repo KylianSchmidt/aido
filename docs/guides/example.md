@@ -7,12 +7,12 @@ This example is based on the existing `calo_opt` project. In order to run these 
  - With `docker`: 
 
     ```bash
-    docker pull jkiesele/minicalosim/7829fde_2
+    docker pull jkiesele/minicalosim/latest
     ``` 
  - With `singularity`/ `apptainer` (useful if you lack root access to the machine, do not have docker installed or do not have permissions):
 
     ```bash
-    apptainer pull docker://jkiesele/minicalosim:7829fde_2
+    apptainer pull docker://jkiesele/minicalosim:latest
     ```
 
 Register the container by adding the path to it to the `CaloOptInterface` class:
