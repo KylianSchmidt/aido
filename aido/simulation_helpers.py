@@ -2,26 +2,25 @@
 The two classes Simulation Parameters and Dictionary are a key component of the interface between
 AIDO and user-defined programs. There are two ingredients:
 
-SimulationParameter:
-    Represents a single parameter with all its features and settings. It has the following properties
+1. **SimulationParameter**: Represents a single parameter with all its features and settings. It has
+   the following properties
     - Name: For unique identification
     - Values: Both a starting value (set by the user) and the current value (as adjusted by the optimizer)
     - Units (optional)
     - Optimizable (optional): Whether this parameter is constant or not
     - Min / Max values (optional but recommended): Constrains the possible values that this parameter
-        can adopt. For example thicknesses cannot be smaller than zero.
+      can adopt. For example thicknesses cannot be smaller than zero.
     - Discrete: Some parameters are categorical and cannot be easily represented by a floating point
-        number. For these cases, the possible values have to be listed in an Iterable from which to
-    choose the current value.
+      number. For these cases, the possible values have to be listed in an Iterable from which to
+      choose the current value.
     - Cost (optional): Use for computing additional penalties
 
-SimulationParameterDictionary:
-    The container that stores multiple SimulationParameters in a dict-style object. It has the following
-    properties and features:
+2. **SimulationParameterDictionary**: The container that stores multiple SimulationParameters in a
+   dict-style object
     - Can be indexed as a list or a dict
     - Converted to list, dict and :class:`pandas.DataFrame`
     - Written and read from and to json files. This feature is important to pass it to non-python
-        programs, e.g. Geant4.
+      programs, e.g. Geant4.
     - Additional metadata about a given training step.
 """
 import copy
